@@ -35,3 +35,17 @@ Proposed account deletion behavior — pending owner approval:
 - Proposed retention: preserve shared conversation documents, messages and chat attachments for the remaining participant.
 - Proposed identity handling: mark the deleted participant in the conversation and replace the remaining participant’s cached inbox identity with “Deleted account.”
 - If approved, deletion is owner-authorized and processed in resumable batches; the trusted backend retains a completion record and audit trail.
+
+
+## Disposable chat-data reset
+
+For the explicitly disposable test project only, the repository includes a guarded cleanup command. It deletes all conversation documents and their message subcollections, both the obsolete root `userChats` layout and per-user inbox entries, message-rate-limit documents, and objects under `chat-images/`. It intentionally leaves Firebase Auth users, public profiles, usernames, block lists and moderation records intact.
+
+Run only after confirming the exact Firebase project and that its chat data is disposable:
+
+```bash
+cd functions
+GCLOUD_PROJECT="your-test-project-id" THIRDWHEEL_CONFIRM_TEST_DATA_RESET="your-test-project-id" npm run reset:test-chat-data -- --project=your-test-project-id
+```
+
+This is a destructive operator command. It has not been run by this change. Never point it at production or a project containing user conversations.
