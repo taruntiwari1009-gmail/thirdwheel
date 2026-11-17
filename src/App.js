@@ -1,26 +1,11 @@
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ProtectedRoute from "./components/ProtectedRoute";
 import "./style.scss";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useContext } from "react";
-import { AuthContext } from "./context/AuthContext";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function App() {
-  const { currentUser, loading } = useContext(AuthContext);
-
-  const ProtectedRoute = ({ children }) => {
-    if (loading) {
-      return <div className="loading">Loading...</div>;
-    }
-
-    if (!currentUser) {
-      return <Navigate to="/login" replace />;
-    }
-
-    return children;
-  };
-
   return (
     <BrowserRouter>
       <Routes>

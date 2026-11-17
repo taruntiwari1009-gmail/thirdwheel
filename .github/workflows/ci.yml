@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - "feature/**"
       - "portfolio/**"
   pull_request:
     branches:
@@ -13,8 +14,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Production build
+  test-and-build:
+    name: Tests and production build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,7 +28,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+
+      - name: Run tests
+        run: npm test -- --watchAll=false
+        env:
+          CI: true
 
       - name: Build application
         run: npm run build
