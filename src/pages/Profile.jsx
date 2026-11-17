@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, addDoc, collection } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase";
@@ -86,16 +87,11 @@ export default function Profile() {
     setActionBusy(true);
     setError("");
     try {
-      await addDoc(collection(db, "reports"), {
-        reporterId: currentUser.uid,
-        targetUid: id,
-        reason,
-        ...(details.trim() ? { details: details.trim().slice(0, 500) } : {}),
-        createdAt: serverTimestamp()
-      });
+      const submitReport = httpsCallable(getFunctions(), "submitReport");
+      await submitReport({ targetUid: id, reason, details: details.trim().slice(0, 500) });
       setReportOpen(false);
       setDetails("");
-      setNotice("Thank you. Your report has been submitted. A trusted moderation review workflow is still being set up.");
+      setNotice("Thank you. Your report has been submitted for review.");
     } catch (reportError) {
       console.error("Unable to submit report:", reportError);
       setError("Your report couldn't be submitted. Please try again.");
