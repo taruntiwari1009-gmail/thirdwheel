@@ -8,7 +8,7 @@ const result = spawnSync(command, [
   "--project",
   "demo-thirdwheel",
   "--only",
-  "auth,firestore,functions",
+  "auth,firestore,functions,storage",
   "npm run test:emulator --prefix functions",
 ], { stdio: "inherit", env: process.env });
 if (result.error) throw result.error;
