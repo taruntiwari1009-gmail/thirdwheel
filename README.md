@@ -53,7 +53,7 @@ The emulator tests cover authenticated profile access, participant-only conversa
 
 ### Current Firestore model
 
-- `users/{uid}`: public profile fields only (`uid`, `displayName`, `photoURL`). Email remains in Firebase Authentication.
+- `publicProfiles/{uid}`: discoverable profile fields only (`uid`, `displayName`, `photoURL`). Email remains in Firebase Authentication; private per-user chat-list data is kept under `users/{uid}/userChats/{chatId}`.
 - `chats/{chatId}`: two immutable participant UIDs and the current embedded `messages` array.
 - `users/{uid}/userChats/{chatId}`: the user's conversation-list entry.
 - `avatars/{uid}/{fileName}`: user-owned avatar objects.
