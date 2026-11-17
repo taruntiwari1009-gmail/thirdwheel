@@ -70,6 +70,7 @@ function chatListFields(other, displayName) {
       },
     },
     date: { timestampValue: new Date().toISOString() },
+    unreadCount: { integerValue: 0 },
   };
 }
 
@@ -290,6 +291,37 @@ await expectDenied(
     mallory.token
   ),
   "non-participant cannot read another user's conversation-list entry"
+);
+
+await expectAllowed(
+  await firestore(
+    "PATCH",
+    `users/${bob.uid}/userChats/${chatId}`,
+    alice.token,
+    { fields: { unreadCount: { integerValue: 1 } } },
+    "?updateMask.fieldPaths=unreadCount"
+  ),
+  "conversation participant can increment the other inbox unread count"
+);
+await expectAllowed(
+  await firestore(
+    "PATCH",
+    `users/${bob.uid}/userChats/${chatId}`,
+    bob.token,
+    { fields: { unreadCount: { integerValue: 0 }, lastReadAt: { timestampValue: new Date().toISOString() } } },
+    "?updateMask.fieldPaths=unreadCount&updateMask.fieldPaths=lastReadAt"
+  ),
+  "inbox owner can clear unread count and update read timestamp"
+);
+await expectDenied(
+  await firestore(
+    "PATCH",
+    `users/${bob.uid}/userChats/${chatId}`,
+    mallory.token,
+    { fields: { unreadCount: { integerValue: 0 } } },
+    "?updateMask.fieldPaths=unreadCount"
+  ),
+  "non-participant cannot alter another inbox unread count"
 );
 
 
