@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { collection, deleteDoc, doc, getDoc, getDocs } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, writeBatch } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase";
@@ -45,7 +45,10 @@ export default function BlockedUsers() {
     setError("");
     setNotice("");
     try {
-      await deleteDoc(doc(db, "users", currentUser.uid, "blockedUsers", user.uid));
+      const batch = writeBatch(db);
+      batch.delete(doc(db, "users", currentUser.uid, "blockedUsers", user.uid));
+      batch.delete(doc(db, "users", user.uid, "blockedBy", currentUser.uid));
+      await batch.commit();
       setBlockedUsers(previous => previous.filter(entry => entry.uid !== user.uid));
       setNotice(`${user.displayName} has been unblocked. You can block them again at any time.`);
     } catch (unblockError) {
