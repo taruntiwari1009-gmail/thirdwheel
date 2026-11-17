@@ -63,7 +63,7 @@ The emulator tests cover authenticated profile access, participant-only conversa
 
 Existing demo data from the older `userChats/{uid}` layout and chat documents without participant metadata is not automatically migrated. Use a fresh demo dataset or perform a separately reviewed migration before testing the new client against an existing Firebase project.
 
-### Run locally
+### Trusted backend\n\nCloud Functions source is in `functions/`. See [Phase 1 setup notes](docs/PHASE_1_TRUST_SAFETY.md) for staging deployment, owner-claim provisioning and App Check configuration. Do not deploy to production without explicit approval.\n\n### Run locally
 
 ```bash
 npm start
