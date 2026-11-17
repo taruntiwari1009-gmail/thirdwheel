@@ -98,7 +98,8 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid == userId;
       allow create: if signedIn() && request.auth.uid == userId && blockedUid != userId
         && request.resource.data.keys().hasOnly(['createdAt'])
-        && request.resource.data.createdAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        && exists(/databases/$(database)/documents/publicProfiles/$(blockedUid));
       allow update: if false;
       allow delete: if signedIn() && request.auth.uid == userId;
     }
