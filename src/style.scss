@@ -926,3 +926,18 @@ button, input, textarea { font: inherit; }
   .chatWelcome h2 { font-size:17px; }
   .chatWelcome p { font-size:10px; }
 }
+
+
+.mobileNav { display:none; }
+@media(max-width:640px) {
+  .home { display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:0; padding:0; }
+  .home .container { flex:1 1 auto; width:100%; height:calc(100dvh - 58px); min-height:0; grid-template-columns:minmax(0,1fr); border:0; border-radius:0; }
+  .home .container.mobile-inbox .chat { display:none; }
+  .home .container.mobile-chat .sidebar { display:none; }
+  .home .container.mobile-inbox .sidebar, .home .container.mobile-chat .chat { display:flex; min-height:0; max-height:none; }
+  .mobileNav { display:flex; flex:0 0 58px; align-items:center; gap:8px; padding:7px 12px; border-top:1px solid var(--tw-border); background:#fff; }
+  .mobileNav button { flex:1; min-height:40px; border:1px solid var(--tw-border); border-radius:10px; background:#fff; color:var(--tw-muted); font-size:12px; font-weight:700; }
+  .mobileNav button.active { border-color:var(--tw-primary); background:var(--tw-lavender); color:var(--tw-primary-dark); }
+  .mobileNav button:disabled { opacity:.4; }
+}
+.attachmentPreview img { width:44px; height:44px; border-radius:8px; object-fit:cover; border:1px solid var(--tw-border); }
