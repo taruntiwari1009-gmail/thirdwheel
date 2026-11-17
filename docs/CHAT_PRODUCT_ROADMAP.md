@@ -16,7 +16,7 @@
 
 ## Baseline
 
-React 18, React Router, Firebase Authentication, Firestore and Storage. Existing capabilities include profiles, people search, real-time one-to-one chat, image attachments, unread counts, blocking and report submission. Messages are stored as individual documents under `chats/{chatId}/messages/{messageId}`; the client listens to the latest 50 messages.
+React 18, React Router, Firebase Authentication, Firestore and Storage. Existing capabilities include profiles, people search, real-time one-to-one chat, image attachments, unread counts, blocking and report submission. Messages are stored as individual documents under `chats/{chatId}/messages/{messageId}`. The client listens to the latest 50 messages and now supports cursor-based retrieval of earlier pages.
 
 Known gaps: moderation operations still need staffing and runbooks; account deletion requires staging validation and a user-facing support process; Storage download URLs are bearer links; production App Check and Firebase rule deployment require separate owner review.
 
@@ -38,7 +38,7 @@ Known gaps: moderation operations still need staffing and runbooks; account dele
 - Implement account deletion as a trusted, retryable workflow that preserves the other participant's data and follows approved retention rules.
 - Prepare App Check in staging; production enforcement is a separate approved action.
 
-**Status:** Block management and Firestore block enforcement are implemented. Trusted report intake, moderator queue/review, owner-controlled role checks, message rate limiting and the owner-approved resumable account-deletion mechanism is implemented on PR #14 and covered by passing CI emulator tests; the retention policy remains proposed pending explicit owner approval. App Check staging validation, moderator provisioning, operational staffing and a production rollout remain outstanding. See [Phase 1 notes](./PHASE_1_TRUST_SAFETY.md).
+**Status:** Block management and Firestore block enforcement are implemented. Trusted report intake, moderator queue/review, owner-controlled role checks and message rate limiting are implemented on PR #14. Account deletion currently supports request intake only; no account data deletion executor exists, and the retention policy remains proposed pending explicit owner approval. App Check staging validation, moderator provisioning, operational staffing and a production rollout remain outstanding. See [Phase 1 notes](./PHASE_1_TRUST_SAFETY.md).
 
 ### Phase 2 — Profiles and people discovery
 - Improve profile editing/preview, people search, query behavior and empty/loading/error states.
@@ -48,7 +48,7 @@ Known gaps: moderation operations still need staffing and runbooks; account dele
 - Improve responsive layouts and accessibility.
 
 ### Phase 3 — Reliable messaging
-- Load older message history on demand with cursor pagination.
+- Load older message history on demand with cursor pagination. **Implemented on PR #14:** deterministic timestamp/document-ID ordering, 50-message cursor pages, deduplication against the live latest page and scroll-position preservation.
 - Add delivery/read boundaries and explicit attachment retry/cleanup.
 - Add cursor pagination, unread boundaries, retry/offline handling and duplicate-send protection.
 - Consider replies, reactions, edit/delete, search, mute and archive with clear rules.
