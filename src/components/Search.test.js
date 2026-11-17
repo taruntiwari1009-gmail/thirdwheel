@@ -89,6 +89,36 @@ describe("Search", () => {
     expect(screen.queryByText("Visible Blocked")).not.toBeInTheDocument();
   });
 
+  test("filters blocked people from later pages and merges duplicate profiles by UID", async () => {
+    const firstPage = Array.from({ length: 30 }, (_, index) => profileDoc({
+      uid: `person-${String(index).padStart(2, "0")}`,
+      displayName: `Person ${String(index).padStart(2, "0")}`,
+      displayNameLower: `person ${String(index).padStart(2, "0")}`,
+      discoverable: true,
+    }));
+    getDocs
+      .mockResolvedValueOnce({ docs: [{ id: "blocked-next-page" }] })
+      .mockResolvedValueOnce({ docs: firstPage })
+      .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [
+        profileDoc({ uid: "blocked-next-page", displayName: "Person blocked", displayNameLower: "person blocked", discoverable: true }),
+        profileDoc({ uid: "person-next-page", displayName: "Person next", displayNameLower: "person next", discoverable: true }),
+        profileDoc({ uid: "person-00", displayName: "Person 00", displayNameLower: "person 00", discoverable: true }),
+      ] });
+
+    renderSearch();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "person" } });
+    expect(await screen.findByText("Person 00")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show more people" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show more people" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show more people" }));
+
+    expect(await screen.findByText("Person next")).toBeInTheDocument();
+    expect(screen.queryByText("Person blocked")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Person 00")).toHaveLength(1);
+  });
+
   test("shows a recoverable message when Firestore search fails", async () => {
     getDocs
       .mockResolvedValueOnce({ docs: [] })
