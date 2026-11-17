@@ -1,4 +1,4 @@
-import { safeExternalUrl } from "./profile";
+import { safeExternalUrl, getProfileInitials } from "./profile";
 
 describe("safeExternalUrl", () => {
   test.each([
@@ -20,5 +20,18 @@ describe("safeExternalUrl", () => {
     42,
   ])("rejects unsafe or invalid URL: %s", input => {
     expect(safeExternalUrl(input)).toBe("");
+  });
+});
+
+describe("getProfileInitials", () => {
+  test.each([
+    ["Tarun Tiwari", "TT"],
+    ["  Palak   Sharma  ", "PS"],
+    ["Single", "S"],
+    ["", "T"],
+    ["   ", "T"],
+    [null, "T"],
+  ])("formats initials for %s", (input, expected) => {
+    expect(getProfileInitials(input)).toBe(expected);
   });
 });
