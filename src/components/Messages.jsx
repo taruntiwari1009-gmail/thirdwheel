@@ -1,5 +1,5 @@
-import { collection, doc, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
-import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { collection, doc, documentId, endBefore, getDocs, limit, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
+import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
 import { db } from "../firebase";
@@ -15,7 +15,11 @@ const dayLabel = value => {
 };
 
 const Messages = () => {
-  const [messages, setMessages] = useState([]);
+  const [latestMessages, setLatestMessages] = useState([]);
+  const [olderMessages, setOlderMessages] = useState([]);
+  const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState("");
   const [deletedParticipants, setDeletedParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,11 +27,29 @@ const Messages = () => {
   const { currentUser } = useContext(AuthContext);
   const listRef = useRef(null);
   const shouldStickToBottom = useRef(true);
+  const oldestDoc = useRef(null);
+  const pendingScrollRestore = useRef(null);
+  const messages = useMemo(() => {
+    const byId = new Map();
+    [...olderMessages, ...latestMessages].forEach(message => byId.set(message.id, message));
+    return Array.from(byId.values()).sort((a, b) => {
+      const left = a.date?.toMillis ? a.date.toMillis() : new Date(a.date || 0).getTime();
+      const right = b.date?.toMillis ? b.date.toMillis() : new Date(b.date || 0).getTime();
+      return left - right || a.id.localeCompare(b.id);
+    });
+  }, [olderMessages, latestMessages]);
 
   useEffect(() => {
-    if (!data.chatId) { setMessages([]); setLoading(false); setError(""); return undefined; }
+    if (!data.chatId) {
+      setLatestMessages([]); setOlderMessages([]); setHasOlder(false);
+      setLoading(false); setLoadingOlder(false); setError(""); setOlderError("");
+      oldestDoc.current = null;
+      return undefined;
+    }
     shouldStickToBottom.current = true;
-    setMessages([]); setLoading(true); setError("");
+    setLatestMessages([]); setOlderMessages([]); setHasOlder(false);
+    setLoading(true); setLoadingOlder(false); setError(""); setOlderError("");
+    oldestDoc.current = null; pendingScrollRestore.current = null;
     const chatRef = doc(db, "chats", data.chatId);
     const stopChat = onSnapshot(chatRef, snapshot => {
       setDeletedParticipants(snapshot.exists() ? snapshot.data().deletedParticipants || [] : []);
@@ -36,7 +58,12 @@ const Messages = () => {
       setError("Conversation details could not be loaded. Check your connection and try again.");
       setLoading(false);
     });
-    const messagesQuery = query(collection(db, "chats", data.chatId, "messages"), orderBy("date", "asc"), limitToLast(50));
+    const messagesQuery = query(
+      collection(db, "chats", data.chatId, "messages"),
+      orderBy("date", "asc"),
+      orderBy(documentId(), "asc"),
+      limitToLast(50)
+    );
     const stopMessages = onSnapshot(messagesQuery, snapshot => {
       setMessages(snapshot.docs.map(messageDoc => ({ id: messageDoc.id, ...messageDoc.data() })));
       setLoading(false); setError("");
