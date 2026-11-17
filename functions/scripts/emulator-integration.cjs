@@ -57,7 +57,16 @@ async function call(name, token, data = {}) {
 }
 
 function expectCallableError(result, status) {
-  assert.equal(result.status, 200, JSON.stringify(result.body));
+  const httpStatusByCode = {
+    INVALID_ARGUMENT: 400,
+    UNAUTHENTICATED: 401,
+    PERMISSION_DENIED: 403,
+    NOT_FOUND: 404,
+    ALREADY_EXISTS: 409,
+    RESOURCE_EXHAUSTED: 429,
+    FAILED_PRECONDITION: 400,
+  };
+  assert.equal(result.status, httpStatusByCode[status] || 200, JSON.stringify(result.body));
   assert.equal(result.body.error?.status, status, JSON.stringify(result.body));
 }
 
