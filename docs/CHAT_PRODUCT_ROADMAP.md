@@ -2,7 +2,7 @@
 
 **Direction:** A polished, privacy-conscious one-to-one chatting app.  
 **Quality bar:** Reliability, safety, privacy, accessibility and a coherent user experience.  
-**Working branch:** `fix/netlify-ci-lint-pr13`. Netlify remains disabled; no production deployment or merge is authorized.
+**Working branch:** `fix/netlify-ci-lint-pr13`. PR #14 remains open and draft. Netlify, production deployment and merging are not authorized.
 
 ## Product principles
 
@@ -14,64 +14,72 @@
 6. No manipulative engagement: no streaks, pressure timers or artificial urgency.
 7. Quality before breadth: tests, accessibility, responsive review and security verification gate each phase.
 
-## Baseline
+## Current verified baseline
 
-React 18, React Router, Firebase Authentication, Firestore and Storage. Existing capabilities include profiles, people search, real-time one-to-one chat, image attachments, unread counts, blocking and report submission. Messages are stored as individual documents under `chats/{chatId}/messages/{messageId}`. The client listens to the latest 50 messages and now supports cursor-based retrieval of earlier pages.
+React 18, React Router, Firebase Authentication, Firestore and Storage. The client supports profiles, paginated people search, real-time one-to-one chat, image attachments, unread counts, block management and report submission. Messages are individual documents under `chats/{chatId}/messages/{messageId}`; the UI listens to the latest 50 and can retrieve older pages using a timestamp/document-ID cursor.
 
-Known gaps: moderation operations still need staffing and runbooks; account deletion requires staging validation and a user-facing support process; Storage download URLs are bearer links; production App Check and Firebase rule deployment require separate owner review.
+The PR head has passing CI at the time of this roadmap update. This is emulator/CI evidence only, not production validation.
 
-## Phases
+## Workstreams
 
-### Phase 0 — Data and privacy foundations
-- Document profile, inbox, conversation and media collections.
-- Separate public profile fields from private account/inbox data.
-- Define participant, authorship and block invariants.
-- Document report access, moderation audit and retention.
-- Define account deletion/export expectations before destructive workflows.
-- Retire the old embedded-message array and legacy inbox layout; disposable test records are not migrated.
+### 1. Product foundation and visual experience
+- Complete screen-by-screen review of login, registration, chat list, active conversation, discovery, profile, edit profile, blocked users, moderator dashboard, empty/error/loading states and navigation.
+- Bring ordinary application screens to the visual quality of the account-creation screen while retaining the lavender/pink identity.
+- Verify desktop, tablet and narrow mobile layouts; remove inert controls and inconsistent components.
 
-### Phase 1 — Trust, safety and account controls
-- Maintain block/unblock controls and enforce blocks in both directions.
-- Route reports through trusted server functions; keep reports private from ordinary clients.
-- Provide moderator-only queue, status changes, notes, escalation and audit history.
-- Add abuse throttles and idempotency to sensitive actions.
-- Implement account deletion as a trusted, retryable workflow that preserves the other participant's data and follows approved retention rules.
-- Prepare App Check in staging; production enforcement is a separate approved action.
+**Status:** Shared styling and several screens have been improved. A complete visual audit and responsive acceptance pass remain.
 
-**Status:** Block management and Firestore block enforcement are implemented. Trusted report intake, moderator queue/review, owner-controlled role checks and message rate limiting are implemented on PR #14. Account deletion currently supports request intake only; no account data deletion executor exists, and the retention policy remains proposed pending explicit owner approval. App Check staging validation, moderator provisioning, operational staffing and a production rollout remain outstanding. See [Phase 1 notes](./PHASE_1_TRUST_SAFETY.md).
+### 2. Discovery
+- Name/username search, cursor pagination and bounded result sets are implemented.
+- Search reads both `blockedUsers` and `blockedBy` indexes and filters either direction.
+- Block/unblock operations maintain reciprocal index documents transactionally; Firestore rules enforce the relationship for protected actions.
 
-### Phase 2 — Profiles and people discovery
-- Improve profile editing/preview, people search, query behavior and empty/loading/error states.
-- Add filters only for fields users intentionally share.
-- Add pagination and bounded queries.
-- Apply block and discoverability preferences consistently.
-- Improve responsive layouts and accessibility.
+**Remaining:** Verify profile visibility changes, blocked-user edge cases, pagination under concurrent profile changes, and screen-reader/keyboard behavior.
 
-### Phase 3 — Reliable messaging
-- Load older message history on demand with cursor pagination. **Implemented on PR #14:** deterministic timestamp/document-ID ordering, 50-message cursor pages, deduplication against the live latest page and scroll-position preservation.
-- Add delivery/read boundaries and explicit attachment retry/cleanup.
-- Add cursor pagination, unread boundaries, retry/offline handling and duplicate-send protection.
-- Consider replies, reactions, edit/delete, search, mute and archive with clear rules.
-- Replace bearer-link assumptions before treating media as private.
-- Add push notifications only with consent and platform configuration.
+### 3. Messaging
+- Implemented: separate message documents, latest-50 real-time listener, older-history cursor pagination, stable timestamp/document-ID ordering, deduplication, and scroll-position preservation.
+- Implemented: inbox unread count reset on opening a conversation.
 
-### Phase 4 — Conversation experience
-- Refine chat layout, composer, attachment previews and message grouping.
-- Improve keyboard, screen-reader and reduced-motion support.
-- Add user-controlled notification settings and clear delivery/offline states.
-- Review long-chat and media-heavy performance.
+**Remaining:** Explicit per-message delivery/read states; idempotent send/retry behavior across ambiguous network failures; durable offline recovery; attachment progress/cancel/retry/cleanup; authenticated media reads (the UI currently renders tokenized Firebase download URLs); and end-to-end verification of message ordering and unread boundaries.
 
-### Phase 5 — Optional community enhancements
-- Consider group conversations or interest spaces as separate product decisions.
-- Keep optional features dismissible, privacy-aware and non-manipulative.
+### 4. Profiles and settings
+- Profile editing, discovery visibility, block management and profile presentation exist.
 
-### Phase 6 — Launch readiness
-- Add error monitoring and non-sensitive logs.
-- Add backup/restore and incident runbooks.
-- Review costs, indexes, quotas and query patterns.
-- Complete security, privacy, accessibility and abuse-case reviews.
-- Validate deletion, retention and support escalation.
-- Use staged rollout and a tested rollback plan.
+**Remaining:** Audit all settings and privacy paths, account security flows, notification preferences if supported, validation/error states, data export expectations and account lifecycle UX.
+
+### 5. Trust and safety
+- Implemented in trusted Functions: report intake, validation, daily throttling, moderation case creation, moderator case listing/review, audit records and owner-controlled moderator claims.
+- Implemented: block enforcement in chat creation/message writes and a reciprocal discovery index.
+- Implemented in backend code and emulator integration tests: owner-approved, resumable account deletion. It removes the account's own inbox entries, public profile, username reservation, own block list, message throttle, avatar files and Auth account; it retains shared chat history/media and labels the deleted participant.
+
+**Remaining:** Review deletion edge cases and partial failures; specify retention/legal exceptions and support process; inspect moderator dashboard end-to-end; establish moderator staffing/runbooks; validate rate limits and abuse scenarios. Deletion has not been run against a live account.
+
+### 6. Security and infrastructure
+- Firestore and Storage rules, indexes, Functions and emulator tests are version-controlled.
+- Rules/Functions are not deployed to the live Firebase project.
+- App Check initialization is optional; callable enforcement is controlled by `ENFORCE_APPCHECK`.
+
+**Remaining:** Authenticated private-media delivery, App Check staging configuration/verification, review of every callable and Storage path, secrets/configuration review, index/query review, and deployment documentation. Production enforcement is a separately approved owner action.
+
+### 7. Quality
+- CI currently runs application tests/build, trusted Functions unit/integration tests, and Firebase Emulator security tests.
+- CI evidence does not replace manual visual review, real-device accessibility review or a production-like staging assessment.
+
+**Remaining:** Full accessibility audit (keyboard, focus, contrast, screen reader, reduced motion), responsive viewport matrix, security threat review, offline/online recovery tests, attachment edge cases and expanded integration coverage.
+
+### 8. Release readiness
+- Prepare data-model/reset and migration implications, staging runbooks, backup/restore and incident response, privacy/retention decisions, monitoring, cost/index review, release checklist and rollback plan.
+- Any staging or production operation must be explicitly scoped and approved. No production testing, Firebase deployment, Netlify access or merge is included in this completion effort.
+
+## Priority execution order
+
+1. Complete visual redesign and audit all primary screens.
+2. Close core messaging reliability gaps, then secure media delivery.
+3. Complete settings/privacy/account lifecycle review and deletion edge-case tests.
+4. Harden moderation operations and App Check readiness.
+5. Run accessibility, responsive and security reviews.
+6. Produce release and rollback documentation.
 
 ## Explicitly out of scope
-Dating profiles, likes, passes, matches, relationship-intent discovery and dating age-verification workflows. Production Firebase deployment, Netlify reactivation, direct `main` pushes and PR merge remain explicit owner-approved actions.
+
+Dating profiles, likes, passes, matches, relationship-intent discovery, dating verification, Netlify, production deployment, live data reset/migration, direct `main` pushes and PR merge.
