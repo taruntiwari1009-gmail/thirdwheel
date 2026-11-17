@@ -47,6 +47,15 @@ service cloud.firestore {
         && participants[0] != participants[1]
         && chatId == (participants[0] < participants[1] ? participants[0] + participants[1] : participants[1] + participants[0]);
     }
+    function validMessageRateLimit() {
+      let limitPath = /databases/$(database)/documents/abuseLimits/messages_$(request.auth.uid);
+      let limit = getAfter(limitPath).data;
+      return limit.uid == request.auth.uid
+        && limit.updatedAt == request.time
+        && limit.count is int
+        && limit.count >= 1
+        && limit.count <= 8;
+    }
     function validMessage(message) {
       return message is map && message.keys().hasOnly(['id','text','senderId','date','img'])
         && message.keys().hasAll(['id','text','senderId','date'])
