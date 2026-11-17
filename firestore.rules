@@ -57,14 +57,16 @@ service cloud.firestore {
         && limit.count >= 1
         && limit.count <= 8;
     }
-    function validMessage(message) {
-      return message is map && message.keys().hasOnly(['id','text','senderId','date','img'])
-        && message.keys().hasAll(['id','text','senderId','date'])
-        && message.id is string && message.id.size() > 0 && message.id.size() <= 128
-        && message.text is string && message.text.size() <= 4000
-        && message.senderId == request.auth.uid && message.date is timestamp
-        && (!('img' in message) || (message.img is string && message.img.size() <= 2048))
-        && (message.text.size() > 0 || ('img' in message));
+    function validMessage(messageId) {
+      return request.resource.data.keys().hasOnly(['id','text','senderId','date','img'])
+        && request.resource.data.keys().hasAll(['id','text','senderId','date'])
+        && request.resource.data.id == messageId
+        && request.resource.data.id is string && request.resource.data.id.size() > 0 && request.resource.data.id.size() <= 128
+        && request.resource.data.text is string && request.resource.data.text.size() <= 4000
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.date is timestamp
+        && (!('img' in request.resource.data) || (request.resource.data.img is string && request.resource.data.img.size() <= 2048))
+        && (request.resource.data.text.size() > 0 || ('img' in request.resource.data));
     }
     function validChatListEntry(userId, chatId) {
       let chat = getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
@@ -165,17 +167,20 @@ service cloud.firestore {
       allow create: if signedIn() && validChatId(chatId,request.resource.data.participants)
         && request.resource.data.participants.hasAny([request.auth.uid])
         && !isBlockedBetween(request.resource.data.participants[0],request.resource.data.participants[1])
-        && request.resource.data.keys().hasOnly(['participants','messages'])
-        && request.resource.data.messages is list && request.resource.data.messages.size() == 0;
-      allow update: if signedIn() && resource.data.participants.hasAny([request.auth.uid])
-        && !isBlockedBetween(resource.data.participants[0],resource.data.participants[1])
-        && request.resource.data.participants == resource.data.participants
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
-        && request.resource.data.messages is list && request.resource.data.messages.size() == resource.data.messages.size()+1
-        && request.resource.data.messages.hasAll(resource.data.messages)
-        && validMessage(request.resource.data.messages[request.resource.data.messages.size()-1])
-        && validMessageRateLimit();
-      allow delete: if false;
+        && request.resource.data.keys().hasOnly(['participants']);
+      allow update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isChatParticipant(chatId);
+        allow create: if isChatParticipant(chatId)
+          && !isBlockedBetween(
+            get(/databases/$(database)/documents/chats/$(chatId)).data.participants[0],
+            get(/databases/$(database)/documents/chats/$(chatId)).data.participants[1]
+          )
+          && validMessage(messageId)
+          && validMessageRateLimit();
+        allow update, delete: if false;
+      }
     }
   }
 }
