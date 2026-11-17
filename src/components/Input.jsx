@@ -69,7 +69,11 @@ const Input = () => {
           imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
         } catch (uploadError) {
           console.error("Image upload failed:", uploadError);
-          throw new Error("Image uploads are currently unavailable. You can still send text messages.");
+          // Remove the failed attachment so the user can still send the text.
+          setImg(null);
+          const fileInput = document.getElementById("file");
+          if (fileInput) fileInput.value = "";
+          throw new Error("Image upload is unavailable. The attachment was removed; send your text again.");
         }
       }
 
