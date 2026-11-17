@@ -9,3 +9,9 @@ export const safeExternalUrl = value => {
     return "";
   }
 };
+
+export const getProfileInitials = value => {
+  if (typeof value !== "string") return "T";
+  const initials = value.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+  return initials || "T";
+};
