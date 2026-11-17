@@ -198,133 +198,46 @@ await expectDenied(
 );
 
 const chatId = [alice.uid, bob.uid].sort().join("");
-const invalidChat = await firestore("POST", `chats?documentId=not-the-sorted-chat-id`, alice.token, {
-  fields: {
-    participants: {
-      arrayValue: { values: [alice.uid, bob.uid].sort().map((uid) => ({ stringValue: uid })) },
-    },
-    messages: { arrayValue: { values: [] } },
-  },
+const invalidChat = await firestore("POST", "chats?documentId=not-the-sorted-chat-id", alice.token, {
+  fields: { participants: { arrayValue: { values: [alice.uid, bob.uid].sort().map(uid => ({ stringValue: uid })) } } },
 });
 await expectDenied(invalidChat, "conversation ID must match its two participants");
 
-const createChat = await firestore("POST", `chats?documentId=${chatId}`, alice.token, {
-  fields: {
-    participants: {
-      arrayValue: { values: [alice.uid, bob.uid].sort().map((uid) => ({ stringValue: uid })) },
-    },
-    messages: { arrayValue: { values: [] } },
-  },
+const createChat = await firestore("POST", "chats?documentId=" + chatId, alice.token, {
+  fields: { participants: { arrayValue: { values: [alice.uid, bob.uid].sort().map(uid => ({ stringValue: uid })) } } },
 });
 await expectAllowed(createChat, "participant creates a two-person conversation");
+await expectAllowed(await firestore("GET", "chats/" + chatId, bob.token), "conversation participant reads conversation");
+await expectDenied(await firestore("GET", "chats/" + chatId, mallory.token), "non-participant cannot read conversation");
 
-await expectAllowed(
-  await firestore("GET", `chats/${chatId}`, bob.token),
-  "conversation participant reads conversation"
-);
-await expectDenied(
-  await firestore("GET", `chats/${chatId}`, mallory.token),
-  "non-participant cannot read conversation"
-);
-
-const timestamp = new Date().toISOString();
-const message = {
-  mapValue: {
-    fields: {
-      id: { stringValue: "message-1" },
-      text: { stringValue: "Hello from Alice" },
-      senderId: { stringValue: alice.uid },
-      date: { timestampValue: timestamp },
-    },
-  },
-};
-const rateLimitPath = `abuseLimits/messages_${alice.uid}`;
-const appendWithoutLimit = await firestore(
-  "PATCH",
-  `chats/${chatId}`,
-  alice.token,
-  { fields: { messages: { arrayValue: { values: [message] } } } },
-  "?updateMask.fieldPaths=messages"
-);
-await expectDenied(appendWithoutLimit, "message append requires an atomic rate-limit update");
-
-async function appendMessageWithLimit(nextMessage, count) {
-  const messageFields = {
-    mapValue: {
-      fields: {
-        id: { stringValue: nextMessage.id },
-        text: { stringValue: nextMessage.text },
-        senderId: { stringValue: alice.uid },
-        date: { timestampValue: new Date().toISOString() },
-      },
-    },
-  };
-  const chatWrite = updateWrite(`chats/${chatId}`, {
-    messages: { arrayValue: { values: [...(count === 1 ? [] : []), messageFields] } },
-  }, ["messages"]);
-  // Read the existing message array so the REST commit mirrors arrayUnion semantics.
-  const chatSnapshot = await firestore("GET", `chats/${chatId}`, alice.token);
-  const chatData = await chatSnapshot.json();
-  const existing = chatData.fields?.messages?.arrayValue?.values || [];
-  chatWrite.update.fields.messages.arrayValue.values = [...existing, messageFields];
-  const limitFields = {
-    uid: { stringValue: alice.uid },
-    count: { integerValue: count },
-  };
+async function createMessageWithLimit(id, count, token = alice.token, uid = alice.uid) {
+  const messagePath = "chats/" + chatId + "/messages/" + id;
+  const messageWrite = updateWrite(messagePath, {
+    id: { stringValue: id }, text: { stringValue: "Message " + count },
+    senderId: { stringValue: uid }, date: { timestampValue: new Date().toISOString() },
+  }, null, { exists: false });
+  const limitPath = "abuseLimits/messages_" + uid;
   const limitWrite = {
-    update: {
-      name: `projects/${PROJECT_ID}/databases/(default)/documents/${rateLimitPath}`,
-      fields: limitFields,
-    },
-    updateTransforms: [
-      { fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" },
-      ...(count === 1 ? [{ fieldPath: "windowStart", setToServerValue: "REQUEST_TIME" }] : []),
-    ],
+    update: { name: "projects/" + PROJECT_ID + "/databases/(default)/documents/" + limitPath, fields: { uid: { stringValue: uid }, count: { integerValue: count } } },
+    updateTransforms: [{ fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" }, ...(count === 1 ? [{ fieldPath: "windowStart", setToServerValue: "REQUEST_TIME" }] : [])],
     ...(count === 1 ? { currentDocument: { exists: false } } : {}),
   };
   if (count > 1) {
-    const limitSnapshot = await firestore("GET", rateLimitPath, alice.token);
-    const limitData = await limitSnapshot.json();
-    limitWrite.update.fields.windowStart = limitData.fields.windowStart;
+    const prior = await (await firestore("GET", limitPath, token)).json();
+    limitWrite.update.fields.windowStart = prior.fields.windowStart;
   }
-  return commit([chatWrite, limitWrite], alice.token);
+  return commit([messageWrite, limitWrite], token);
 }
-await expectAllowed(
-  await appendMessageWithLimit({ id: "message-1", text: "Hello from Alice" }, 1),
-  "participant appends a message with an atomic rate-limit counter"
-);
-for (let count = 2; count <= 8; count++) {
-  await expectAllowed(
-    await appendMessageWithLimit({ id: `message-${count}`, text: `Message ${count}` }, count),
-    `message ${count} stays within the per-minute limit`
-  );
+await expectDenied(await firestore("POST", "chats/" + chatId + "/messages?documentId=unthrottled", alice.token, {
+  fields: { id: { stringValue: "unthrottled" }, text: { stringValue: "No limiter" }, senderId: { stringValue: alice.uid }, date: { timestampValue: new Date().toISOString() } },
+}), "message creation requires an atomic rate-limit update");
+for (let count = 1; count <= 8; count++) {
+  await expectAllowed(await createMessageWithLimit("message-" + count, count), "message " + count + " is allowed within the per-minute limit");
 }
-await expectDenied(
-  await appendMessageWithLimit({ id: "message-9", text: "Too many messages" }, 9),
-  "ninth message within the same minute is denied"
-);
-
-const forgedMessage = {
-  mapValue: {
-    fields: {
-      id: { stringValue: "forged-message" },
-      text: { stringValue: "I am Alice" },
-      senderId: { stringValue: bob.uid },
-      date: { timestampValue: new Date().toISOString() },
-    },
-  },
-};
-await expectDenied(
-  await firestore(
-    "PATCH",
-    `chats/${chatId}`,
-    alice.token,
-    { fields: { messages: { arrayValue: { values: [message, forgedMessage] } } } },
-    "?updateMask.fieldPaths=messages"
-  ),
-  "participant cannot forge another sender's UID"
-);
-
+await expectDenied(await createMessageWithLimit("message-9", 9), "ninth message in the same minute is denied");
+await expectDenied(await firestore("POST", "chats/" + chatId + "/messages?documentId=forged-message", alice.token, {
+  fields: { id: { stringValue: "forged-message" }, text: { stringValue: "Spoofed sender" }, senderId: { stringValue: bob.uid }, date: { timestampValue: new Date().toISOString() } },
+}), "participant cannot forge another sender UID");
 await expectAllowed(
   await firestore(
     "POST",
@@ -444,33 +357,9 @@ await expectDenied(
   "likes remain server-authoritative until abuse controls exist"
 );
 await expectDenied(
-  await firestore(
-    "PATCH",
-    `chats/${chatId}`,
-    bob.token,
-    {
-      fields: {
-        messages: {
-          arrayValue: {
-            values: [
-              message,
-              {
-                mapValue: {
-                  fields: {
-                    id: { stringValue: "blocked-message" },
-                    text: { stringValue: "This should not send" },
-                    senderId: { stringValue: bob.uid },
-                    date: { timestampValue: new Date().toISOString() },
-                  },
-                },
-              },
-            ],
-          },
-        },
-      },
-    },
-    "?updateMask.fieldPaths=messages"
-  ),
+  await firestore("POST", "chats/" + chatId + "/messages?documentId=blocked-message", bob.token, {
+    fields: { id: { stringValue: "blocked-message" }, text: { stringValue: "This should not send" }, senderId: { stringValue: bob.uid }, date: { timestampValue: new Date().toISOString() } },
+  }),
   "blocked participants cannot exchange new messages"
 );
 await expectDenied(
