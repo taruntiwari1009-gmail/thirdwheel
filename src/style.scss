@@ -1204,3 +1204,40 @@ body { background: #fbf7fb; color: var(--tw-ink); }
 }
 .olderMessagesControl .secondaryAction:hover:not(:disabled) { background: var(--tw-lavender-soft); }
 .olderMessagesControl .secondaryAction:disabled { opacity: .65; cursor: wait; }
+
+
+/* Messaging completion: secure attachment states, visible receipts and touch-friendly controls. */
+.messageReceipt {
+  display: inline-flex;
+  align-self: flex-end;
+  margin-top: -2px;
+  color: #94899d;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .01em;
+}
+.messageReceipt.seen { color: var(--tw-rose-dark); }
+.attachmentLoadState {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px dashed #d9cddd;
+  border-radius: 10px;
+  background: #fffafd;
+  color: var(--tw-muted);
+  font-size: 11px;
+}
+.olderMessagesControl { display:flex; justify-content:center; padding:0 0 18px; }
+.olderMessagesControl .secondaryAction { min-height:36px; padding:7px 12px; }
+.home .container .chat .messages .message .messageContent { min-width:0; }
+.home .container .chat .messages .message .messageContent > a { display:block; max-width:100%; }
+.home .container .chat .messages .message .messageContent img { display:block; }
+.home .container .chat .input .attachmentPreview { min-width:0; flex-wrap:wrap; }
+.home .container .chat .input .attachmentPreview span { overflow-wrap:anywhere; }
+button:disabled, input:disabled, select:disabled, textarea:disabled { cursor:not-allowed; }
+@media (max-width: 640px) {
+  .home .container .chat .messages .message .messageContent { max-width: min(86%, 440px); }
+  .home .container .chat .input > input[type="text"] { font-size:16px; }
+  .home .container .chat .input .send button { min-width:66px; }
+}
