@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 
 const PROJECT_ID = "demo-thirdwheel";
 const BUCKET = `${PROJECT_ID}.appspot.com`;
@@ -36,6 +37,9 @@ function profileFields(uid, displayName) {
   return {
     uid: { stringValue: uid },
     displayName: { stringValue: displayName },
+    displayNameLower: { stringValue: displayName.toLowerCase() },
+    discoverable: { booleanValue: true },
+    pronouns: { stringValue: "" },
     photoURL: { stringValue: "https://example.test/avatar.png" },
   };
 }
@@ -69,23 +73,6 @@ function chatListFields(other, displayName) {
   };
 }
 
-async function upload(path, token, contentType = "image/png", bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) {
-  return fetch(`${STORAGE_URL}?uploadType=media&name=${encodeURIComponent(path)}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": contentType,
-    },
-    body: bytes,
-  });
-}
-
-async function download(path, token) {
-  return fetch(`${STORAGE_URL}/${encodeURIComponent(path)}?alt=media`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
 async function expectAllowed(response, label) {
   assert.equal(response.ok, true, `${label} should be allowed, got ${response.status}: ${await response.text()}`);
 }
@@ -104,6 +91,89 @@ await expectDenied(
 );
 await expectAllowed(await createProfile(alice, "Alice"), "owner creates public profile");
 await expectAllowed(await createProfile(bob, "Bob"), "second user creates public profile");
+
+const usernameReservation = (uid) => ({
+  uid: { stringValue: uid },
+  createdAt: { timestampValue: new Date().toISOString() },
+});
+async function commit(writes, token = alice.token) {
+  return fetch(`${FIRESTORE_URL}:commit`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify({ writes }),
+  });
+}
+function updateWrite(path, fields, updateMask, currentDocument) {
+  return {
+    update: {
+      name: `projects/${PROJECT_ID}/databases/(default)/documents/${path}`,
+      fields,
+    },
+    ...(updateMask ? { updateMask: { fieldPaths: updateMask } } : {}),
+    ...(currentDocument ? { currentDocument } : {}),
+  };
+}
+const usernamePath = (username) => `usernames/${username}`;
+const profilePath = (uid) => `publicProfiles/${uid}`;
+const usernameFields = (uid) => usernameReservation(uid);
+const aliceUsername = "alice_unique";
+const aliceUsernameRef = updateWrite(usernamePath(aliceUsername), usernameFields(alice.uid), null, { exists: false });
+const aliceProfileUsername = updateWrite(profilePath(alice.uid), {
+  username: { stringValue: aliceUsername },
+}, ["username"]);
+await expectAllowed(
+  await commit([aliceUsernameRef, aliceProfileUsername]),
+  "username reservation and profile claim succeed atomically"
+);
+await expectDenied(
+  await firestore("PATCH", usernamePath(aliceUsername), bob.token, {
+    fields: usernameFields(bob.uid),
+  }),
+  "another user cannot reserve an already claimed username"
+);
+await expectDenied(
+  await firestore("POST", "usernames", bob.token, {
+    fields: usernameFields(bob.uid),
+  }, "?documentId=Invalid_Name"),
+  "username reservation IDs must be lowercase and valid"
+);
+await expectDenied(
+  await commit([updateWrite(profilePath(bob.uid), {
+    username: { stringValue: "unreserved_name" },
+  }, ["username"])]),
+  "profile cannot claim a username without a reservation"
+);
+await expectDenied(
+  await commit([updateWrite("usernames/bob_spoof", usernameFields(alice.uid), null, { exists: false }),
+    updateWrite(profilePath(bob.uid), { username: { stringValue: "bob_spoof" } }, ["username"])], bob.token),
+  "username reservation cannot be attached to a different user's profile"
+);
+await expectDenied(
+  await firestore("DELETE", usernamePath(aliceUsername), alice.token),
+  "owner cannot release a username while profile still claims it"
+);
+const renamedUsername = "alice_renamed";
+await expectAllowed(
+  await commit([
+    { delete: `projects/${PROJECT_ID}/databases/(default)/documents/${usernamePath(aliceUsername)}` },
+    updateWrite(usernamePath(renamedUsername), usernameFields(alice.uid), null, { exists: false }),
+    updateWrite(profilePath(alice.uid), { username: { stringValue: renamedUsername } }, ["username"]),
+  ]),
+  "username change atomically releases old reservation and claims new one"
+);
+await expectDenied(
+  await firestore("GET", usernamePath(aliceUsername), alice.token),
+  "released username reservation no longer exists"
+);
+await expectDenied(
+  await firestore("PATCH", `publicProfiles/${alice.uid}`, alice.token, {
+    fields: {
+      ...profileFields(alice.uid, "Alice Updated"),
+      displayNameLower: { stringValue: "not-alice" },
+    },
+  }, "?updateMask.fieldPaths=displayName&updateMask.fieldPaths=displayNameLower"),
+  "normalized display name must match the public display name"
+);
 await expectAllowed(
   await firestore("GET", `publicProfiles/${bob.uid}`, alice.token),
   "authenticated user reads public profile"
@@ -222,33 +292,24 @@ await expectDenied(
   "non-participant cannot read another user's conversation-list entry"
 );
 
-await expectAllowed(
-  await upload(`avatars/${alice.uid}/avatar.png`, alice.token),
-  "owner uploads own avatar"
+
+const storageTests = spawnSync(
+  process.platform === "win32" ? "npm.cmd" : "npm",
+  ["test", "--", "--watchAll=false", "--runInBand", "src/firebase/storageRules.test.js"],
+  {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      CI: "true",
+      STORAGE_TEST_ALICE_UID: alice.uid,
+      STORAGE_TEST_BOB_UID: bob.uid,
+      STORAGE_TEST_MALLORY_UID: mallory.uid,
+      STORAGE_TEST_CHAT_ID: chatId,
+    },
+  }
 );
-await expectDenied(
-  await upload(`avatars/${bob.uid}/avatar.png`, alice.token),
-  "user cannot upload another user's avatar"
-);
-await expectAllowed(
-  await upload(`chat-images/${chatId}/${alice.uid}/image.png`, alice.token),
-  "participant uploads chat image"
-);
-await expectDenied(
-  await download(`chat-images/${chatId}/${alice.uid}/image.png`, mallory.token),
-  "non-participant cannot download chat image"
-);
-await expectDenied(
-  await upload(`chat-images/${chatId}/${mallory.uid}/image.png`, mallory.token),
-  "non-participant cannot upload chat image"
-);
-await expectDenied(
-  await upload(`avatars/${alice.uid}/not-an-image.txt`, alice.token, "text/plain"),
-  "non-image upload is rejected"
-);
-await expectDenied(
-  await upload(`avatars/${alice.uid}/oversized.png`, alice.token, "image/png", Buffer.alloc(5 * 1024 * 1024 + 1)),
-  "oversized image upload is rejected"
-);
+if (storageTests.error) throw storageTests.error;
+assert.equal(storageTests.status, 0, "Firebase Storage SDK security tests must pass");
+
 
 console.log("Firebase Emulator Security Tests: all allowed and denied cases passed.");

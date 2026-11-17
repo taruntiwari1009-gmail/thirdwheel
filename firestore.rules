@@ -1,64 +1,72 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
+    function signedIn() { return request.auth != null; }
     function isChatParticipant(chatId) {
       return signedIn()
         && exists(/databases/$(database)/documents/chats/$(chatId))
         && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
     }
-
-    function validPublicProfile(userId) {
-      return request.resource.data.keys().hasOnly(['uid', 'displayName', 'photoURL'])
-        && request.resource.data.keys().hasAll(['uid', 'displayName', 'photoURL'])
-        && request.resource.data.uid == userId
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.displayName is string
-        && request.resource.data.displayName.size() > 0
-        && request.resource.data.displayName.size() <= 80
-        && request.resource.data.photoURL is string
-        && request.resource.data.photoURL.size() <= 2048;
+    function validStringList(value, maxItems) {
+      return value is list && value.size() <= maxItems && value.toSet().size() == value.size();
     }
-
+    function validPublicProfile(userId) {
+      return request.resource.data.keys().hasOnly([
+        'uid','username','displayName','displayNameLower','photoURL','discoverable','pronouns','bio','interests','hobbies',
+        'languages','education','institution','graduationYear','city','connectionGoals',
+        'website','instagram','linkedin'
+      ])
+      && request.resource.data.keys().hasAll(['uid','displayName','displayNameLower','photoURL'])
+      && request.resource.data.uid == userId
+      && request.resource.data.uid == request.auth.uid
+      && (!('username' in request.resource.data) || (request.resource.data.username is string && (request.resource.data.username == '' || request.resource.data.username.matches('^[a-z0-9_.]{3,24}$'))))
+      && (!('discoverable' in request.resource.data) || request.resource.data.discoverable is bool)
+      && (!('username' in request.resource.data) || request.resource.data.username == '' || getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == userId)
+      && (!('pronouns' in request.resource.data) || (request.resource.data.pronouns is string && request.resource.data.pronouns.size() <= 40))
+      && request.resource.data.displayName is string
+      && request.resource.data.displayName.size() > 0
+      && request.resource.data.displayName.size() <= 80
+      && request.resource.data.displayNameLower == request.resource.data.displayName.lower()
+      && request.resource.data.photoURL is string
+      && request.resource.data.photoURL.size() <= 2048
+      && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300))
+      && (!('education' in request.resource.data) || (request.resource.data.education is string && request.resource.data.education.size() <= 100))
+      && (!('institution' in request.resource.data) || (request.resource.data.institution is string && request.resource.data.institution.size() <= 120))
+      && (!('graduationYear' in request.resource.data) || (request.resource.data.graduationYear is string && request.resource.data.graduationYear.size() <= 4))
+      && (!('city' in request.resource.data) || (request.resource.data.city is string && request.resource.data.city.size() <= 80))
+      && (!('website' in request.resource.data) || (request.resource.data.website is string && request.resource.data.website.size() <= 300))
+      && (!('instagram' in request.resource.data) || (request.resource.data.instagram is string && request.resource.data.instagram.size() <= 300))
+      && (!('linkedin' in request.resource.data) || (request.resource.data.linkedin is string && request.resource.data.linkedin.size() <= 300))
+      && (!('interests' in request.resource.data) || validStringList(request.resource.data.interests,20))
+      && (!('hobbies' in request.resource.data) || validStringList(request.resource.data.hobbies,20))
+      && (!('languages' in request.resource.data) || validStringList(request.resource.data.languages,20))
+      && (!('connectionGoals' in request.resource.data) || validStringList(request.resource.data.connectionGoals,20));
+    }
     function validChatId(chatId, participants) {
-      return participants is list
-        && participants.size() == 2
-        && participants[0] is string
-        && participants[1] is string
+      return participants is list && participants.size() == 2
+        && participants[0] is string && participants[1] is string
         && participants[0] != participants[1]
         && chatId == (participants[0] < participants[1]
-          ? participants[0] + participants[1]
-          : participants[1] + participants[0]);
+          ? participants[0] + participants[1] : participants[1] + participants[0]);
     }
-
     function validMessage(message) {
       return message is map
-        && message.keys().hasOnly(['id', 'text', 'senderId', 'date', 'img'])
-        && message.keys().hasAll(['id', 'text', 'senderId', 'date'])
-        && message.id is string
-        && message.id.size() > 0
-        && message.id.size() <= 128
-        && message.text is string
-        && message.text.size() <= 4000
-        && message.senderId == request.auth.uid
-        && message.date is timestamp
+        && message.keys().hasOnly(['id','text','senderId','date','img'])
+        && message.keys().hasAll(['id','text','senderId','date'])
+        && message.id is string && message.id.size() > 0 && message.id.size() <= 128
+        && message.text is string && message.text.size() <= 4000
+        && message.senderId == request.auth.uid && message.date is timestamp
         && (!('img' in message) || (message.img is string && message.img.size() <= 2048))
         && (message.text.size() > 0 || ('img' in message));
     }
-
     function validChatListEntry(userId, chatId) {
-      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
-      return signedIn()
-        && chat.participants is list
-        && chat.participants.hasAny([userId])
-        && chat.participants.hasAny([request.auth.uid])
-        && request.resource.data.keys().hasOnly(['userInfo', 'date', 'lastMessage'])
-        && request.resource.data.keys().hasAll(['userInfo', 'date'])
+      let chat = getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
+      return signedIn() && chat.participants is list
+        && chat.participants.hasAny([userId]) && chat.participants.hasAny([request.auth.uid])
+        && request.resource.data.keys().hasOnly(['userInfo','date','lastMessage'])
+        && request.resource.data.keys().hasAll(['userInfo','date'])
         && request.resource.data.userInfo is map
-        && request.resource.data.userInfo.keys().hasOnly(['uid', 'displayName', 'photoURL'])
+        && request.resource.data.userInfo.keys().hasOnly(['uid','displayName','photoURL'])
         && request.resource.data.userInfo.uid is string
         && request.resource.data.userInfo.uid != userId
         && chat.participants.hasAny([request.resource.data.userInfo.uid])
@@ -73,44 +81,51 @@ service cloud.firestore {
             && request.resource.data.lastMessage.text is string
             && request.resource.data.lastMessage.text.size() <= 4000));
     }
-
+    match /usernames/{username} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && username.matches('^[a-z0-9_.]{3,24}$')
+        && request.resource.data.keys().hasOnly(['uid','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if false;
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.username != username;
+    }
     match /publicProfiles/{userId} {
       allow read: if signedIn();
       allow create: if signedIn() && validPublicProfile(userId);
-      allow update: if signedIn()
-        && request.auth.uid == userId
+      allow update: if signedIn() && request.auth.uid == userId
         && validPublicProfile(userId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username','displayName','displayNameLower','photoURL','discoverable','pronouns','bio','interests','hobbies',
+          'languages','education','institution','graduationYear','city','connectionGoals',
+          'website','instagram','linkedin'
+        ]);
       allow delete: if signedIn() && request.auth.uid == userId;
     }
-
     match /users/{userId}/userChats/{chatId} {
       allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
-      allow create: if validChatListEntry(userId, chatId);
-      allow update: if validChatListEntry(userId, chatId)
-        && isChatParticipant(chatId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'date']);
-      allow delete: if signedIn()
-        && request.auth.uid == userId
-        && isChatParticipant(chatId);
+      allow create: if validChatListEntry(userId,chatId);
+      allow update: if validChatListEntry(userId,chatId) && isChatParticipant(chatId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date']);
+      allow delete: if signedIn() && request.auth.uid == userId && isChatParticipant(chatId);
     }
-
     match /chats/{chatId} {
       allow read: if signedIn() && resource.data.participants.hasAny([request.auth.uid]);
-      allow create: if signedIn()
-        && validChatId(chatId, request.resource.data.participants)
+      allow create: if signedIn() && validChatId(chatId,request.resource.data.participants)
         && request.resource.data.participants.hasAny([request.auth.uid])
-        && request.resource.data.keys().hasOnly(['participants', 'messages'])
-        && request.resource.data.messages is list
-        && request.resource.data.messages.size() == 0;
-      allow update: if signedIn()
-        && resource.data.participants.hasAny([request.auth.uid])
+        && request.resource.data.keys().hasOnly(['participants','messages'])
+        && request.resource.data.messages is list && request.resource.data.messages.size() == 0;
+      allow update: if signedIn() && resource.data.participants.hasAny([request.auth.uid])
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
         && request.resource.data.messages is list
-        && request.resource.data.messages.size() == resource.data.messages.size() + 1
+        && request.resource.data.messages.size() == resource.data.messages.size()+1
         && request.resource.data.messages.hasAll(resource.data.messages)
-        && validMessage(request.resource.data.messages[request.resource.data.messages.size() - 1]);
+        && validMessage(request.resource.data.messages[request.resource.data.messages.size()-1]);
       allow delete: if false;
     }
   }

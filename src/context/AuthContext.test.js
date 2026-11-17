@@ -1,11 +1,17 @@
 import React from "react";
 import { act, render, screen } from "@testing-library/react";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { AuthContext, AuthContextProvider } from "./AuthContext";
 
-jest.mock("../firebase", () => ({ auth: {} }));
+jest.mock("../firebase", () => ({ auth: {}, db: {} }));
 jest.mock("firebase/auth", () => ({
   onAuthStateChanged: jest.fn(),
+}));
+jest.mock("firebase/firestore", () => ({
+  doc: jest.fn(() => ({})),
+  getDoc: jest.fn(),
+  updateDoc: jest.fn(),
 }));
 
 const ContextProbe = () => {
@@ -23,7 +29,11 @@ describe("AuthContextProvider", () => {
   const unsubscribe = jest.fn();
 
   beforeEach(() => {
-    unsubscribe.mockClear();
+    jest.clearAllMocks();
+    doc.mockReturnValue("mock-profile-reference");
+    getDoc.mockResolvedValue({
+      exists: () => false,
+    });
     onAuthStateChanged.mockImplementation((_auth, callback) => {
       authListener = callback;
       return unsubscribe;
@@ -41,17 +51,41 @@ describe("AuthContextProvider", () => {
     expect(screen.getByText("signed-out")).toBeInTheDocument();
   });
 
-  it("publishes the authenticated user after the auth listener fires", () => {
+  it("publishes the authenticated user after the auth listener fires", async () => {
     render(
       <AuthContextProvider>
         <ContextProbe />
       </AuthContextProvider>
     );
 
-    act(() => authListener({ uid: "user-123" }));
+    await act(async () => {
+      await authListener({ uid: "user-123", displayName: "Test User" });
+    });
 
+    expect(getDoc).toHaveBeenCalledTimes(1);
     expect(screen.getByText("ready")).toBeInTheDocument();
     expect(screen.getByText("user-123")).toBeInTheDocument();
+  });
+
+  it("backfills the normalized display name for an existing profile", async () => {
+    getDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ displayName: "Test User", displayNameLower: "Test User" }),
+    });
+
+    render(
+      <AuthContextProvider>
+        <ContextProbe />
+      </AuthContextProvider>
+    );
+
+    await act(async () => {
+      await authListener({ uid: "user-123", displayName: "Test User" });
+    });
+
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateDoc.mock.calls[0][0]).toBe("mock-profile-reference");
+    expect(updateDoc.mock.calls[0][1]).toEqual({ displayNameLower: "test user", discoverable: true });
   });
 
   it("unsubscribes from Firebase when the provider unmounts", () => {

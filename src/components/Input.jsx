@@ -6,9 +6,9 @@ import { ChatContext } from "../context/ChatContext";
 import {
   arrayUnion,
   doc,
+  runTransaction,
   serverTimestamp,
   Timestamp,
-  writeBatch,
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
@@ -25,19 +25,16 @@ const Input = () => {
 
   const handleImageSelect = (event) => {
     const file = event.target.files?.[0];
-
     if (!file) {
       setImg(null);
       return;
     }
-
     if (!isAllowedImage(file)) {
       setImg(null);
       event.target.value = "";
       setError("Choose a valid image smaller than 5 MB.");
       return;
     }
-
     setError("");
     setImg(file);
   };
@@ -50,38 +47,88 @@ const Input = () => {
       return;
     }
 
+    const messageText = text.trim();
+    if (messageText.length > 4000) {
+      setError("Messages must be 4,000 characters or fewer.");
+      return;
+    }
+
     setSending(true);
     setError("");
 
     try {
       let imageUrl = "";
       if (img) {
-        const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${uuid()}-${img.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, img);
-        await uploadTask;
-        imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        try {
+          const storageRef = ref(
+            storage,
+            `chat-images/${data.chatId}/${currentUser.uid}/${uuid()}-${img.name}`
+          );
+          const uploadTask = uploadBytesResumable(storageRef, img);
+          await uploadTask;
+          imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        } catch (uploadError) {
+          console.error("Image upload failed:", uploadError);
+          // Remove the failed attachment so the user can still send the text.
+          setImg(null);
+          const fileInput = document.getElementById("file");
+          if (fileInput) fileInput.value = "";
+          throw new Error("Image upload is unavailable. The attachment was removed; send your text again.");
+        }
       }
 
-      const messageText = text.trim();
-      const batch = writeBatch(db);
-      const lastMessage = { text: messageText || (imageUrl ? "Image" : "") };
-
-      batch.update(doc(db, "chats", data.chatId), {
-        messages: arrayUnion({
-          id: uuid(),
-          text: messageText,
-          senderId: currentUser.uid,
-          date: Timestamp.now(),
-          ...(imageUrl ? { img: imageUrl } : {}),
-        }),
-      });
-      const chatListPatch = {
-        lastMessage,
-        date: serverTimestamp(),
+      const message = {
+        id: uuid(),
+        text: messageText,
+        senderId: currentUser.uid,
+        date: Timestamp.now(),
+        ...(imageUrl ? { img: imageUrl } : {}),
       };
-      batch.update(doc(db, "users", currentUser.uid, "userChats", data.chatId), chatListPatch);
-      batch.update(doc(db, "users", data.user.uid, "userChats", data.chatId), chatListPatch);
-      await batch.commit();
+      const chatRef = doc(db, "chats", data.chatId);
+      const currentEntryRef = doc(db, "users", currentUser.uid, "userChats", data.chatId);
+      const otherEntryRef = doc(db, "users", data.user.uid, "userChats", data.chatId);
+      const lastMessage = { text: messageText || (imageUrl ? "Image" : "") };
+      const currentUserInfo = {
+        uid: currentUser.uid,
+        displayName: currentUser.displayName || "",
+        photoURL: currentUser.photoURL || "",
+      };
+      const otherUserInfo = {
+        uid: data.user.uid,
+        displayName: data.user.displayName || "",
+        photoURL: data.user.photoURL || "",
+      };
+
+      // Read all documents first; the transaction either delivers the message and
+      // updates both inboxes, or commits none of those changes.
+      await runTransaction(db, async (transaction) => {
+        const [chatSnapshot, currentEntry, otherEntry] = await Promise.all([
+          transaction.get(chatRef),
+          transaction.get(currentEntryRef),
+          transaction.get(otherEntryRef),
+        ]);
+
+        if (!chatSnapshot.exists()) throw new Error("This conversation no longer exists.");
+        const participants = chatSnapshot.data().participants || [];
+        if (!participants.includes(currentUser.uid) || !participants.includes(data.user.uid)) {
+          throw new Error("You are no longer a participant in this conversation.");
+        }
+
+        transaction.update(chatRef, { messages: arrayUnion(message) });
+
+        const listPatch = { lastMessage, date: serverTimestamp() };
+        if (currentEntry.exists()) {
+          transaction.update(currentEntryRef, listPatch);
+        } else {
+          transaction.set(currentEntryRef, { userInfo: otherUserInfo, ...listPatch });
+        }
+
+        if (otherEntry.exists()) {
+          transaction.update(otherEntryRef, listPatch);
+        } else {
+          transaction.set(otherEntryRef, { userInfo: currentUserInfo, ...listPatch });
+        }
+      });
 
       setText("");
       setImg(null);
@@ -89,7 +136,7 @@ const Input = () => {
       if (fileInput) fileInput.value = "";
     } catch (sendError) {
       console.error("Unable to send message:", sendError);
-      setError("Message could not be sent. Please try again.");
+      setError(sendError.message || "Message could not be sent. Please try again.");
     } finally {
       setSending(false);
     }
@@ -100,8 +147,10 @@ const Input = () => {
       <input
         type="text"
         placeholder="Type something..."
+        aria-label="Message"
         onChange={(event) => setText(event.target.value)}
         value={text}
+        maxLength={4000}
       />
       <div className="send">
         <img src={Attach} alt="" />
@@ -115,7 +164,7 @@ const Input = () => {
         <label htmlFor="file">
           <img src={Img} alt="Choose an attachment" />
         </label>
-        <button type="submit" disabled={sending}>
+        <button type="submit" disabled={sending || !hasMessageContent(text, img)}>
           {sending ? "Sending..." : "Send"}
         </button>
       </div>
