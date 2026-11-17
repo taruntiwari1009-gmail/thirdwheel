@@ -35,7 +35,7 @@ exports.submitReport = onCall({ enforceAppCheck: process.env.ENFORCE_APPCHECK ==
     if (count >= dailyReportLimit) throw new HttpsError("resource-exhausted", "Daily report limit reached. Please try again tomorrow.");
     transaction.set(throttleRef, { uid: reporterUid, count: count + 1, day, updatedAt: FieldValue.serverTimestamp() });
     transaction.create(reportRef, { reporterId: reporterUid, targetUid: report.targetUid, reason: report.reason, ...(report.details ? { details: report.details } : {}), createdAt: FieldValue.serverTimestamp() });
-    transaction.create(caseRef, { reportId: reportRef.id, reporterId: reporterUid, targetUid: report.targetUid, reason: report.reason, status: "open", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    transaction.create(caseRef, { reportId: reportRef.id, reporterId: reporterUid, targetUid: report.targetUid, reason: report.reason, ...(report.details ? { details: report.details } : {}), status: "open", createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
     transaction.create(db.collection("moderationAudit").doc(), { caseId: caseRef.id, actorUid: reporterUid, action: "report_submitted", createdAt: FieldValue.serverTimestamp() });
   });
   return { submitted: true, reference: reportRef.id };
