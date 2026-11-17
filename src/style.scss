@@ -880,3 +880,7 @@ button, input, textarea { font: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .home *, .formContainer * { transition: none !important; }
 }
+
+@media (max-width: 640px) {
+  .home .container .sidebar { max-height: none; overflow: hidden; }
+}
