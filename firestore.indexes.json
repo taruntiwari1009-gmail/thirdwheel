@@ -15,6 +15,20 @@
       ]
     },
     {
+      "collectionGroup": "publicProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "discoverable",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "moderationCases",
       "queryScope": "COLLECTION",
       "fields": [
