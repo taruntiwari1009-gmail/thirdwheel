@@ -97,7 +97,7 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.username != username;
     }
     match /publicProfiles/{userId} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (request.auth.uid == userId || resource.data.discoverable == true);
       allow create: if signedIn() && validPublicProfile(userId);
       allow update: if signedIn() && request.auth.uid == userId && validPublicProfile(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
