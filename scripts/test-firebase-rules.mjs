@@ -65,14 +65,14 @@ function chatListFields(other, displayName) {
   };
 }
 
-async function upload(path, token, contentType = "image/png") {
+async function upload(path, token, contentType = "image/png", bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) {
   return fetch(`${STORAGE_URL}?uploadType=media&name=${encodeURIComponent(path)}`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": contentType,
     },
-    body: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    body: bytes,
   });
 }
 
@@ -100,8 +100,27 @@ await expectDenied(
   }),
   "user cannot create another user's profile"
 );
+await expectDenied(
+  await firestore("POST", `users?documentId=${alice.uid}-private`, alice.token, {
+    fields: {
+      ...profileFields(alice.uid, "Alice Private"),
+      email: { stringValue: "alice@thirdwheel.test" },
+    },
+  }),
+  "public profile cannot include email"
+);
 
 const chatId = [alice.uid, bob.uid].sort().join("");
+const invalidChat = await firestore("POST", `chats?documentId=not-the-sorted-chat-id`, alice.token, {
+  fields: {
+    participants: {
+      arrayValue: { values: [alice.uid, bob.uid].sort().map((uid) => ({ stringValue: uid })) },
+    },
+    messages: { arrayValue: { values: [] } },
+  },
+});
+await expectDenied(invalidChat, "conversation ID must match its two participants");
+
 const createChat = await firestore("POST", `chats?documentId=${chatId}`, alice.token, {
   fields: {
     participants: {
@@ -208,6 +227,10 @@ await expectDenied(
 await expectDenied(
   await upload(`avatars/${alice.uid}/not-an-image.txt`, alice.token, "text/plain"),
   "non-image upload is rejected"
+);
+await expectDenied(
+  await upload(`avatars/${alice.uid}/oversized.png`, alice.token, "image/png", Buffer.alloc(5 * 1024 * 1024 + 1)),
+  "oversized image upload is rejected"
 );
 
 console.log("Firebase Emulator Security Tests: all allowed and denied cases passed.");
