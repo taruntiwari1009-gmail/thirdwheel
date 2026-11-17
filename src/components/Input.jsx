@@ -23,6 +23,25 @@ const Input = () => {
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
 
+  const handleImageSelect = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setImg(null);
+      return;
+    }
+
+    if (!isAllowedImage(file)) {
+      setImg(null);
+      event.target.value = "";
+      setError("Choose a valid image smaller than 5 MB.");
+      return;
+    }
+
+    setError("");
+    setImg(file);
+  };
+
   const handleSend = async (event) => {
     event.preventDefault();
     if (sending || !hasMessageContent(text, img)) return;
