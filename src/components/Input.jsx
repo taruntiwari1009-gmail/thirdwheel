@@ -5,7 +5,7 @@ import { ChatContext } from "../context/ChatContext";
 import { doc, runTransaction, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
-import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { ref, uploadBytesResumable } from "firebase/storage";
 import { hasMessageContent, isAllowedImage } from "../utils/chat";
 
 const Input = () => {
@@ -14,6 +14,7 @@ const Input = () => {
   const [previewUrl, setPreviewUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const pendingSend = useRef(null);
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
@@ -24,6 +25,16 @@ const Input = () => {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [img]);
+
+  useEffect(() => {
+    setText("");
+    setImg(null);
+    setError("");
+    setUploadProgress(0);
+    pendingSend.current = null;
+    const fileInput = document.getElementById("file");
+    if (fileInput) fileInput.value = "";
+  }, [data.chatId]);
 
   const handleImageSelect = event => {
     const file = event.target.files?.[0];
@@ -46,26 +57,24 @@ const Input = () => {
     setSending(true); setError("");
     const signature = JSON.stringify([data.chatId, currentUser.uid, data.user.uid, messageText, img ? [img.name, img.size, img.lastModified, img.type] : null]);
     if (!pendingSend.current || pendingSend.current.signature !== signature) {
-      pendingSend.current = { signature, id: uuid(), imageUrl: "" };
+      pendingSend.current = { signature, id: uuid(), imagePath: "" };
     }
     try {
-      let imageUrl = pendingSend.current.imageUrl;
-      if (img && !imageUrl) {
-        try {
-          const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${pendingSend.current.id}-${img.name}`);
-          const uploadTask = uploadBytesResumable(storageRef, img);
-          await uploadTask;
-          imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          pendingSend.current.imageUrl = imageUrl;
-        } catch (uploadError) {
-          console.error("Image upload failed:", uploadError);
-          setImg(null);
-          pendingSend.current = null;
-          const fileInput = document.getElementById("file");
-          if (fileInput) fileInput.value = "";
-          throw new Error("Image upload is unavailable. The attachment was removed; send your text again.");
-        }
+      let imagePath = pendingSend.current.imagePath;
+      if (img && !imagePath) {
+        const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${pendingSend.current.id}-${img.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, img);
+        await new Promise((resolve, reject) => {
+          uploadTask.on("state_changed",
+            snapshot => setUploadProgress(Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)),
+            reject,
+            () => resolve(uploadTask.snapshot)
+          );
+        });
+        imagePath = storageRef.fullPath;
+        pendingSend.current.imagePath = imagePath;
       }
+
       const messageId = pendingSend.current.id;
       const messageRef = doc(db, "chats", data.chatId, "messages", messageId);
       const chatRef = doc(db, "chats", data.chatId);
@@ -82,8 +91,6 @@ const Input = () => {
         const chatData = chat.data();
         const participants = chatData.participants || [];
         if (!participants.includes(currentUser.uid) || !participants.includes(data.user.uid)) throw new Error("You are no longer a participant in this conversation.");
-        // A stable message document ID makes retries idempotent even if the
-        // server committed but the client lost the acknowledgement.
         if (existingMessage.exists()) return;
         const now = Timestamp.now();
         const previousLimit = rateLimit.exists() ? rateLimit.data() : null;
@@ -102,7 +109,7 @@ const Input = () => {
           text: messageText,
           senderId: currentUser.uid,
           date: serverTimestamp(),
-          ...(imageUrl ? { img: imageUrl } : {}),
+          ...(imagePath ? { img: imagePath } : {}),
         });
         const date = serverTimestamp();
         const minePatch = { lastMessage, date, unreadCount: 0, lastReadAt: date };
@@ -113,12 +120,12 @@ const Input = () => {
         else transaction.set(theirsRef, { userInfo: mineInfo, ...theirPatch });
       });
       pendingSend.current = null;
-      setText(""); setImg(null);
+      setText(""); setImg(null); setUploadProgress(0);
       const fileInput = document.getElementById("file");
       if (fileInput) fileInput.value = "";
     } catch (sendError) {
       console.error("Unable to send message:", sendError);
-      setError(sendError.message || "Message could not be sent. Please try again.");
+      setError(sendError.message || "Message could not be sent. Please try again. Your message is still available to retry.");
     } finally { setSending(false); }
   };
 
@@ -127,9 +134,9 @@ const Input = () => {
     <div className="send">
       <input type="file" accept="image/*" id="file" className="attachmentInput" onChange={handleImageSelect} aria-label="Choose an image attachment" />
       <label htmlFor="file" className="attachmentButton" title="Attach an image"><img src={Img} alt="" /><span>Photo</span></label>
-      <button type="submit" disabled={sending || !hasMessageContent(text, img)}>{sending ? "Sending…" : "Send"}</button>
+      <button type="submit" disabled={sending || !hasMessageContent(text, img)}>{sending ? "Sending…" : error ? "Retry send" : "Send"}</button>
     </div>
-    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected attachment" /><span>Image ready: {img.name}</span><button type="button" onClick={() => { setImg(null); const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
+    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected attachment" /><span>{sending ? `Uploading image… ${uploadProgress}%` : `Image ready: ${img.name}`}</span><button type="button" onClick={() => { setImg(null); setUploadProgress(0); pendingSend.current = null; const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
     {error && <span role="alert">{error}</span>}
   </form>;
 };
