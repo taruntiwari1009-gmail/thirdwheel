@@ -17,18 +17,14 @@ service cloud.firestore {
         'website','instagram','linkedin'
       ])
       && request.resource.data.keys().hasAll(['uid','displayName','displayNameLower','photoURL'])
-      && request.resource.data.uid == userId
-      && request.resource.data.uid == request.auth.uid
+      && request.resource.data.uid == userId && request.resource.data.uid == request.auth.uid
       && (!('username' in request.resource.data) || (request.resource.data.username is string && (request.resource.data.username == '' || request.resource.data.username.matches('^[a-z0-9_.]{3,24}$'))))
       && (!('discoverable' in request.resource.data) || request.resource.data.discoverable is bool)
       && (!('username' in request.resource.data) || request.resource.data.username == '' || getAfter(/databases/$(database)/documents/usernames/$(request.resource.data.username)).data.uid == userId)
       && (!('pronouns' in request.resource.data) || (request.resource.data.pronouns is string && request.resource.data.pronouns.size() <= 40))
-      && request.resource.data.displayName is string
-      && request.resource.data.displayName.size() > 0
-      && request.resource.data.displayName.size() <= 80
+      && request.resource.data.displayName is string && request.resource.data.displayName.size() > 0 && request.resource.data.displayName.size() <= 80
       && request.resource.data.displayNameLower == request.resource.data.displayName.lower()
-      && request.resource.data.photoURL is string
-      && request.resource.data.photoURL.size() <= 2048
+      && request.resource.data.photoURL is string && request.resource.data.photoURL.size() <= 2048
       && (!('bio' in request.resource.data) || (request.resource.data.bio is string && request.resource.data.bio.size() <= 300))
       && (!('education' in request.resource.data) || (request.resource.data.education is string && request.resource.data.education.size() <= 100))
       && (!('institution' in request.resource.data) || (request.resource.data.institution is string && request.resource.data.institution.size() <= 120))
@@ -43,15 +39,12 @@ service cloud.firestore {
       && (!('connectionGoals' in request.resource.data) || validStringList(request.resource.data.connectionGoals,20));
     }
     function validChatId(chatId, participants) {
-      return participants is list && participants.size() == 2
-        && participants[0] is string && participants[1] is string
+      return participants is list && participants.size() == 2 && participants[0] is string && participants[1] is string
         && participants[0] != participants[1]
-        && chatId == (participants[0] < participants[1]
-          ? participants[0] + participants[1] : participants[1] + participants[0]);
+        && chatId == (participants[0] < participants[1] ? participants[0] + participants[1] : participants[1] + participants[0]);
     }
     function validMessage(message) {
-      return message is map
-        && message.keys().hasOnly(['id','text','senderId','date','img'])
+      return message is map && message.keys().hasOnly(['id','text','senderId','date','img'])
         && message.keys().hasAll(['id','text','senderId','date'])
         && message.id is string && message.id.size() > 0 && message.id.size() <= 128
         && message.text is string && message.text.size() <= 4000
@@ -61,48 +54,39 @@ service cloud.firestore {
     }
     function validChatListEntry(userId, chatId) {
       let chat = getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
-      return signedIn() && chat.participants is list
-        && chat.participants.hasAny([userId]) && chat.participants.hasAny([request.auth.uid])
-        && request.resource.data.keys().hasOnly(['userInfo','date','lastMessage'])
+      return signedIn() && chat.participants is list && chat.participants.hasAny([userId]) && chat.participants.hasAny([request.auth.uid])
+        && request.resource.data.keys().hasOnly(['userInfo','date','lastMessage','unreadCount','lastReadAt'])
         && request.resource.data.keys().hasAll(['userInfo','date'])
         && request.resource.data.userInfo is map
         && request.resource.data.userInfo.keys().hasOnly(['uid','displayName','photoURL'])
-        && request.resource.data.userInfo.uid is string
-        && request.resource.data.userInfo.uid != userId
+        && request.resource.data.userInfo.uid is string && request.resource.data.userInfo.uid != userId
         && chat.participants.hasAny([request.resource.data.userInfo.uid])
-        && request.resource.data.userInfo.displayName is string
-        && request.resource.data.userInfo.photoURL is string
+        && request.resource.data.userInfo.displayName is string && request.resource.data.userInfo.photoURL is string
         && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
         && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL
         && request.resource.data.date is timestamp
-        && (!('lastMessage' in request.resource.data)
-          || (request.resource.data.lastMessage is map
-            && request.resource.data.lastMessage.keys().hasOnly(['text'])
-            && request.resource.data.lastMessage.text is string
-            && request.resource.data.lastMessage.text.size() <= 4000));
+        && (!('unreadCount' in request.resource.data) || (request.resource.data.unreadCount is int && request.resource.data.unreadCount >= 0))
+        && (!('lastReadAt' in request.resource.data) || request.resource.data.lastReadAt is timestamp)
+        && (!('lastMessage' in request.resource.data) || (request.resource.data.lastMessage is map
+          && request.resource.data.lastMessage.keys().hasOnly(['text']) && request.resource.data.lastMessage.text is string
+          && request.resource.data.lastMessage.text.size() <= 4000));
     }
     match /usernames/{username} {
       allow read: if signedIn();
-      allow create: if signedIn()
-        && username.matches('^[a-z0-9_.]{3,24}$')
-        && request.resource.data.keys().hasOnly(['uid','createdAt'])
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.createdAt is timestamp
-        && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow create: if signedIn() && username.matches('^[a-z0-9_.]{3,24}$')
+        && request.resource.data.keys().hasOnly(['uid','createdAt']) && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt is timestamp && !exists(/databases/$(database)/documents/usernames/$(username));
       allow update: if false;
-      allow delete: if signedIn()
-        && resource.data.uid == request.auth.uid
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid
         && getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.username != username;
     }
     match /publicProfiles/{userId} {
       allow read: if signedIn();
       allow create: if signedIn() && validPublicProfile(userId);
-      allow update: if signedIn() && request.auth.uid == userId
-        && validPublicProfile(userId)
+      allow update: if signedIn() && request.auth.uid == userId && validPublicProfile(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'username','displayName','displayNameLower','photoURL','discoverable','pronouns','bio','interests','hobbies',
-          'languages','education','institution','graduationYear','city','connectionGoals',
-          'website','instagram','linkedin'
+          'languages','education','institution','graduationYear','city','connectionGoals','website','instagram','linkedin'
         ]);
       allow delete: if signedIn() && request.auth.uid == userId;
     }
@@ -110,7 +94,9 @@ service cloud.firestore {
       allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
       allow create: if validChatListEntry(userId,chatId);
       allow update: if validChatListEntry(userId,chatId) && isChatParticipant(chatId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date']);
+        && (request.auth.uid == userId
+          ? request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date','unreadCount','lastReadAt'])
+          : request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date','unreadCount']));
       allow delete: if signedIn() && request.auth.uid == userId && isChatParticipant(chatId);
     }
     match /chats/{chatId} {
@@ -122,8 +108,7 @@ service cloud.firestore {
       allow update: if signedIn() && resource.data.participants.hasAny([request.auth.uid])
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
-        && request.resource.data.messages is list
-        && request.resource.data.messages.size() == resource.data.messages.size()+1
+        && request.resource.data.messages is list && request.resource.data.messages.size() == resource.data.messages.size()+1
         && request.resource.data.messages.hasAll(resource.data.messages)
         && validMessage(request.resource.data.messages[request.resource.data.messages.size()-1]);
       allow delete: if false;
