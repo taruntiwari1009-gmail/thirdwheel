@@ -60,8 +60,14 @@ const Search = () => {
       setSearching(true);
       try {
         const profiles = collection(db, "publicProfiles");
-        const blockedSnapshot = await getDocs(collection(db, "users", currentUser.uid, "blockedUsers"));
-        const blocked = blockedSnapshot.docs.map(item => item.id);
+        const [blockedSnapshot, blockedBySnapshot] = await Promise.all([
+          getDocs(collection(db, "users", currentUser.uid, "blockedUsers")),
+          getDocs(collection(db, "users", currentUser.uid, "blockedBy"))
+        ]);
+        const blocked = [...new Set([
+          ...blockedSnapshot.docs.map(item => item.id),
+          ...blockedBySnapshot.docs.map(item => item.id)
+        ])];
         if (!active) return;
         setBlockedUids(blocked);
         // Each query ranges over one field only. This uses Firestore's automatic
