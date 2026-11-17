@@ -6,7 +6,7 @@ import { arrayUnion, doc, runTransaction, serverTimestamp, Timestamp } from "fir
 import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
-import { hasMessageContent, isAllowedImage } from "../utils/chat";
+import { hasMessageContent, hasMessageId, isAllowedImage } from "../utils/chat";
 
 const Input = () => {
   const [text, setText] = useState("");
@@ -83,7 +83,7 @@ const Input = () => {
         if (!participants.includes(currentUser.uid) || !participants.includes(data.user.uid)) throw new Error("You are no longer a participant in this conversation.");
         // Reusing the draft ID makes a retry safe if the server committed but
         // the client lost the acknowledgement while the connection dropped.
-        if ((chatData.messages || []).some(existing => existing.id === message.id)) return;
+        if (hasMessageId(chatData.messages, message.id)) return;
         const now = Timestamp.now();
         const previousLimit = rateLimit.exists() ? rateLimit.data() : null;
         const resetWindow = !previousLimit || !previousLimit.windowStart
