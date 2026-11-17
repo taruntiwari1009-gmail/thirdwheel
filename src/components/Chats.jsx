@@ -42,7 +42,7 @@ const Chats = () => {
 
   return <div className="chats">
     <div className="inboxHeading"><span>Messages</span><span>{chats.length}</span></div>
-    {loading && <p role="status">Loading conversations…</p>}
+    {loading && <><p role="status">Loading conversations…</p><div className="conversationSkeletons" aria-hidden="true">{[1,2,3].map(item => <div className="conversationSkeleton" key={item}><span /><i /><b /></div>)}</div></>}
     {error && <p role="alert">{error}</p>}
     {!loading && !error && chats.length === 0 && <p className="inboxEmpty">Your inbox is waiting. Search for someone to start a conversation.</p>}
     {chats.map(chat => <div className={`chatListItemWrap ${data.chatId === chat.chatId ? "active" : ""}`} key={chat.chatId}>
