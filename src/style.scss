@@ -1002,3 +1002,108 @@ button, input, textarea { font: inherit; }
 .reportForm .formActions { justify-content:flex-start; }
 .reportForm .formActions button { min-width:120px; }
 @media(max-width:480px) { .profileActions { align-items:stretch; } .profileActions button { flex:1; } .reportForm { padding:16px; } }
+
+
+/* Lavender + rose visual language: warm, welcoming, and consistent. */
+:root {
+  --tw-ink: #30263d;
+  --tw-muted: #82778d;
+  --tw-primary: #8b70bd;
+  --tw-primary-dark: #70539f;
+  --tw-lavender: #f0eafa;
+  --tw-lavender-soft: #faf7ff;
+  --tw-border: #e9e0ef;
+  --tw-rose: #d9779a;
+  --tw-rose-dark: #b9577d;
+  --tw-rose-soft: #fff0f5;
+  --tw-surface: #fff;
+}
+body { background: #fbf7fb; color: var(--tw-ink); }
+.home {
+  background:
+    radial-gradient(ellipse at 8% 8%, rgba(229, 203, 239, .72), transparent 38%),
+    radial-gradient(ellipse at 94% 92%, rgba(255, 220, 232, .68), transparent 34%),
+    #fbf8fc;
+}
+.home .container { border-color: #eadfeb; box-shadow: 0 26px 80px rgba(90, 57, 100, .12); }
+.home .container .sidebar { background: linear-gradient(180deg, #fdfaff 0%, #fff9fc 100%); }
+.home .container .sidebar .navbar .logo { color: var(--tw-primary-dark); }
+.home .container .sidebar .search .searchForm:focus-within {
+  border-color: #d58aaa;
+  box-shadow: 0 0 0 3px rgba(217, 119, 154, .14);
+}
+.home .container .sidebar .search .searchResult:hover,
+.home .container .sidebar .chats .chatListItem:hover { background: #f8eff8; }
+.home .container .sidebar .chats .chatListItemWrap.active { background: #f4eafa; }
+.unreadBadge { background: linear-gradient(135deg, #9b7bc7, #d77e9f); }
+.startChatButton {
+  border-color: #efd5e1;
+  background: #fff8fb;
+  color: var(--tw-rose-dark);
+}
+.startChatButton:hover { background: var(--tw-rose-soft); }
+.home .container .chat .messages { background: linear-gradient(180deg, #fff 0%, #fffafd 100%); }
+.home .container .chat .messages .message .messageContent p {
+  background: #f0eafa;
+  color: #493c5b;
+  border: 1px solid #e9e0f1;
+  border-radius: 5px 17px 17px 17px;
+}
+.home .container .chat .messages .message.owner .messageContent p {
+  background: linear-gradient(135deg, #a98acb, #d889a8);
+  border-color: transparent;
+  color: #fff;
+  border-radius: 17px 5px 17px 17px;
+}
+.home .container .chat .input {
+  min-height: 66px;
+  border-top: 1px solid #f0e7ef;
+  background: #fffafd;
+}
+.home .container .chat .input input[type="text"] {
+  padding: 12px 14px;
+  border: 1px solid #eee4ef;
+  border-radius: 13px;
+  background: #fff;
+}
+.home .container .chat .input input[type="text"]:focus {
+  border-color: #d58aaa;
+  box-shadow: 0 0 0 3px rgba(217, 119, 154, .12);
+}
+.home .container .chat .input .send button,
+.authCard button, .profileForm button, .formContainer .formWrapper form button {
+  background: linear-gradient(135deg, #8e75bd, #d17e9f);
+  box-shadow: 0 6px 16px rgba(171, 112, 157, .18);
+}
+.home .container .chat .input .send button:hover:not(:disabled),
+.authCard button:hover:not(:disabled), .profileForm button:hover:not(:disabled) {
+  filter: saturate(1.08) brightness(.98);
+  transform: translateY(-1px);
+}
+.profileHero {
+  background: linear-gradient(120deg, #f0eafa 0%, #fff0f5 100%);
+  border: 1px solid #ebdfee;
+}
+.profileSection { border-color: #eee4ef; box-shadow: 0 8px 26px rgba(77, 52, 88, .035); }
+.profileTags { display:flex; flex-wrap:wrap; gap:8px; }
+.profileTag {
+  display:inline-flex;
+  align-items:center;
+  padding:7px 11px;
+  border:1px solid #eadced;
+  border-radius:999px;
+  background:linear-gradient(135deg,#f5effb,#fff1f5);
+  color:#6f568c;
+  font-size:12px;
+  font-weight:650;
+}
+.profileActions .textAction { color:var(--tw-rose-dark); }
+.reportForm { border-color:#f0dce5; background:#fffafd; }
+.mobileNav { background:#fffafd; }
+.mobileNav button.active { border-color:#d58aaa; background:#fff0f5; color:#9b5474; }
+.searchStatus[role="alert"], .errorText { color:#ad405f; }
+.successText { color:#39775c; }
+@media (prefers-reduced-motion: reduce) {
+  .home .container .chat .input .send button:hover,
+  .authCard button:hover, .profileForm button:hover { transform:none; }
+}
