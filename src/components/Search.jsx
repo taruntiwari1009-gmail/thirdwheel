@@ -9,7 +9,7 @@ import { getChatId } from "../utils/chat";
 const PAGE_SIZE = 30;
 // People blocked by the signed-in user are filtered from discovery.
 
-const mergeMatches = (snapshots, normalized, existing, currentUid) => {
+const mergeMatches = (snapshots, normalized, existing, currentUid, blockedUids = []) => {
   const byUid = new Map((existing || []).map(user => [user.uid, user]));
   snapshots.forEach(snapshot => {
     const profile = snapshot.data();
@@ -18,7 +18,7 @@ const mergeMatches = (snapshots, normalized, existing, currentUid) => {
       : typeof profile.displayName === "string" ? profile.displayName.toLowerCase() : "";
     const username = typeof profile.username === "string" ? profile.username.toLowerCase() : "";
     const matches = displayNameLower.startsWith(normalized) || username.startsWith(normalized);
-    if (profile.uid && profile.uid !== currentUid && profile.discoverable !== false && matches) {
+    if (profile.uid && profile.uid !== currentUid && !blockedUids.includes(profile.uid) && profile.discoverable !== false && matches) {
       byUid.set(profile.uid, profile);
     }
   });
@@ -35,6 +35,7 @@ const Search = () => {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [blockedUids, setBlockedUids] = useState([]);
   const { currentUser } = useContext(AuthContext);
   const { dispatch } = useContext(ChatContext);
 
@@ -55,6 +56,10 @@ const Search = () => {
       setSearching(true);
       try {
         const profiles = collection(db, "publicProfiles");
+        const blockedSnapshot = await getDocs(collection(db, "users", currentUser.uid, "blockedUsers"));
+        const blocked = blockedSnapshot.docs.map(item => item.id);
+        if (!active) return;
+        setBlockedUids(blocked);
         // Each query ranges over one field only. This uses Firestore's automatic
         // single-field indexes and does not depend on a deployed composite index.
         const [names, usernames] = await Promise.all([
@@ -77,7 +82,7 @@ const Search = () => {
           usernames: usernames.docs.length === PAGE_SIZE ? usernames.docs[usernames.docs.length - 1] : null
         });
         setHasMore(names.docs.length === PAGE_SIZE || usernames.docs.length === PAGE_SIZE);
-        const matches = mergeMatches([...names.docs, ...usernames.docs], normalized, [], currentUser.uid);
+        const matches = mergeMatches([...names.docs, ...usernames.docs], normalized, [], currentUser.uid, blocked);
         setUsers(matches);
         if (!matches.length) setErr("No people found. Try a name or @username.");
       } catch (error) {
