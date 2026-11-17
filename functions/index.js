@@ -19,7 +19,7 @@ function moderator(request) {
   return uid;
 }
 
-exports.submitReport = onCall({ enforceAppCheck: false }, async request => {
+exports.submitReport = onCall({ enforceAppCheck: process.env.ENFORCE_APPCHECK === "true" }, async request => {
   const reporterUid = authenticated(request);
   const report = parseReport(request.data, reporterUid);
   const target = await db.doc("publicProfiles/" + report.targetUid).get();
