@@ -64,8 +64,8 @@ service cloud.firestore {
         && chat.participants.hasAny([request.resource.data.userInfo.uid])
         && request.resource.data.userInfo.displayName is string
         && request.resource.data.userInfo.photoURL is string
-        && get(/databases/$(database)/documents/users/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
-        && get(/databases/$(database)/documents/users/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL
+        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
+        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL
         && request.resource.data.date is timestamp
         && (!('lastMessage' in request.resource.data)
           || (request.resource.data.lastMessage is map
@@ -74,28 +74,25 @@ service cloud.firestore {
             && request.resource.data.lastMessage.text.size() <= 4000));
     }
 
-    match /users/{userId} {
-      // Legacy documents containing email or other private fields fail closed until migrated.
-      allow read: if signedIn()
-        && resource.data.keys().hasOnly(['uid', 'displayName', 'photoURL'])
-        && resource.data.keys().hasAll(['uid', 'displayName', 'photoURL']);
+    match /publicProfiles/{userId} {
+      allow read: if signedIn();
       allow create: if signedIn() && validPublicProfile(userId);
       allow update: if signedIn()
         && request.auth.uid == userId
         && validPublicProfile(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']);
       allow delete: if signedIn() && request.auth.uid == userId;
-      
-      match /userChats/{chatId} {
-        allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
-        allow create: if validChatListEntry(userId, chatId);
-        allow update: if validChatListEntry(userId, chatId)
-          && isChatParticipant(chatId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'date']);
-        allow delete: if signedIn()
-          && request.auth.uid == userId
-          && isChatParticipant(chatId);
-      }
+    }
+
+    match /users/{userId}/userChats/{chatId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
+      allow create: if validChatListEntry(userId, chatId);
+      allow update: if validChatListEntry(userId, chatId)
+        && isChatParticipant(chatId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'date']);
+      allow delete: if signedIn()
+        && request.auth.uid == userId
+        && isChatParticipant(chatId);
     }
 
     match /chats/{chatId} {
