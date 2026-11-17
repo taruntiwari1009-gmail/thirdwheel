@@ -82,6 +82,10 @@ The PR head has passing CI at the time of this roadmap update. This is emulator/
 5. Run accessibility, responsive and security reviews.
 6. Produce release and rollback documentation.
 
+## Release acceptance
+
+The full product acceptance matrix, staging-only Firebase gates, moderation operations, backup/rollback rehearsal and launch decision checklist are maintained in [RELEASE_READINESS.md](./RELEASE_READINESS.md). These are not production authorization.
+
 ## Explicitly out of scope
 
 Dating profiles, likes, passes, matches, relationship-intent discovery, dating verification, Netlify, production deployment, live data reset/migration, direct `main` pushes and PR merge.
