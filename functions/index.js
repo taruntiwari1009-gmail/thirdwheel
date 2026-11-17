@@ -1,6 +1,7 @@
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
 initializeApp();
@@ -124,7 +125,7 @@ exports.processAccountDeletion = onCall(async request => {
 
   const cursor = state.get("chatCursor") || null;
   let query = db.collection("users").doc(uid).collection("userChats").orderBy("__name__").limit(100);
-  if (cursor) query = query.startAfter(db.doc("users/" + uid + "/userChats/" + cursor));
+  if (cursor) query = query.startAfter(cursor);
   const inbox = await query.get();
   if (inbox.empty) {
     // Finalization is idempotent. Keep shared chat records/media so the other
@@ -137,13 +138,11 @@ exports.processAccountDeletion = onCall(async request => {
     if (profile.exists && profile.get("username")) batch.delete(db.doc("usernames/" + profile.get("username")));
     batch.delete(profileRef);
     batch.delete(db.doc("abuseLimits/messages_" + uid));
+    await getStorage().bucket().deleteFiles({ prefix: "avatars/" + uid + "/" });
     await batch.commit();
     try { await getAuth().deleteUser(uid); } catch (error) { if (error.code !== "auth/user-not-found") throw error; }
     await db.collection("moderationAudit").add({ actorUid: ownerUid, targetUid: uid, action: "account_deletion_completed", createdAt: FieldValue.serverTimestamp() });
     await requestRef.set({ status: "completed", completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    try { await getAuth().app.options.credential; } catch (_) { /* no-op: Storage cleanup is performed below through the default bucket */ }
-    const { getStorage } = require("firebase-admin/storage");
-    await getStorage().bucket().deleteFiles({ prefix: "avatars/" + uid + "/" });
     return { completed: true, processed: inbox.size };
   }
 
