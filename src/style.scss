@@ -517,3 +517,35 @@
   .profileGrid { grid-template-columns: minmax(0, 1fr); }
   .profileSection { padding: 16px; }
 }
+
+
+/* Native button-based conversation rows keep mouse, touch and keyboard behaviour aligned. */
+.searchResult, .chatListItem {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  font: inherit;
+}
+.searchResult:disabled { opacity: .65; cursor: wait; }
+.searchResult:focus-visible, .chatListItem:focus-visible,
+.navbar a:focus-visible, .chatPerson:focus-visible,
+.authCard a:focus-visible, .pageShell a:focus-visible,
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 3px solid #6f69a8;
+  outline-offset: 3px;
+}
+.chatListItem .chatPreview {
+  display: block;
+  overflow: hidden;
+  max-width: 100%;
+  color: lightgray;
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chats, .search { min-width: 0; }
+.searchResult .userChatInfo, .chatListItem .userChatInfo { min-width: 0; flex: 1; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto!important; animation-duration: .01ms!important; transition-duration: .01ms!important; }
+}
