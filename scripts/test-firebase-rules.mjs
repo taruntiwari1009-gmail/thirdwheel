@@ -101,7 +101,7 @@ await expectDenied(
 await expectAllowed(await createProfile(alice, "Alice"), "owner creates public profile");
 await expectAllowed(await createProfile(bob, "Bob"), "second user creates public profile");
 await expectAllowed(
-  await firestore("GET", `users/${bob.uid}`, alice.token),
+  await firestore("GET", `publicProfiles/${bob.uid}`, alice.token),
   "authenticated user reads public profile"
 );
 await expectDenied(
