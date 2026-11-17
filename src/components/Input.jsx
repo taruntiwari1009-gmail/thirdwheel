@@ -62,7 +62,8 @@ const Input = () => {
     try {
       let imagePath = pendingSend.current.imagePath;
       if (img && !imagePath) {
-        const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${pendingSend.current.id}-${img.name}`);
+        const safeFileName = img.name.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 100) || "attachment";
+        const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${pendingSend.current.id}-${safeFileName}`);
         const uploadTask = uploadBytesResumable(storageRef, img);
         await new Promise((resolve, reject) => {
           uploadTask.on("state_changed",
