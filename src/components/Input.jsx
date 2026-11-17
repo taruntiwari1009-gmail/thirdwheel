@@ -17,84 +17,90 @@ import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 const Input = () => {
   const [text, setText] = useState("");
   const [img, setImg] = useState(null);
-
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
 
-  const handleSend = async () => {
-    if (img) {
-      const storageRef = ref(storage, uuid());
+  const handleSend = async (event) => {
+    event.preventDefault();
+    if (sending || (!text.trim() && !img)) return;
+    if (!currentUser?.uid || !data.chatId || !data.user?.uid) {
+      setError("Select a conversation before sending a message.");
+      return;
+    }
 
-      const uploadTask = uploadBytesResumable(storageRef, img);
+    setSending(true);
+    setError("");
 
-      uploadTask.on(
-        (error) => {
-          //TODO:Handle Error
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then(async (downloadURL) => {
-            await updateDoc(doc(db, "chats", data.chatId), {
-              messages: arrayUnion({
-                id: uuid(),
-                text,
-                senderId: currentUser.uid,
-                date: Timestamp.now(),
-                img: downloadURL,
-              }),
-            });
-          });
-        }
-      );
-    } else {
+    try {
+      let imageUrl = "";
+      if (img) {
+        const storageRef = ref(storage, `chat-images/${uuid()}-${img.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, img);
+        await uploadTask;
+        imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+      }
+
+      const messageText = text.trim();
       await updateDoc(doc(db, "chats", data.chatId), {
         messages: arrayUnion({
           id: uuid(),
-          text,
+          text: messageText,
           senderId: currentUser.uid,
           date: Timestamp.now(),
+          ...(imageUrl ? { img: imageUrl } : {}),
         }),
       });
+
+      const lastMessage = { text: messageText || (imageUrl ? "Image" : "") };
+      await Promise.all([
+        updateDoc(doc(db, "userChats", currentUser.uid), {
+          [data.chatId + ".lastMessage"]: lastMessage,
+          [data.chatId + ".date"]: serverTimestamp(),
+        }),
+        updateDoc(doc(db, "userChats", data.user.uid), {
+          [data.chatId + ".lastMessage"]: lastMessage,
+          [data.chatId + ".date"]: serverTimestamp(),
+        }),
+      ]);
+
+      setText("");
+      setImg(null);
+    } catch (sendError) {
+      console.error("Unable to send message:", sendError);
+      setError("Message could not be sent. Please try again.");
+    } finally {
+      setSending(false);
     }
-
-    await updateDoc(doc(db, "userChats", currentUser.uid), {
-      [data.chatId + ".lastMessage"]: {
-        text,
-      },
-      [data.chatId + ".date"]: serverTimestamp(),
-    });
-
-    await updateDoc(doc(db, "userChats", data.user.uid), {
-      [data.chatId + ".lastMessage"]: {
-        text,
-      },
-      [data.chatId + ".date"]: serverTimestamp(),
-    });
-
-    setText("");
-    setImg(null);
   };
+
   return (
-    <div className="input">
+    <form className="input" onSubmit={handleSend}>
       <input
         type="text"
         placeholder="Type something..."
-        onChange={(e) => setText(e.target.value)}
+        onChange={(event) => setText(event.target.value)}
         value={text}
       />
       <div className="send">
         <img src={Attach} alt="" />
         <input
           type="file"
+          accept="image/*"
           style={{ display: "none" }}
           id="file"
-          onChange={(e) => setImg(e.target.files[0])}
+          onChange={(event) => setImg(event.target.files?.[0] || null)}
         />
         <label htmlFor="file">
-          <img src={Img} alt="" />
+          <img src={Img} alt="Choose an image" />
         </label>
-        <button onClick={handleSend}>Send</button>
+        <button type="submit" disabled={sending}>
+          {sending ? "Sending..." : "Send"}
+        </button>
       </div>
-    </div>
+      {error && <span role="alert">{error}</span>}
+    </form>
   );
 };
 
