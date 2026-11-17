@@ -70,7 +70,7 @@ describe("Search", () => {
 
     expect(await screen.findByText("Tarun Tiwari")).toBeInTheDocument();
     expect(where).toHaveBeenCalledWith("username", ">=", "tarun");
-    expect(where).toHaveBeenCalledWith("username", "<=", "tarun\\uf8ff");
+    expect(where).toHaveBeenCalledWith("username", "<=", "tarun\uf8ff");
   });
 
   test("shows a recoverable message when Firestore search fails", async () => {

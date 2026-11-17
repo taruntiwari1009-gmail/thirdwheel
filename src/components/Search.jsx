@@ -60,13 +60,13 @@ const Search = () => {
           getDocs(query(
             profiles,
             where("displayNameLower", ">=", normalized),
-            where("displayNameLower", "<=", normalized + "\\uf8ff"),
+            where("displayNameLower", "<=", normalized + "\uf8ff"),
             limit(PAGE_SIZE)
           )),
           getDocs(query(
             profiles,
             where("username", ">=", normalized),
-            where("username", "<=", normalized + "\\uf8ff"),
+            where("username", "<=", normalized + "\uf8ff"),
             limit(PAGE_SIZE)
           ))
         ]);
@@ -112,14 +112,14 @@ const Search = () => {
         cursors.names ? getDocs(query(
           profiles,
           where("displayNameLower", ">=", normalized),
-          where("displayNameLower", "<=", normalized + "\\uf8ff"),
+          where("displayNameLower", "<=", normalized + "\uf8ff"),
           startAfter(cursors.names),
           limit(PAGE_SIZE)
         )) : Promise.resolve({ docs: [] }),
         cursors.usernames ? getDocs(query(
           profiles,
           where("username", ">=", normalized),
-          where("username", "<=", normalized + "\\uf8ff"),
+          where("username", "<=", normalized + "\uf8ff"),
           startAfter(cursors.usernames),
           limit(PAGE_SIZE)
         )) : Promise.resolve({ docs: [] })
