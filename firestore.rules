@@ -113,23 +113,12 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid == userId;
       allow write: if false;
     }
-    // Moderation and match lifecycle are trusted-server-only until callable backend
-    // operations enforce review roles, mutual consent, throttling and audit events.
+    // Moderation and account lifecycle records are trusted-server-only.
     match /moderationCases/{caseId} {
       allow read, write: if false;
     }
     match /moderationAudit/{eventId} {
       allow read, write: if false;
-    }
-    match /matches/{matchId} {
-      allow read, write: if false;
-    }
-    match /users/{userId}/likes/{targetUid} {
-      allow read, write: if false;
-    }
-    match /users/{userId}/privatePreferences/{preferenceId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow write: if false;
     }
     match /users/{userId}/userChats/{chatId} {
       allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
