@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, addDoc, collection } from "firebase/firestore";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase";
 
@@ -14,7 +14,6 @@ const list = value => Array.isArray(value) ? value : [];
 export default function Profile() {
   const { uid } = useParams();
   const { currentUser } = useContext(AuthContext);
-  const navigate = useNavigate();
   const id = uid || currentUser?.uid;
   const owner = currentUser?.uid === id;
   const [profile, setProfile] = useState(EMPTY);
