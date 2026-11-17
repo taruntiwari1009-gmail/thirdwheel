@@ -7,25 +7,15 @@ const Message = ({ message }) => {
   const { data } = useContext(ChatContext);
   const ref = useRef();
   const isOwner = message.senderId === currentUser?.uid;
-
-  useEffect(() => {
-    ref.current?.scrollIntoView?.({ behavior: "smooth" });
-  }, [message]);
-
+  useEffect(() => { ref.current?.scrollIntoView?.({ behavior: "smooth", block: "end" }); }, [message]);
   const avatar = isOwner ? currentUser?.photoURL : data.user?.photoURL;
-
-  return (
-    <div ref={ref} className={`message ${isOwner ? "owner" : ""}`}>
-      <div className="messageInfo">
-        {avatar && <img src={avatar} alt="" />}
-        <span>{message.date?.toDate ? message.date.toDate().toLocaleString() : "Just now"}</span>
-      </div>
-      <div className="messageContent">
-        {message.text && <p>{message.text}</p>}
-        {message.img && <img src={message.img} alt="Shared attachment" />}
-      </div>
+  const date = message.date?.toDate ? message.date.toDate() : null;
+  return <div ref={ref} className={`message ${isOwner ? "owner" : ""}`}>
+    <div className="messageInfo">{avatar && <img src={avatar} alt="" />}<span>{date ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "Just now"}</span></div>
+    <div className="messageContent">
+      {message.text && <p>{message.text}</p>}
+      {message.img && <a href={message.img} target="_blank" rel="noreferrer"><img src={message.img} alt="Shared attachment" loading="lazy" /></a>}
     </div>
-  );
+  </div>;
 };
-
 export default Message;
