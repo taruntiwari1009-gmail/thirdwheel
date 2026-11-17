@@ -1,124 +1,116 @@
-# Third Wheel — Dating Product Roadmap
+# Third Wheel — Chat Product Roadmap
 
-**Product direction:** Dating and relationship discovery  
-**Primary quality bar:** Safety, reliability, privacy, accessibility and a coherent user experience  
+**Product direction:** A polished, privacy-conscious one-to-one chatting app  
+**Primary quality bar:** Reliability, safety, privacy, accessibility and a coherent user experience  
 **Working location:** Existing PR #14 branch, `fix/netlify-ci-lint-pr13`  
 **Release constraint:** Netlify remains disabled. No production deployment, Firebase production-rule deployment, merge or push to `main` is part of this roadmap.
 
 ## Product principles
 
-1. **Intentional dating, not swipe mechanics for their own sake.** Help people find compatible connections and start thoughtful conversations.
-2. **Mutual consent before contact.** A match is created only after both people express interest. Non-matches cannot bypass this through chat creation.
-3. **Safety is foundational.** Blocking, reporting, moderation, age controls, privacy settings and abuse prevention are core product requirements, not post-launch extras.
-4. **Explain recommendations.** Show the profile details and shared interests that informed a recommendation. Do not present an opaque or scientifically unsupported compatibility percentage.
-5. **User control and dignity.** Preferences are optional where possible, editable, and never inferred from private messages. Avoid engagement mechanics that pressure users to respond.
-6. **Privacy by default.** Do not expose exact location, contact details, private activity or sensitive profile data in discovery.
-7. **Quality before breadth.** Each phase must pass tests, accessibility checks, responsive review and security-rule verification before the next phase is considered complete.
+1. **Conversation first.** Make it easy to find people, start conversations and keep up with them.
+2. **User control.** People control who can contact them, what they share and which conversations remain visible.
+3. **Safety by design.** Blocking, reporting, moderation, account controls and abuse prevention are core features.
+4. **Privacy by default.** Do not expose email addresses, exact location, private activity or conversation content unnecessarily.
+5. **Reliable communication.** Messages should send predictably, recover from failures and remain ordered and accessible.
+6. **No manipulative engagement.** Avoid streaks, pressure timers, read-receipt coercion or artificial urgency.
+7. **Quality before breadth.** Each phase must pass tests, accessibility checks, responsive review and security-rule verification.
 
 ## Current baseline and constraints
 
-The current application is a React 18 / React Router / Firebase Authentication / Cloud Firestore / Firebase Storage one-to-one chat product. Existing capabilities include profiles, people search, chat, image attachments, unread counts, blocking and report submission. The current chat model stores messages in an embedded array. Firestore and Storage rules are version-controlled and emulator-tested, but production rules have not been deployed.
+The application is a React 18 / React Router / Firebase Authentication / Cloud Firestore / Firebase Storage one-to-one chat app. Existing capabilities include profiles, people search, real-time chat, image attachments, unread counts, blocking and report submission. Messages are currently stored in an embedded array in each chat document. Firestore and Storage rules are version-controlled and emulator-tested, but production rules have not been deployed.
 
-The following are known gaps, not assumed completed features:
-- There is no mutual-like/match lifecycle or dating recommendation system yet.
-- Reports are write-only from the client; a trusted moderation review workflow is not yet present.
+Known limitations:
+- Reports are client-submitted and client-inaccessible after submission; there is not yet an operational trusted moderation queue.
 - Messages remain embedded in chat documents; pagination and a subcollection migration remain future work.
-- Firebase Storage download URLs are bearer links and should not be treated as confidential media authorization.
+- Firebase Storage download URLs are bearer links and must not be treated as confidential media authorization.
 - Production App Check configuration/enforcement and production rules deployment require separate review and owner approval.
+- Account deletion and complete data cleanup are not yet implemented.
+- No trusted backend currently exists in this repository.
 
 ## Delivery phases
 
-### Phase 0 — Product and data foundations
+### Phase 0 — Chat product and data foundations
 
-**Goal:** Establish explicit dating semantics and safe data contracts before building discovery.
+**Goal:** Establish clear contracts for profiles, conversations, privacy and data changes.
 
-- Define profile fields: dating intent, relationship goals, age/date-of-birth handling, city-level location, interests, languages, prompts and optional preferences.
-- Separate public discovery fields from private account and preference data.
-- Define who can see each field and whether it is optional, hidden, or shown only after a match.
-- Define eligibility and age policy: the product is for adults 18+; do not expose a profile in discovery until age eligibility has been established. Select an age-assurance approach before launch; do not claim identity verification unless a real verification provider is integrated.
-- Define match lifecycle states and invariants: pending interest, mutual match, unmatched, blocked, reported, suspended and deleted.
-- Document retention, deletion, export and moderation access requirements.
-- Add schema versioning and migration strategy before changing existing user/profile/chat documents.
+- Document the existing profile, chat, inbox and media collections.
+- Define public profile fields separately from private account and inbox data.
+- Define conversation membership and message authorship invariants.
+- Document blocking behavior across discovery, inbox, new chat creation and message sending.
+- Define report intake, moderator-only access, audit and retention requirements.
+- Define account deletion and data export expectations before implementing destructive workflows.
+- Preserve compatibility with existing chat documents; any schema migration needs a backup, dry run, reconciliation, rollback plan and explicit approval.
 
-**Exit criteria:** Approved field-level privacy matrix, documented state machine, security-rule design, migration plan and test cases. No new dating UI should rely on undocumented fields.
+**Exit criteria:** Field-level privacy matrix, documented chat access model, rules tests and a migration plan. No existing user data is silently rewritten.
 
 ### Phase 1 — Trust, safety and account controls
 
-**Goal:** Make dating interactions safe before scaling discovery.
+**Goal:** Give users practical controls and establish a real process for abuse reports.
 
-- Build a block-management screen with unblock controls and clear consequences.
-- Build a trusted moderation queue for reports with role-protected access, audit trail, review status, notes and escalation actions. Client users must never read or modify moderation records.
-- Add report categories and evidence handling with strict access controls and retention limits.
-- Add account deletion and a documented cleanup process for profile, likes, matches, messages and stored media, with clear user confirmation.
-- Add message-request / match-only messaging enforcement in both UI and Firestore rules.
-- Add abuse controls: rate limits, duplicate-like prevention, spam throttling, account cooldowns and suspicious-activity signals.
-- Prepare Firebase App Check with development/staging validation and staged production enforcement.
-- Add safe defaults for discoverability, online/activity visibility, read receipts and profile field visibility.
-- Add an adult-only eligibility gate and a documented process for handling suspected underage accounts.
+- Maintain block and unblock controls with clear consequences.
+- Ensure blocked users cannot create new conversations or send new messages to one another.
+- Keep reports private from ordinary clients and implement a trusted moderation review workflow with role-protected access, status, notes, escalation and audit history.
+- Add safe report categories and bounded evidence handling.
+- Implement account deletion as a trusted, retryable workflow covering Auth, profile, inbox, conversations and stored media, subject to documented safety/legal retention.
+- Add server-side abuse controls for report spam, message spam and repeated account actions.
+- Add privacy settings for discoverability, activity visibility and read receipts where those features exist.
+- Prepare App Check in development/staging; production enforcement remains a separately approved operation.
 
-**Exit criteria:** Emulator tests cover allowed and denied paths for every new collection and transition; moderation access is server/admin-only; account deletion and block behavior are tested end-to-end.
+**Exit criteria:** Emulator/integration tests cover allowed and denied paths; moderator operations are server-only and audited; deletion and recovery are tested; blocked users cannot resume contact through alternate client paths.
 
-**Implementation status (PR #14):** The block-management screen, expanded report categories, stricter block-entry validation, and client-deny rules for likes/matches/moderation records are implemented. This is a partial Phase 1 delivery, not completion. The moderation queue, trusted abuse controls, account deletion, age assurance, App Check validation/enforcement and match-only messaging remain blocked on trusted backend work or the matching architecture. See [Phase 1 implementation notes](./PHASE_1_TRUST_SAFETY.md).
+**Current implementation status (PR #14):** Block management, block validation, block enforcement for chat operations, expanded report categories and client-deny rules for moderation records are implemented and emulator-tested. The trusted moderation queue, account deletion, server-side throttling and App Check setup remain outstanding. See [Phase 1 implementation notes](./PHASE_1_TRUST_SAFETY.md).
 
+### Phase 2 — Profiles and people discovery
 
-### Phase 2 — Dating profiles and onboarding
+**Goal:** Make finding people and starting a conversation intuitive.
 
-**Goal:** Give people enough meaningful context to make informed choices.
+- Improve profile editing and preview so users understand what is visible.
+- Improve people search, matching query behavior, empty states, loading and error handling.
+- Add useful filters based only on fields users intentionally share.
+- Add pagination and bounded queries as the user base grows.
+- Make block and discoverability preferences consistently affect search results.
+- Improve responsive layouts, keyboard navigation, labels, focus states, contrast and reduced-motion support.
 
-- Introduce dating-focused onboarding with clear explanation of what is public, private and optional.
-- Add profile prompts (for example: ideal weekend, a topic I can talk about for hours, and what I value in a relationship).
-- Add relationship intent and connection goals using a controlled, documented vocabulary.
-- Add optional preferences and dealbreakers with transparent visibility controls.
-- Add profile completeness guidance without making users disclose sensitive information.
-- Add profile preview so users can see exactly what others will see.
-- Improve image upload UX, compression, validation and deletion behavior.
-- Add accessibility labels, keyboard navigation, focus states, reduced-motion support and responsive layouts.
+**Exit criteria:** Search works reliably across supported inputs; hidden/blocked accounts are handled consistently; profile visibility is tested; mobile and desktop accessibility checks pass.
 
-**Exit criteria:** Onboarding can be completed, resumed and edited; public/private fields are tested; profile preview matches discovery rendering; accessibility and mobile checks pass.
+### Phase 3 — Reliable messaging
 
-### Phase 3 — Discovery and mutual matching
+**Goal:** Make conversations dependable, scalable and easy to manage.
 
-**Goal:** Create a fair, explainable and privacy-aware discovery loop.
-
-- Replace generic people search as the primary experience with a curated discovery feed.
-- Add filters for mutually relevant, non-sensitive attributes such as city/region, interests, languages and relationship intent where users choose to share them.
-- Use a transparent recommendation baseline: eligibility, user-selected preferences, shared interests, recency/fair exposure and diversity. Document ranking inputs and avoid sensitive-trait inference.
-- Explain each recommendation with grounded reasons such as shared interests or compatible stated goals.
-- Add like / pass actions with undo where safe and clear controls.
-- Create a match only when interest is mutual; prevent duplicate or conflicting match records transactionally.
-- Add a matches inbox and clear unmatched/blocked behavior.
-- Add discovery pause, hide profile and preference reset controls.
-- Add pagination, query indexes, caching and deterministic test fixtures.
-
-**Exit criteria:** Mutual-match invariants are enforced server-side; blocked/suspended/ineligible accounts never appear; users can pause discovery; ranking is testable and explainable; no fabricated compatibility score is displayed.
-
-### Phase 4 — Reliable messaging for matches
-
-**Goal:** Make conversations dependable and scalable.
-
-- Migrate embedded message arrays to a `chats/{chatId}/messages/{messageId}` subcollection through a backwards-compatible, rehearsed migration.
-- Preserve old conversations during migration and verify message counts, ordering, timestamps and attachment references before cutover.
-- Add cursor-based pagination and unread boundaries.
-- Add reply-to-message and reactions, then edit/delete with clear rules and audit semantics.
-- Add typing indicators and read receipts as opt-in privacy settings.
-- Add conversation search, mute/archive and media gallery.
-- Improve attachment authorization; replace bearer-link assumptions with an authenticated delivery design before treating media as private.
+- Design a backwards-compatible migration from embedded message arrays to `chats/{chatId}/messages/{messageId}`.
+- Rehearse migration on a representative copy and verify counts, ordering, timestamps and attachment references before cutover.
+- Add cursor-based message pagination and bounded reads.
+- Improve unread boundaries and conversation list synchronization.
 - Add resilient optimistic sending, retry/error states, offline behavior and duplicate-send protection.
+- Consider replies, reactions, edit/delete and conversation search with clear authorization and audit semantics.
+- Add mute/archive controls.
+- Improve attachment authorization; replace bearer-link assumptions with authenticated media delivery before treating media as private.
 - Add notification preferences and secure push delivery only after consent and platform configuration are defined.
 
-**Exit criteria:** Migration rehearsal on a representative copy succeeds; no message loss/duplication; rules tests cover reads/writes and membership changes; pagination and failure recovery tests pass.
+**Exit criteria:** Migration rehearsal succeeds without message loss or duplication; rules tests cover membership and message authorship; pagination and failure recovery tests pass.
 
-### Phase 5 — Conversation quality and community features
+### Phase 4 — Conversation experience
 
-**Goal:** Help matches start and sustain meaningful conversations.
+**Goal:** Make the app feel thoughtful and polished without pressuring users.
 
-- Add optional icebreakers grounded in shared interests and profile prompts.
-- Add user-controlled conversation prompts and question cards.
-- Add date-planning suggestions only as optional, non-location-invasive prompts.
-- Consider interest-based events or group activities as a later product extension, separate from the core dating loop.
-- Do not add streaks, pressure timers or manipulative response nudges.
+- Refine chat layout, composer, attachment previews and message grouping.
+- Add optional conversation organization and user-controlled notification settings.
+- Improve accessibility for message announcements, keyboard use and screen readers.
+- Add clear delivery, retry and offline states without exposing unnecessary activity signals.
+- Review performance for long conversations and media-heavy chats.
 
-**Exit criteria:** Features are optional, dismissible, accessible and do not expose private profile data or message content to recommendation systems without explicit consent.
+**Exit criteria:** Core chat flows are accessible, responsive and robust under slow/offline network conditions.
+
+### Phase 5 — Community and optional enhancements
+
+**Goal:** Add useful features only when they support the core chat experience.
+
+- Consider opt-in group conversations or interest-based spaces as a separate product decision.
+- Consider user-controlled conversation prompts or shared-interest context.
+- Keep all optional social features dismissible and privacy-aware.
+- Do not add engagement mechanics that pressure users to respond.
+
+**Exit criteria:** New features have clear user value, access rules, moderation requirements and opt-out controls.
 
 ### Phase 6 — Launch readiness and operations
 
@@ -127,8 +119,8 @@ The following are known gaps, not assumed completed features:
 - Add error monitoring, structured non-sensitive logs, crash reporting and service health checks.
 - Add backup/restore and incident response runbooks.
 - Review Firestore and Storage costs, indexes, quotas and query patterns.
-- Complete security review, privacy review, accessibility review and abuse-case testing.
-- Validate account deletion, data retention and support escalation workflows.
+- Complete security, privacy, accessibility and abuse-case reviews.
+- Validate account deletion, retention and support escalation workflows.
 - Run staged rollout with internal test accounts, then a limited beta and measured expansion.
 - Keep production Firebase deployment and Netlify reactivation as explicit owner-approved release actions.
 
@@ -136,46 +128,20 @@ The following are known gaps, not assumed completed features:
 
 ## Cross-cutting quality gates
 
-Every implementation batch must satisfy all applicable gates:
-
-- **Correctness:** Unit/component tests and integration tests for success, failure, empty and boundary states.
-- **Security:** Firestore/Storage Emulator tests for authorized and unauthorized users, including blocked, unmatched, suspended and deleted states.
-- **Privacy:** Field-level read/write matrix; no accidental exposure of email, exact location, private preferences, moderation data or activity.
+- **Correctness:** Unit/component and integration tests for success, failure, empty and boundary states.
+- **Security:** Firestore/Storage Emulator tests for authorized and unauthorized users, including blocked users and non-participants.
+- **Privacy:** No accidental exposure of email, exact location, private inbox data, moderation records or message bodies.
 - **Accessibility:** Keyboard operation, semantic labels, focus visibility, contrast and reduced motion.
 - **Responsive UX:** Mobile, tablet and desktop layouts; loading, empty, offline and error states.
-- **Performance:** Bounded queries, pagination, indexes, image optimization and no unbounded message/profile reads.
-- **Data integrity:** Idempotent writes, transactions for match creation, migration checks and recovery plan.
+- **Performance:** Bounded queries, pagination, indexes and image optimization.
+- **Data integrity:** Idempotent writes, migration checks and recovery plans.
 - **Observability:** Useful error signals without logging message bodies or sensitive personal data.
 - **Release discipline:** CI only while Netlify is disabled; never merge, deploy or deploy Firebase rules without explicit owner approval.
 
-## Recommended implementation order
+## Explicitly out of scope
 
-1. Phase 0 foundations and Phase 1 safety design.
-2. Complete Phase 1 trust/safety and account controls.
-3. Phase 2 dating profiles and onboarding.
-4. Phase 3 mutual discovery and matching.
-5. Phase 4 message migration and match-only messaging.
-6. Phase 5 conversation quality.
-7. Phase 6 launch readiness.
-
-This ordering deliberately puts safety and data contracts ahead of growth features. It also avoids building a matching UI on top of an authorization model that still permits arbitrary chat creation.
-
-## Decisions to resolve before coding the dating system
-
-- Age assurance: self-attestation alone or a vetted third-party age-assurance provider.
-- Geographic scope: city-only discovery initially, with no exact-distance display.
-- Relationship-intent taxonomy and which fields are optional/public.
-- Whether likes are private until a mutual match (recommended).
-- Whether messaging is strictly match-only (recommended).
-- Which moderation roles and review actions are supported.
-- Which data is retained after unmatch, block or account deletion, subject to applicable legal requirements.
-- Whether push notifications are in scope for the first beta.
-
-## Explicitly out of scope until separately approved
-
+- Dating profiles, likes, passes, matches or relationship-intent discovery.
+- Match-only messaging or age-verification workflows for dating.
 - Production Firebase rules deployment.
 - Production Netlify reactivation or deployment.
 - Direct pushes to `main`, PR merge or creation of another PR.
-- Third-party identity/age verification integration before provider and privacy review.
-- AI-based face analysis, attractiveness scoring, inferred sensitive traits or opaque compatibility scores.
-- Location tracking or displaying exact user locations.
