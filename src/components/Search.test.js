@@ -51,7 +51,7 @@ describe("Search", () => {
     expect(await screen.findByText("Alice")).toBeInTheDocument();
     expect(screen.queryByText("Alina")).not.toBeInTheDocument();
     expect(screen.queryByText("Current User")).not.toBeInTheDocument();
-    await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(3));
 
     const fields = where.mock.calls.map(([field]) => field);
     expect(fields).toEqual(["displayNameLower", "displayNameLower", "username", "username"]);
