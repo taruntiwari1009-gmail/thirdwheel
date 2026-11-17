@@ -130,8 +130,13 @@ export default function Profile() {
       <h2>Report this profile</h2>
       <label>What's the issue?
         <select value={reason} onChange={event => setReason(event.target.value)}>
-          <option value="spam">Spam or scam</option>
+          <option value="spam">Spam</option>
+          <option value="scam">Scam or fraud</option>
           <option value="harassment">Harassment or bullying</option>
+          <option value="threats">Threats or intimidation</option>
+          <option value="stalking">Stalking or unwanted contact</option>
+          <option value="sexual_harassment">Sexual harassment</option>
+          <option value="underage">Suspected underage account</option>
           <option value="inappropriate">Inappropriate content</option>
           <option value="impersonation">Impersonation</option>
           <option value="other">Something else</option>
