@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import Img from "../img/img.png";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
@@ -11,10 +11,18 @@ import { hasMessageContent, isAllowedImage } from "../utils/chat";
 const Input = () => {
   const [text, setText] = useState("");
   const [img, setImg] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
+
+  useEffect(() => {
+    if (!img) { setPreviewUrl(""); return undefined; }
+    const url = URL.createObjectURL(img);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [img]);
 
   const handleImageSelect = event => {
     const file = event.target.files?.[0];
@@ -89,7 +97,7 @@ const Input = () => {
       <label htmlFor="file" className="attachmentButton" title="Attach an image"><img src={Img} alt="" /><span>Photo</span></label>
       <button type="submit" disabled={sending || !hasMessageContent(text, img)}>{sending ? "Sending…" : "Send"}</button>
     </div>
-    {img && <div className="attachmentPreview"><span>Image ready: {img.name}</span><button type="button" onClick={() => { setImg(null); const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
+    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected image preview" /><span>Image ready: {img.name}</span><button type="button" onClick={() => { setImg(null); const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
     {error && <span role="alert">{error}</span>}
   </form>;
 };
