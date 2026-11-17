@@ -1,4 +1,4 @@
-import { collection, doc, documentId, endBefore, getDocs, limit, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
+import { collection, doc, documentId, endBefore, getDocs, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
