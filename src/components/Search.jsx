@@ -1,13 +1,15 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   collection,
-  query,
-  where,
-  getDocs,
-  setDoc,
   doc,
-  serverTimestamp,
   getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { AuthContext } from "../context/AuthContext";
@@ -16,60 +18,68 @@ import { getChatId } from "../utils/chat";
 
 const Search = () => {
   const [username, setUsername] = useState("");
-  const [user, setUser] = useState(null);
+  const [users, setUsers] = useState([]);
   const [err, setErr] = useState("");
-  const [selecting, setSelecting] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [selectingUid, setSelectingUid] = useState(null);
 
   const { currentUser } = useContext(AuthContext);
   const { dispatch } = useContext(ChatContext);
 
-  const handleSearch = async () => {
-    const searchTerm = username.trim();
-    setUser(null);
+  useEffect(() => {
+    const searchTerm = username.trim().toLowerCase();
+    let active = true;
+
+    setUsers([]);
     setErr("");
 
-    if (!searchTerm) return;
-
-    try {
-      const usersQuery = query(
-        collection(db, "publicProfiles"),
-        where("displayName", "==", searchTerm)
-      );
-      const querySnapshot = await getDocs(usersQuery);
-      const matches = querySnapshot.docs
-        .map((userDoc) => userDoc.data())
-        .filter((result) => result.uid !== currentUser?.uid);
-
-      if (matches.length === 0) {
-        setErr("No other user found with that display name.");
-        return;
-      }
-      if (matches.length > 1) {
-        setErr("More than one user has that display name. Ask for a unique name.");
-        return;
-      }
-
-      setUser(matches[0]);
-    } catch (error) {
-      console.error("User search failed:", error);
-      setErr("Search failed. Please try again.");
+    if (!searchTerm || !currentUser?.uid) {
+      setSearching(false);
+      return undefined;
     }
-  };
 
-  const handleKey = (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      handleSearch();
-    }
-  };
+    // Debounce requests so each keystroke does not trigger a Firestore read.
+    const timeoutId = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const usersQuery = query(
+          collection(db, "publicProfiles"),
+          where("displayNameLower", ">=", searchTerm),
+          where("displayNameLower", "<=", searchTerm + "\uf8ff"),
+          orderBy("displayNameLower"),
+          limit(10)
+        );
+        const snapshot = await getDocs(usersQuery);
+        if (!active) return;
 
-  const handleSelect = async () => {
-    if (!currentUser?.uid || !user?.uid || selecting) return;
+        const matches = snapshot.docs
+          .map((profileDoc) => profileDoc.data())
+          .filter((profile) => profile.uid !== currentUser.uid);
 
-    setSelecting(true);
+        setUsers(matches);
+        if (matches.length === 0) {
+          setErr("No users found. Try another name.");
+        }
+      } catch (error) {
+        console.error("User search failed:", error);
+        if (active) setErr("Search failed. Please try again.");
+      } finally {
+        if (active) setSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+    };
+  }, [username, currentUser?.uid]);
+
+  const handleSelect = async (selectedUser) => {
+    if (!currentUser?.uid || !selectedUser?.uid || selectingUid) return;
+
+    setSelectingUid(selectedUser.uid);
     setErr("");
 
-    const selectedUser = user;
     const combinedId = getChatId(currentUser.uid, selectedUser.uid);
 
     try {
@@ -106,13 +116,13 @@ const Search = () => {
       }
 
       dispatch({ type: "CHANGE_USER", payload: selectedUser });
-      setUser(null);
+      setUsers([]);
       setUsername("");
     } catch (error) {
       console.error("Unable to open conversation:", error);
       setErr("Could not open this conversation. Please try again.");
     } finally {
-      setSelecting(false);
+      setSelectingUid(null);
     }
   };
 
@@ -122,22 +132,26 @@ const Search = () => {
         <input
           type="text"
           placeholder="Find a user"
-          onKeyDown={handleKey}
+          aria-label="Find a user"
+          autoComplete="off"
           onChange={(event) => setUsername(event.target.value)}
           value={username}
         />
       </div>
-      {err && <span role="alert">{err}</span>}
-      {user && (
+      {searching && <span role="status">Searching...</span>}
+      {err && !searching && <span role="status">{err}</span>}
+      {users.map((user) => (
         <div
           className="userChat"
-          onClick={handleSelect}
+          key={user.uid}
+          onClick={() => handleSelect(user)}
           role="button"
           tabIndex={0}
+          aria-disabled={Boolean(selectingUid)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              handleSelect();
+              handleSelect(user);
             }
           }}
         >
@@ -145,9 +159,9 @@ const Search = () => {
           <div className="userChatInfo">
             <span>{user.displayName}</span>
           </div>
-          {selecting && <span>Opening...</span>}
+          {selectingUid === user.uid && <span>Opening...</span>}
         </div>
-      )}
+      ))}
     </div>
   );
 };
