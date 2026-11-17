@@ -25,3 +25,23 @@ Third Wheel remains a one-to-one chat application. Dating profiles, likes, passe
 ## Release state
 
 All changes are on PR #14, branch `fix/netlify-ci-lint-pr13`. Firestore and Storage rules are source-controlled and emulator-tested; they have not been deployed to production. No Netlify deployment, merge or production change is part of this work.
+
+## Trusted backend setup (operator-only)
+
+1. Review the Functions source and deploy to a dedicated staging Firebase project first.
+2. Install backend dependencies from the `functions/` directory and run `npm test`.
+3. Provision the initial owner custom claim from a trusted workstation with Application Default Credentials for the intended Firebase project:
+
+   ```bash
+   cd functions
+   gcloud auth application-default login
+   export GCLOUD_PROJECT="your-staging-project-id"
+   export THIRDWHEEL_OWNER_UID="the-owner-firebase-auth-uid"
+   npm run bootstrap-owner
+   ```
+
+4. Refresh the owner's Firebase ID token by signing out and back in. Use the owner-only callable to grant/revoke moderator claims to other accounts.
+5. Configure the web App Check site key as a deployment environment variable. Observe staging traffic before enabling callable enforcement.
+6. Do not deploy Functions or rules to the production project until the owner explicitly approves the target project, billing impact, rules diff and rollout plan.
+
+The bootstrap script does not contain or download credentials. Never commit service-account keys or use a client-side owner flag.
