@@ -11,9 +11,9 @@ The current source uses:
 
 - Before the security implementation, `users/{uid}` documents contained `uid`, `displayName`, `email` and `photoURL`; the old `userChats/{uid}` document stored chat entries in a dynamic map.
 - The new client uses `publicProfiles/{uid}` for discoverable profile fields and `users/{uid}/userChats/{chatId}` for per-user conversation entries.
-- `chats/{chatId}` documents containing a `messages` array.
+- `chats/{chatId}` documents containing immutable participant metadata only; messages live under `chats/{chatId}/messages/{messageId}`.
 - Chat IDs formed by concatenating the two UIDs in sorted order.
-- The new chat creation flow writes a sorted two-UID `participants` array and an empty `messages` array.
+- The chat creation flow writes only a sorted two-UID `participants` array.
 - A message-send flow that updates both participants' `userChats` documents.
 - Avatar objects at `avatars/{uid}/{fileName}`.
 - New chat image objects are stored under `chat-images/{chatId}/{uid}/{fileName}`.
@@ -25,7 +25,7 @@ The current source uses:
 2. Allow a user to create and update only their own profile, with a strict public-profile field allowlist.
 3. Avoid storing email addresses in publicly discoverable profile documents. Firestore Rules are document-level, not field-redaction rules; the current search reads whole user documents.
 4. Allow only the two explicit participants to read or write a conversation.
-5. Tie message authorship to the authenticated UID and validate message shape and size.
+5. Tie message authorship to the authenticated UID, validate message shape and size, and make message documents immutable after creation.
 6. Restrict avatar writes to the owning UID; allow authenticated reads because avatars are shown in user search and chat lists.
 7. Restrict chat-image uploads and reads to authenticated conversation participants; enforce image MIME type and a maximum size of 5 MiB.
 8. Test both allowed and denied cases with Firebase Emulator Suite.
@@ -55,17 +55,16 @@ Add a `participants` array to every new `chats/{chatId}` document:
 
 ```json
 {
-  "participants": ["uid-a", "uid-b"],
-  "messages": []
+  "participants": ["uid-a", "uid-b"]
 }
 ```
 
-The participant list must contain exactly two distinct UIDs, including the authenticated creator. The existing deterministic chat ID remains for now to avoid combining this security phase with the later message-subcollection migration.
+The participant list must contain exactly two distinct UIDs, including the authenticated creator. The deterministic chat ID is derived from the sorted UIDs. Message documents are stored separately under the chat.
 
 ### Blocking and reporting
 
 - `users/{uid}/blockedUsers/{blockedUid}` stores a private block relationship. Only the owner can read, create or delete entries.
-- Chat creation and message updates check both participants' block lists. A block therefore prevents new conversations and further message exchange even if a chat document already exists.
+- Chat creation and message creation check both participants' block lists. A block therefore prevents new conversations and further message exchange even if a chat document already exists.
 - `reports/{reportId}` accepts a constrained report payload. Client reads, updates and deletes are denied. Reports are not yet connected to an in-app moderation dashboard or notification workflow; an operator must review them through a trusted administrative channel.
 
 ### Chat image paths
@@ -88,7 +87,8 @@ The current app updates both participants' chat-list documents from the client. 
 |---|---|---|---|---|
 | `publicProfiles/{uid}` | Authenticated users | Owner, allowlisted public fields | Owner, allowlisted public fields | Owner only |
 | `users/{uid}/userChats/{chatId}` | Owner or conversation participant | Conversation participant, with counterpart profile verified | Conversation participant, only `lastMessage` and `date` | Owner who is a participant |
-| `chats/{chatId}` | Listed participants only | Authenticated creator, exactly two valid participants, neither participant has blocked the other | Listed participants; only valid message append while no block exists | Disabled in this phase |
+| `chats/{chatId}` | Listed participants only | Authenticated creator, exactly two valid participants, neither participant has blocked the other | Disabled for clients | Disabled |
+| `chats/{chatId}/messages/{messageId}` | Listed participants only | Participant, message ID matches document ID, authenticated authorship, valid payload, rate limit and no block | Disabled (immutable) | Disabled (immutable) |
 | `users/{uid}/blockedUsers/{blockedUid}` | Owner only | Owner, distinct target UID | Disabled | Owner |
 | `reports/{reportId}` | Client denied | Authenticated reporter, constrained target/reason/details | Client denied | Client denied |
 | `avatars/{uid}/{fileName}` | Authenticated users | Owner, image, <= 5 MiB | Owner, image, <= 5 MiB | Owner |
@@ -100,9 +100,10 @@ The exact rules expressions and allowed field changes are implemented in `firest
 
 - Write discoverable profiles to `publicProfiles/{uid}` without email.
 - Add the two participant UIDs when creating a conversation.
+- Store each message as an immutable document in the chat's `messages` subcollection; use the message UUID as the document ID.
 - Store per-user chat list entries at `users/{uid}/userChats/{chatId}`.
 - Change chat image storage paths to include chat ID and uploader UID.
-- Preserve the current message-array model in this phase; moving messages to a subcollection remains a separate, gated Phase 4 change.
+- The embedded-message array and legacy root-level `userChats/{uid}` schema are intentionally unsupported.
 - Keep the two per-user chat-list writes, constrained to the matching participant conversation entry in rules.
 - Handle permission-denied errors with user-facing messages rather than silently retrying.
 
@@ -114,7 +115,7 @@ The exact rules expressions and allowed field changes are implemented in `firest
 - Authenticated user can search/read public profiles.
 - User can read their own `userChats` document.
 - A participant can read the conversation they belong to.
-- A participant can append a valid message whose `senderId` is their auth UID.
+- A participant can create a valid message document whose ID and `senderId` match the request.
 - A participant can update only the corresponding chat entry in the other participant's `userChats` document.
 
 ### Firestore — denied
@@ -123,7 +124,9 @@ The exact rules expressions and allowed field changes are implemented in `firest
 - User A creating or modifying User B's profile.
 - Public profile containing forbidden fields such as `email`.
 - Non-participant reading or writing a conversation.
-- Message authored with another UID.
+- Message authored with another UID or a mismatched document ID.
+- Message document updates or deletes by clients.
+- Conversation documents containing the obsolete embedded `messages` field.
 - Message with invalid types, missing required fields or excessive text length.
 - A participant modifying an unrelated chat entry in another user's chat list.
 - A third user adding themselves to an existing conversation or changing its participants.
