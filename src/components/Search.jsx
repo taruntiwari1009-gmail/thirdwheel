@@ -32,7 +32,7 @@ const Search = () => {
 
     try {
       const usersQuery = query(
-        collection(db, "users"),
+        collection(db, "publicProfiles"),
         where("displayName", "==", searchTerm)
       );
       const querySnapshot = await getDocs(usersQuery);
