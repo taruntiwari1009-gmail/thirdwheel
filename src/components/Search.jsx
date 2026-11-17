@@ -7,6 +7,7 @@ import { ChatContext } from "../context/ChatContext";
 import { getChatId } from "../utils/chat";
 
 const PAGE_SIZE = 30;
+// People blocked by the signed-in user are filtered from discovery.
 
 const mergeMatches = (snapshots, normalized, existing, currentUid) => {
   const byUid = new Map((existing || []).map(user => [user.uid, user]));
