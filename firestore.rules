@@ -112,7 +112,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
         && request.resource.data.messages is list
         && request.resource.data.messages.size() == resource.data.messages.size() + 1
-        && request.resource.data.messages.toSet().hasAll(resource.data.messages.toSet())
+        && request.resource.data.messages.hasAll(resource.data.messages)
         && validMessage(request.resource.data.messages[request.resource.data.messages.size() - 1]);
       allow delete: if false;
     }
