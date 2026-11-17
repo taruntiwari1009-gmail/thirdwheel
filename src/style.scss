@@ -985,3 +985,20 @@ button, input, textarea { font: inherit; }
   .home .container .sidebar .search .searchResult .avatarFallback,
   .home .container .sidebar .chats .chatListItem .avatarFallback { flex-basis: 28px; width: 28px; height: 28px; font-size: 9px; }
 }
+
+
+/* Profile safety controls and report form. */
+.profileAvatarFallback { display:grid; place-items:center; background:#e9e3f3; color:var(--tw-primary-dark); font-size:28px; font-weight:800; }
+.profileActions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:18px 0; }
+.secondaryAction, .textAction { min-height:40px; padding:9px 14px; border:1px solid var(--tw-border); border-radius:9px; background:#fff; color:var(--tw-primary-dark); font-size:12px; font-weight:700; cursor:pointer; }
+.secondaryAction:hover { background:var(--tw-lavender-soft); }
+.textAction { border-color:transparent; color:#9a4254; }
+.textAction:hover { background:#fbf0f2; }
+.profileActions button:disabled { opacity:.55; cursor:wait; }
+.reportForm { display:grid; gap:14px; margin:18px 0; padding:20px; border:1px solid var(--tw-border); border-radius:14px; background:#fff; }
+.reportForm h2 { margin:0; color:var(--tw-ink); font-size:17px; }
+.reportForm label { display:grid; gap:7px; color:var(--tw-ink); font-size:13px; font-weight:650; }
+.reportForm select, .reportForm textarea { width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid #d8d3df; border-radius:8px; background:#fff; color:var(--tw-ink); font:inherit; }
+.reportForm .formActions { justify-content:flex-start; }
+.reportForm .formActions button { min-width:120px; }
+@media(max-width:480px) { .profileActions { align-items:stretch; } .profileActions button { flex:1; } .reportForm { padding:16px; } }
