@@ -56,12 +56,13 @@ The emulator tests cover authenticated profile access, participant-only conversa
 ### Current Firestore model
 
 - `publicProfiles/{uid}`: discoverable profile fields only (`uid`, `displayName`, `photoURL`). Email remains in Firebase Authentication; private per-user chat-list data is kept under `users/{uid}/userChats/{chatId}`.
-- `chats/{chatId}`: two immutable participant UIDs and the current embedded `messages` array.
+- `chats/{chatId}`: two immutable participant UIDs and conversation-level metadata only.
+- `chats/{chatId}/messages/{messageId}`: one immutable message per document, ordered by server timestamp and read in bounded batches.
 - `users/{uid}/userChats/{chatId}`: the user's conversation-list entry.
 - `avatars/{uid}/{fileName}`: user-owned avatar objects.
 - `chat-images/{chatId}/{uid}/{fileName}`: chat images scoped to a conversation and uploader.
 
-Existing demo data from the older `userChats/{uid}` layout and chat documents without participant metadata is not automatically migrated. Use a fresh demo dataset or perform a separately reviewed migration before testing the new client against an existing Firebase project.
+The previous embedded-message array and legacy `userChats/{uid}` layout are not supported. This client intentionally starts with the new message-subcollection model; old test records are not migrated. Reset disposable emulator/test data before testing.
 
 ### Trusted backend\n\nCloud Functions source is in `functions/`. See [Phase 1 setup notes](docs/PHASE_1_TRUST_SAFETY.md) for staging deployment, owner-claim provisioning and App Check configuration. Do not deploy to production without explicit approval.\n\n### Run locally
 
@@ -102,7 +103,7 @@ Firebase client configuration is not an authorization boundary. Configure Fireba
 - The application is designed around one-to-one conversations.
 - Blocking is enforced for new conversation creation and message writes; report submissions are write-only from the client and require an operational review process outside the app.
 - Firebase rules are versioned and emulator tests are part of CI, but production rule deployment has not been performed.
-- Messages are still stored in an embedded array; bounded pagination and the message-subcollection migration remain future work.
+- The chat UI currently loads the latest 50 messages. Loading older history on demand is the next messaging improvement.
 - Firebase Storage download URLs are bearer links; do not treat tokenized URLs as confidential media access.
 
 ## License
