@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { updateProfile } from "firebase/auth";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { Link, useNavigate } from "react-router-dom";
@@ -59,7 +59,18 @@ export default function EditProfile() {
         interests:split(form.interests||""),hobbies:split(form.hobbies||""),languages:split(form.languages||""),
         connectionGoals:split(form.connectionGoals||"")
       };
-      await setDoc(doc(db,"publicProfiles",currentUser.uid),data,{merge:true});
+      const profileRef=doc(db,"publicProfiles",currentUser.uid);
+      await runTransaction(db,async transaction=>{
+        const profileSnapshot=await transaction.get(profileRef);
+        const previousUsername=(profileSnapshot.exists()?profileSnapshot.data().username:"")||"";
+        const newUsernameRef=username?doc(db,"usernames",username):null;
+        const oldUsernameRef=previousUsername&&previousUsername!==username?doc(db,"usernames",previousUsername):null;
+        const newUsernameSnapshot=newUsernameRef?await transaction.get(newUsernameRef):null;
+        if(newUsernameSnapshot?.exists()&&newUsernameSnapshot.data().uid!==currentUser.uid) throw new Error("That username is already taken. Please choose another.");
+        if(username&&(!newUsernameSnapshot||!newUsernameSnapshot.exists())) transaction.set(newUsernameRef,{uid:currentUser.uid,createdAt:serverTimestamp()});
+        if(oldUsernameRef){const oldSnapshot=await transaction.get(oldUsernameRef);if(oldSnapshot.exists()&&oldSnapshot.data().uid===currentUser.uid)transaction.delete(oldUsernameRef);}
+        transaction.set(profileRef,data,{merge:true});
+      });
       await updateProfile(auth.currentUser,{displayName,photoURL});
       navigate("/profile",{replace:true});
     }catch(e){setError(avatar?"Profile couldn't be saved. If the photo upload failed, try saving without a new photo.":"Your profile couldn't be saved. Check your connection and try again.");}
@@ -76,7 +87,7 @@ export default function EditProfile() {
       {fields.map(([key,label,type])=><label key={key}>{label}
         {type==="textarea"?<textarea rows="4" maxLength="300" value={form[key]||""} onChange={e=>change(key,e.target.value)}/>:<input type={type==="list"?"text":type} maxLength={type==="list"?500:300} value={form[key]||""} onChange={e=>change(key,e.target.value)}/>}
       </label>)}
-      <p className="muted small">Username is a profile label in this release; people can find you by display name. Turn off search visibility to hide your profile from discovery. Your email and authentication details are never public.</p>
+      <p className="muted small">Usernames are unique and reserved without regard to letter case. People can find you by display name. Turn off search visibility to hide your profile from discovery. Your email and authentication details are never public.</p>
       {error&&<p role="alert" className="errorText">{error}</p>}
       <div className="formActions"><Link to="/profile">Cancel</Link><button disabled={saving}>{saving?"Saving…":"Save profile"}</button></div>
     </form>
