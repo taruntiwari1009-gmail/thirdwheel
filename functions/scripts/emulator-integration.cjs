@@ -12,6 +12,8 @@ const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9099";
 const functionsHost = process.env.FUNCTIONS_EMULATOR_HOST || "127.0.0.1:5001";
 const authBase = `http://${authHost}/identitytoolkit.googleapis.com/v1`;
 const functionBase = `http://${functionsHost}/${projectId}/us-central1`;
+const firestoreHost = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
+const firestoreBase = `http://${firestoreHost}/v1/projects/${projectId}/databases/(default)/documents`;
 
 async function signUp(label) {
   const response = await fetch(`${authBase}/accounts:signUp?key=fake-api-key`, {
@@ -145,6 +147,12 @@ async function main() {
   assert.deepEqual(retainedChat.get("deletedParticipants"), [reporter.uid]);
   assert.equal((await db.doc(`users/${reporter.uid}/userChats/${deletionChatId}`).get()).exists, false);
   assert.equal((await db.doc(`users/${target.uid}/userChats/${deletionChatId}`).get()).get("userInfo.displayName"), "Deleted account");
+  const retainedInboxUpdate = await fetch(`${firestoreBase}/users/${target.uid}/userChats/${deletionChatId}?updateMask.fieldPaths=lastMessage`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${target.token}` },
+    body: JSON.stringify({ fields: { lastMessage: { mapValue: { fields: { text: { stringValue: "Still chatting" } } } } } }),
+  });
+  assert.equal(retainedInboxUpdate.status, 200, `remaining participant must still update retained inbox: ${await retainedInboxUpdate.text()}`);
   assert.equal((await db.doc(`publicProfiles/${reporter.uid}`).get()).exists, false);
   assert.equal((await db.doc("usernames/reporter_test").get()).exists, false);
   await assert.rejects(() => auth.getUser(reporter.uid), error => error.code === "auth/user-not-found");
