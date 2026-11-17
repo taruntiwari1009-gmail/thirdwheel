@@ -27,3 +27,10 @@ A report is an allegation, not a finding. Ordinary clients cannot read or alter 
 
 ## Deletion and migration
 Deletion must preserve the other participant's data and follow approved retention policy. Do not automatically delete shared chats or media in a client-only workflow. Message migration requires backup, dry run, count reconciliation, ordering/timestamp verification, idempotency, rollback and explicit approval.
+
+
+Approved account deletion behavior:
+- Remove the deleted user’s public profile, username reservation, own inbox entries, own block list, message throttle, avatar files and Firebase Authentication account.
+- Preserve shared conversation documents, messages and chat attachments for the remaining participant.
+- Mark the deleted participant in the conversation and replace the remaining participant’s cached inbox identity with “Deleted account.”
+- Deletion is owner-approved and processed in resumable batches; the trusted backend retains a completion record and audit trail.
