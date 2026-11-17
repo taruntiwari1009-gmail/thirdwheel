@@ -66,6 +66,7 @@ const Register = () => {
       await setDoc(doc(db, "publicProfiles", credential.user.uid), {
         uid: credential.user.uid,
         displayName,
+        displayNameLower: displayName.toLowerCase(),
         photoURL,
       });
 
