@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
@@ -76,14 +76,20 @@ export default function Profile() {
     setActionBusy(true);
     setError("");
     try {
+      const batch = writeBatch(db);
       const blockRef = doc(db, "users", currentUser.uid, "blockedUsers", id);
+      const reverseBlockRef = doc(db, "users", id, "blockedBy", currentUser.uid);
       if (blocked) {
-        await deleteDoc(blockRef);
+        batch.delete(blockRef);
+        batch.delete(reverseBlockRef);
+        await batch.commit();
         setBlocked(false);
         setNotice("This person has been unblocked.");
       } else {
-        await setDoc(blockRef, { createdAt: serverTimestamp() });
-        await deleteDoc(doc(db, "users", currentUser.uid, "userChats", [currentUser.uid, id].sort().join("")));
+        batch.set(blockRef, { createdAt: serverTimestamp() });
+        batch.set(reverseBlockRef, { createdAt: serverTimestamp() });
+        batch.delete(doc(db, "users", currentUser.uid, "userChats", [currentUser.uid, id].sort().join("")));
+        await batch.commit();
         setBlocked(true);
         setNotice("This person is blocked. New messages between you are disabled.");
       }
