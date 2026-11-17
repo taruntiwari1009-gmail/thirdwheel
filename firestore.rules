@@ -76,7 +76,7 @@ service cloud.firestore {
         && request.resource.data.userInfo.uid is string && request.resource.data.userInfo.uid != userId
         && chat.participants.hasAny([request.resource.data.userInfo.uid])
         && request.resource.data.userInfo.displayName is string && request.resource.data.userInfo.photoURL is string
-        && (chat.deletedParticipants is list && chat.deletedParticipants.hasAny([request.resource.data.userInfo.uid])
+        && (('deletedParticipants' in chat) && chat.deletedParticipants is list && chat.deletedParticipants.hasAny([request.resource.data.userInfo.uid])
           ? request.resource.data.userInfo.displayName == 'Deleted account' && request.resource.data.userInfo.photoURL == ''
           : get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
             && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL)
