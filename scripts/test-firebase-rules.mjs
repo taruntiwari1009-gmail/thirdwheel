@@ -16,9 +16,13 @@ async function signUp(label) {
       returnSecureToken: true,
     }),
   });
-  assert.equal(response.status, 200, `Auth emulator sign-up failed: ${await response.text()}`);
-  const user = await response.json();
-  return { uid: user.localId, token: user.idToken };
+  const payload = await response.json();
+  assert.equal(
+    response.status,
+    200,
+    `Auth emulator sign-up failed: ${JSON.stringify(payload)}`
+  );
+  return { uid: payload.localId, token: payload.idToken };
 }
 
 function authHeaders(token) {
