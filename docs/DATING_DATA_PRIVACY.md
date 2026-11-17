@@ -1,48 +1,52 @@
-# Dating data model and privacy contract (Phase 0)
+# Chat data model and privacy contract
 
-This document defines the first versioned contract for dating profile data. It is deliberately additive: existing public profile fields and existing chat records remain readable. No existing user data is migrated by this phase.
+This document describes the current one-to-one chat data model and the privacy boundaries that future changes must preserve. It does not authorize a production migration or rules deployment.
 
 ## Collections and visibility
 
-| Data | Proposed location | Client visibility | Notes |
+| Data | Location | Client visibility | Notes |
 |---|---|---|---|
-| Public dating profile | `publicProfiles/{uid}` | Signed-in users, subject to discoverability | Display name, avatar, city/region, chosen interests, relationship intent, selected prompt answers |
-| Private preferences | `users/{uid}/privatePreferences/dating` | Owner only | Discovery preferences, filters, dealbreakers; never copied to public profile |
-| Likes | `users/{uid}/likes/{targetUid}` | Owner only | A like is private until mutual match |
-| Match record | `matches/{matchId}` | Matched participants only | Server-authoritative lifecycle and participant list |
-| Match conversation | `matches/{matchId}/messages/{messageId}` | Matched participants only | Proposed target model; migration required before cutover |
+| Public profile | `publicProfiles/{uid}` | Signed-in users | Only deliberately shared profile fields |
+| Username reservation | `usernames/{username}` | Signed-in users | Unique username ownership |
+| Private inbox entry | `users/{uid}/userChats/{chatId}` | Owner and authorized conversation participant operations | Conversation preview and unread state |
+| Block list | `users/{uid}/blockedUsers/{blockedUid}` | Owner only | Blocking overrides new contact and messaging |
+| Conversation | `chats/{chatId}` | Participants only | Two immutable participant UIDs and current embedded messages array |
+| Avatar media | `avatars/{uid}/{fileName}` | Signed-in users; writes owner-only | Current access model; review before treating as private |
+| Chat media | `chat-images/{chatId}/{uid}/{fileName}` | Conversation participants | Upload constrained to participant/uploader |
 | Reports | `reports/{reportId}` | Client create only | Client cannot read, update or delete |
 | Moderation records | `moderationCases/{caseId}` | Trusted server/admin only | Never readable or writable by ordinary clients |
 | Audit events | `moderationAudit/{eventId}` | Trusted server/admin only | Append-only operational audit |
 
-## Public profile field policy
+## Profile field policy
 
-- Public only when deliberately shared: display name, avatar, city/region, interests, relationship intention and selected prompt answers.
-- Private by default: date of birth, age-assurance evidence, email, phone, exact location, discovery preferences, dealbreakers, likes, passes, report history and moderation data.
-- Never place date of birth, identity documents, exact coordinates, private preferences or moderation notes in `publicProfiles`.
-- Age eligibility is an account gate, not a public profile attribute. Do not claim verification until an approved age-assurance provider is integrated.
-- City is coarse location only. Do not derive or expose distance from exact coordinates in this version.
+- Public only when deliberately shared: display name, avatar, bio, interests, hobbies, languages, education and selected social links.
+- Private by default: email, authentication credentials, private inbox state, block list, report history and moderation data.
+- Do not place email, private conversation data, report history or moderation notes in public profiles.
+- Do not expose exact location or derive distance from coordinates.
 
-## Match lifecycle
+## Conversation invariants
 
-```
-pending -> matched -> unmatched
-   |          |
-   +-> blocked <---+
-   +-> reported
-              matched -> suspended -> deleted
-```
+- A conversation has exactly two distinct participants.
+- The chat document ID is derived from the sorted participant UIDs.
+- Participants are immutable after creation.
+- Only participants can read a conversation.
+- A message sender must be the authenticated participant.
+- A block in either direction prevents new conversation creation and new message writes.
+- Non-participants cannot read or alter inbox entries or conversation messages.
 
-The diagram is a vocabulary, not permission for clients to set arbitrary states. Mutual match creation and all terminal/safety transitions must be enforced by trusted server logic and security rules. A block always overrides a match and disables messaging. A report does not itself prove misconduct or automatically suspend an account.
+## Reporting and moderation
+
+- A report is an allegation, not a finding.
+- Ordinary clients may submit reports but cannot read or alter report records after submission.
+- Moderation cases, moderator notes and audit events must be accessible only through trusted server-side authorization.
+- Retention periods and escalation procedures require explicit operational and legal review; this document does not invent them.
 
 ## Compatibility and migration
 
-- Version 1 dating fields are optional and additive.
-- Existing profiles without dating fields remain valid and are not automatically exposed as eligible dating profiles.
-- Existing chat documents remain unchanged until a migration is rehearsed and verified.
-- The new dating experience must fail closed: missing adult eligibility or missing mutual-match state means no dating discovery or new dating conversation.
-- Migrations require a backup, dry run, count reconciliation, idempotency, rollback plan and explicit owner approval.
+- Existing chat documents remain on the embedded-message model until a migration is rehearsed and verified.
+- Any message-subcollection migration requires backup, dry run, count reconciliation, ordering/timestamp verification, idempotency, rollback plan and explicit owner approval.
+- Do not break existing conversations while introducing new message storage.
 
-## Retention and deletion requirements
+## Account deletion and retention
 
-Before launch, define retention periods for likes, unmatched conversations, reports, moderation evidence and audit records. Account deletion must remove or de-identify user-owned profile and media data where legally and operationally appropriate, while retaining only records that must be preserved for safety, legal or fraud-prevention reasons under a documented policy. This contract does not invent retention periods; they require product/legal approval.
+Account deletion must remove or de-identify user-owned profile, inbox, block and media data where appropriate. Conversation cleanup must account for the other participant's records and applicable safety/legal retention requirements. Implement deletion as a trusted, retryable workflow; do not perform partial destructive cleanup in the browser.
