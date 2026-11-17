@@ -20,7 +20,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "test:rules": "node scripts/test-firebase-rules.mjs"
+    "test:rules": "node scripts/test-firebase-rules.mjs",
+    "test:functions": "node scripts/test-functions-emulator.mjs"
   },
   "eslintConfig": {
     "extends": [
