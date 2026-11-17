@@ -95,7 +95,7 @@ export default function Profile() {
       });
       setReportOpen(false);
       setDetails("");
-      setNotice("Thank you. Your report has been submitted for review.");
+      setNotice("Thank you. Your report has been submitted. A trusted moderation review workflow is still being set up.");
     } catch (reportError) {
       console.error("Unable to submit report:", reportError);
       setError("Your report couldn't be submitted. Please try again.");
