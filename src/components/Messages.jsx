@@ -25,6 +25,7 @@ const Messages = () => {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [olderError, setOlderError] = useState("");
   const [deletedParticipants, setDeletedParticipants] = useState([]);
+  const [peerLastReadAt, setPeerLastReadAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { data } = useContext(ChatContext);
@@ -45,10 +46,13 @@ const Messages = () => {
     });
   }, [olderMessages, latestMessages]);
 
+  const lastOwnMessageId = [...messages].reverse().find(message => message.senderId === currentUser?.uid)?.id || "";
+
   useEffect(() => {
     if (!data.chatId) {
       setLatestMessages([]); setOlderMessages([]); setHasOlder(false);
       setLoading(false); setLoadingOlder(false); setError(""); setOlderError("");
+      setDeletedParticipants([]); setPeerLastReadAt(null);
       oldestDoc.current = null; hasLoadedOlder.current = false;
       return undefined;
     }
@@ -87,6 +91,21 @@ const Messages = () => {
     return () => { stopChat(); stopMessages(); };
   }, [data.chatId]);
 
+  // The recipient's inbox read boundary is the authoritative read receipt.
+  useEffect(() => {
+    if (!data.chatId || !data.user?.uid) {
+      setPeerLastReadAt(null);
+      return undefined;
+    }
+    const peerEntryRef = doc(db, "users", data.user.uid, "userChats", data.chatId);
+    return onSnapshot(peerEntryRef, snapshot => {
+      setPeerLastReadAt(snapshot.exists() ? snapshot.data().lastReadAt || null : null);
+    }, listenerError => {
+      console.warn("Unable to observe read state:", listenerError);
+      setPeerLastReadAt(null);
+    });
+  }, [data.chatId, data.user?.uid]);
+
   useEffect(() => {
     if (!data.chatId || !currentUser?.uid) return undefined;
     const entryRef = doc(db, "users", currentUser.uid, "userChats", data.chatId);
@@ -96,6 +115,8 @@ const Messages = () => {
           const entry = await transaction.get(entryRef);
           if (entry.exists() && Number(entry.data().unreadCount) > 0) {
             transaction.update(entryRef, { unreadCount: 0, lastReadAt: serverTimestamp() });
+          } else if (entry.exists() && !entry.data().lastReadAt) {
+            transaction.update(entryRef, { lastReadAt: serverTimestamp() });
           }
         });
       } catch (readError) { console.warn("Could not update inbox read state:", readError); }
@@ -161,6 +182,7 @@ const Messages = () => {
     }
   };
 
+  const peerReadMillis = peerLastReadAt?.toMillis ? peerLastReadAt.toMillis() : 0;
   const grouped = [];
   let previousDay = "";
   messages.forEach(message => {
@@ -178,7 +200,14 @@ const Messages = () => {
     {!loading && hasOlder && <div className="olderMessagesControl"><button type="button" className="secondaryAction" onClick={loadOlder} disabled={loadingOlder}>{loadingOlder ? "Loading earlier messages…" : "Load earlier messages"}</button></div>}
     {olderError && <p className="errorText" role="alert">{olderError}</p>}
     {!loading && !error && data.chatId && messages.length === 0 && <p className="messageEmpty">No messages yet. Say hello!</p>}
-    {grouped.map(item => item.type === "day" ? <div className="dateDivider" key={item.key}><span>{item.label}</span></div> : <Message message={item.message} deleted={deletedParticipants.includes(item.message.senderId)} key={item.message.id} />)}
+    {grouped.map(item => {
+      if (item.type === "day") return <div className="dateDivider" key={item.key}><span>{item.label}</span></div>;
+      const message = item.message;
+      const isLatestOwn = message.id === lastOwnMessageId;
+      const messageMillis = message.date?.toMillis ? message.date.toMillis() : 0;
+      const receipt = isLatestOwn ? (peerReadMillis && messageMillis && peerReadMillis >= messageMillis ? "Seen" : "Sent") : "";
+      return <Message message={message} deleted={deletedParticipants.includes(message.senderId)} receipt={receipt} key={message.id} />;
+    })}
   </div>;
 };
 
