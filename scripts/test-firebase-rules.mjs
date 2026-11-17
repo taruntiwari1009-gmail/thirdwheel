@@ -45,7 +45,7 @@ async function firestore(method, path, token, body, query = "") {
 }
 
 async function createProfile(user, displayName) {
-  return firestore("POST", `users?documentId=${user.uid}`, user.token, {
+  return firestore("POST", `publicProfiles?documentId=${user.uid}`, user.token, {
     fields: profileFields(user.uid, displayName),
   });
 }
