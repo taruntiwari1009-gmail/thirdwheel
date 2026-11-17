@@ -104,16 +104,14 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == userId;
     }
     match /reports/{reportId} {
-      allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['reporterId','targetUid','reason','details','createdAt'])
-        && request.resource.data.keys().hasAll(['reporterId','targetUid','reason','createdAt'])
-        && request.resource.data.reporterId == request.auth.uid
-        && request.resource.data.targetUid is string
-        && request.resource.data.targetUid != request.auth.uid
-        && request.resource.data.reason in ['spam','scam','harassment','threats','stalking','sexual_harassment','underage','inappropriate','impersonation','other']
-        && (!('details' in request.resource.data) || (request.resource.data.details is string && request.resource.data.details.size() <= 500))
-        && request.resource.data.createdAt is timestamp;
-      allow read, update, delete: if false;
+      allow read, write: if false;
+    }
+    match /abuseLimits/{limitId} {
+      allow read, write: if false;
+    }
+    match /accountDeletionRequests/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
     }
     // Moderation and match lifecycle are trusted-server-only until callable backend
     // operations enforce review roles, mutual consent, throttling and audit events.
