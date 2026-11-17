@@ -86,6 +86,25 @@ export default function EditProfile() {
   return <main className="pageShell editPage"><header className="pageHeader"><Link to="/profile">← Your profile</Link><p className="eyebrow">MAKE IT YOURS</p></header>
     <h1>Edit your profile</h1><p className="muted">Share as much or as little as you like. Only your display name is required.</p>
     <form className="profileForm" onSubmit={save}>
+      <section className="profilePreview" aria-label="Live profile preview">
+        <p className="eyebrow">PREVIEW</p>
+        <div className="profilePreviewIdentity">
+          {form.photoURL
+            ? <img src={form.photoURL} alt="" />
+            : <span className="profilePreviewAvatar" aria-hidden="true">{(form.displayName || currentUser?.displayName || "T").trim().split(/\\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
+          <div>
+            <h2>{(form.displayName || "").trim() || "Your display name"}</h2>
+            {form.username && <p>@{form.username.replace(/^@/, "")}</p>}
+            {form.pronouns && <p>{form.pronouns}</p>}
+          </div>
+        </div>
+        <p className="profilePreviewBio">{(form.bio || "").trim() || "Your short introduction will appear here."}</p>
+        <div className="profilePreviewTags">
+          {split(form.interests || "").slice(0, 4).map(item => <span key={item}>{item}</span>)}
+          {!split(form.interests || "").length && <span>Your interests</span>}
+        </div>
+        <p className="profilePreviewVisibility">{form.discoverable === false ? "Hidden from people search" : "Visible in people search"}</p>
+      </section>
       <label>Profile photo<input type="file" accept="image/*" onChange={e=>setAvatar(e.target.files?.[0]||null)} /></label>
       <label className="privacyToggle"><input type="checkbox" checked={form.discoverable!==false} onChange={e=>change("discoverable",e.target.checked)} /> Show my profile in search results</label>
       {avatar&&<p className="muted small">New photo selected: {avatar.name}</p>}
