@@ -132,7 +132,7 @@ const Search = () => {
       <input id="people-search" type="search" placeholder="Search name or @username…" aria-label="Search people by name or username" autoComplete="off" onChange={event => setTerm(event.target.value)} value={term} />
       {term && <button type="button" className="clearSearch" aria-label="Clear search" onClick={() => setTerm("")}>×</button>}
     </div>
-    {searching && <p className="searchStatus" role="status">Looking for people…</p>}
+    {searching && <><p className="searchStatus" role="status">Looking for people…</p><div className="searchSkeletons" aria-hidden="true">{[1,2].map(item => <div className="searchSkeleton" key={item}><span /><i /><b /></div>)}</div></>}
     {!searching && err && <p className="searchStatus" role="status">{err}</p>}
     {users.length > 0 && <div className="searchResults" aria-label="Search results">
       {users.slice(0, visibleCount).map(user => <div className="userChat searchResult" key={user.uid}>
