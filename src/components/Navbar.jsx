@@ -15,10 +15,11 @@ const Navbar = () => {
     try { await signOut(auth); navigate("/login",{replace:true}); }
     catch(e) { setError("Couldn't sign out. Please try again."); setBusy(false); }
   };
+  const initials = (currentUser?.displayName || "Y").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
   return <div className="navbar">
     <Link className="logo" to="/">Third Wheel</Link>
     <div className="user">
-      <Link to="/profile" className="navProfile"><img src={currentUser?.photoURL || ""} alt="" /><span>{currentUser?.displayName || "Your profile"}</span></Link>
+      <Link to="/profile" className="navProfile">{currentUser?.photoURL ? <img src={currentUser.photoURL} alt="" /> : <span className="avatarFallback" aria-hidden="true">{initials}</span>}<span>{currentUser?.displayName || "Your profile"}</span></Link>
       <button type="button" onClick={logout} disabled={busy}>{busy ? "Signing out…" : "Sign out"}</button>
     </div>
     {error && <span role="alert" className="navError">{error}</span>}

@@ -1,2 +1,8 @@
 [build.environment]
   NODE_VERSION = "22"
+
+# Support React Router routes when a profile or nested URL is opened directly.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
