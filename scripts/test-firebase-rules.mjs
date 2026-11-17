@@ -325,6 +325,56 @@ await expectDenied(
 );
 
 
+const blockEntry = await firestore(
+  "PATCH",
+  `users/${alice.uid}/blockedUsers/${bob.uid}`,
+  alice.token,
+  { fields: { createdAt: { timestampValue: new Date().toISOString() } } },
+  "?currentDocument.exists=false"
+);
+await expectAllowed(blockEntry, "user can block another account in their own block list");
+await expectDenied(
+  await firestore(
+    "PATCH",
+    `chats/${chatId}`,
+    bob.token,
+    { fields: { messages: { arrayValue: { values: [message, {
+      mapValue: { fields: {
+        id: { stringValue: "blocked-message" },
+        text: { stringValue: "This should not send" },
+        senderId: { stringValue: bob.uid },
+        date: { timestampValue: new Date().toISOString() },
+      } },
+    }] } } },
+    "?updateMask.fieldPaths=messages"
+  ),
+  "blocked participants cannot exchange new messages"
+);
+await expectAllowed(
+  await firestore("POST", "reports?documentId=report-1", alice.token, {
+    fields: {
+      reporterId: { stringValue: alice.uid },
+      targetUid: { stringValue: bob.uid },
+      reason: { stringValue: "spam" },
+      details: { stringValue: "Test report" },
+      createdAt: { timestampValue: new Date().toISOString() },
+    },
+  }),
+  "authenticated user can submit a valid report"
+);
+await expectDenied(
+  await firestore("POST", "reports?documentId=report-self", alice.token, {
+    fields: {
+      reporterId: { stringValue: alice.uid },
+      targetUid: { stringValue: alice.uid },
+      reason: { stringValue: "spam" },
+      createdAt: { timestampValue: new Date().toISOString() },
+    },
+  }),
+  "user cannot report themselves"
+);
+
+
 const storageTests = spawnSync(
   process.platform === "win32" ? "npm.cmd" : "npm",
   ["test", "--", "--watchAll=false", "--runInBand", "src/firebase/storageRules.test.js"],
