@@ -95,7 +95,7 @@ const Search = () => {
     }, 250);
 
     return () => { active = false; clearTimeout(timeout); };
-  }, [term, currentUser?.uid]);
+  }, [term, currentUser]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore || !currentUser?.uid) return;
