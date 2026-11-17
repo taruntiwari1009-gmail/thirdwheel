@@ -3,7 +3,7 @@
 ## Implemented in PR #14
 
 - Block management screen at `/settings/blocked`; owner-only list and unblock controls.
-- Firestore rules prevent self-blocking, require an existing public profile, and prevent blocked participants from creating new chats or appending messages.
+- Firestore rules prevent self-blocking, require an existing public profile, and prevent blocked participants from creating new chats or creating message documents.
 - Report submissions use a trusted callable function instead of direct client writes.
 - The backend validates report target, reason and bounded details, applies a per-user daily submission cap, and atomically creates a private report, moderation case and audit event. Unit tests and Firebase Auth/Firestore/Functions/Storage emulator integration tests cover report validation, authentication, throttling, atomic records, moderator authorization/review and the account-deletion workflow.
 - Moderator queue and review callables require the Firebase custom claim `moderator: true`; case status changes and notes create audit events.
@@ -20,7 +20,7 @@
 
 ## Chat product scope
 
-Third Wheel remains a one-to-one chat application. Dating profiles, likes, passes, matches, relationship-intent discovery and age-verification workflows are out of scope. Existing participant-based chats and embedded message arrays remain compatible.
+Third Wheel remains a one-to-one chat application. Dating profiles, likes, passes, matches, relationship-intent discovery and age-verification workflows are out of scope. The active message model stores one immutable document per message under `chats/{chatId}/messages/{messageId}`. The legacy embedded array and old `userChats/{uid}` layout are unsupported.
 
 ## Release state
 
