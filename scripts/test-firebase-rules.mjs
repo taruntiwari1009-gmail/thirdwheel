@@ -235,6 +235,25 @@ for (let count = 1; count <= 8; count++) {
   await expectAllowed(await createMessageWithLimit("message-" + count, count), "message " + count + " is allowed within the per-minute limit");
 }
 await expectDenied(await createMessageWithLimit("message-9", 9), "ninth message in the same minute is denied");
+await expectDenied(
+  await firestore("GET", "chats/" + chatId + "/messages/message-1", mallory.token),
+  "non-participant cannot read a message document"
+);
+await expectDenied(
+  await firestore("PATCH", "chats/" + chatId + "/messages/message-1", alice.token, {
+    fields: { text: { stringValue: "Edited after send" } },
+  }, "?updateMask.fieldPaths=text"),
+  "messages are immutable after creation"
+);
+await expectDenied(
+  await firestore("POST", "chats?documentId=" + [alice.uid, mallory.uid].sort().join(""), alice.token, {
+    fields: {
+      participants: { arrayValue: { values: [alice.uid, mallory.uid].sort().map(uid => ({ stringValue: uid })) } },
+      messages: { arrayValue: { values: [] } },
+    },
+  }),
+  "new conversations cannot contain an embedded messages array"
+);
 await expectDenied(await firestore("POST", "chats/" + chatId + "/messages?documentId=forged-message", alice.token, {
   fields: { id: { stringValue: "forged-message" }, text: { stringValue: "Spoofed sender" }, senderId: { stringValue: bob.uid }, date: { timestampValue: new Date().toISOString() } },
 }), "participant cannot forge another sender UID");
