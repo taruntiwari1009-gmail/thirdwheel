@@ -75,6 +75,20 @@ describe("Search", () => {
     expect(where).toHaveBeenCalledWith("username", "<=", "tarun\uf8ff");
   });
 
+  test("hides profiles blocked by the signed-in user", async () => {
+    getDocs
+      .mockResolvedValueOnce({ docs: [{ id: "blocked-user" }] })
+      .mockResolvedValueOnce({ docs: [
+        profileDoc({ uid: "blocked-user", displayName: "Blocked Person", displayNameLower: "blocked person", discoverable: true }),
+        profileDoc({ uid: "visible-user", displayName: "Visible Person", displayNameLower: "visible person", discoverable: true }),
+      ] })
+      .mockResolvedValueOnce({ docs: [] });
+    renderSearch();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "person" } });
+    expect(await screen.findByText("Visible Person")).toBeInTheDocument();
+    expect(screen.queryByText("Blocked Person")).not.toBeInTheDocument();
+  });
+
   test("shows a recoverable message when Firestore search fails", async () => {
     getDocs
       .mockResolvedValueOnce({ docs: [] })
