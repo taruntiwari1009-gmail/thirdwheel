@@ -101,6 +101,7 @@ describe("Search", () => {
     }));
     getDocs
       .mockResolvedValueOnce({ docs: [{ id: "blocked-next-page" }] })
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: firstPage })
       .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [
