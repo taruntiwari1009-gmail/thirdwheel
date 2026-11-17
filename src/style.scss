@@ -884,3 +884,45 @@ button, input, textarea { font: inherit; }
 @media (max-width: 640px) {
   .home .container .sidebar { max-height: none; overflow: hidden; }
 }
+
+
+/* Discovery, inbox controls and messaging states. */
+.inboxHeading { display:flex; justify-content:space-between; align-items:center; padding:8px 8px 12px; color:var(--tw-ink); font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+.inboxHeading span:last-child { color:var(--tw-muted); font-weight:600; }
+.chatListItemWrap { position:relative; display:flex; align-items:center; border-radius:12px; }
+.chatListItemWrap.active { background:#efebf7; }
+.chatListItemWrap .chatListItem { flex:1; width:auto!important; padding-right:4px!important; }
+.chatListItemWrap .chatProfileLink, .chatListItemWrap .removeChatButton { flex:0 0 auto; display:grid; place-items:center; width:26px; height:28px; margin-right:3px; border:0; border-radius:7px; background:transparent; color:var(--tw-muted); text-decoration:none; font-size:15px; cursor:pointer; }
+.chatListItemWrap .chatProfileLink:hover, .chatListItemWrap .removeChatButton:hover { background:#e5e0ef; color:var(--tw-primary-dark); }
+.chatListItemWrap .removeChatButton { font-size:19px; }
+.chatListItemWrap .removeChatButton:disabled { opacity:.5; cursor:wait; }
+.unreadBadge { display:grid; place-items:center; min-width:20px; height:20px; padding:0 5px; border-radius:20px; background:var(--tw-primary); color:#fff; font-size:10px; font-weight:800; }
+.startChatButton { flex:0 0 auto; padding:7px 9px; border:1px solid #ded8eb; border-radius:8px; background:#fff; color:var(--tw-primary-dark); font-size:10px; font-weight:750; cursor:pointer; }
+.startChatButton:hover { background:var(--tw-lavender); }
+.startChatButton:disabled { opacity:.6; cursor:wait; }
+.searchResult .personName { display:block; color:var(--tw-ink); text-decoration:none; }
+.searchResult .personName:hover { text-decoration:underline; }
+.searchResult .personHint { display:block; }
+.attachmentInput { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; clip-path:inset(50%); }
+.attachmentButton { display:flex; align-items:center; gap:5px; color:var(--tw-muted); font-size:11px; cursor:pointer; }
+.attachmentButton img { width:20px; height:20px; object-fit:contain; }
+.attachmentButton:focus-within { outline:2px solid var(--tw-primary); outline-offset:3px; }
+.attachmentPreview { display:flex; align-items:center; gap:10px; flex-basis:100%; color:var(--tw-muted); font-size:11px; }
+.attachmentPreview button { border:0; background:transparent; color:var(--tw-primary-dark); text-decoration:underline; cursor:pointer; font-size:11px; }
+.dateDivider { display:flex; align-items:center; gap:12px; margin:12px auto 24px; max-width:420px; color:#9a94a6; font-size:10px; font-weight:700; }
+.dateDivider::before, .dateDivider::after { content:""; flex:1; height:1px; background:#e9e4f0; }
+.chatWelcome { max-width:520px; }
+.chatWelcome .eyebrow { margin:0 0 7px; color:var(--tw-primary); font-size:10px; font-weight:800; letter-spacing:.13em; }
+.chatWelcome h2 { margin:0; color:var(--tw-ink); font-size:clamp(19px,2.5vw,27px); letter-spacing:-.04em; }
+.chatWelcome p { margin:8px 0 0; color:var(--tw-muted); font-size:12px; font-weight:400; }
+.chatEmptyArt { display:grid; flex:1; place-items:center; background:radial-gradient(circle at center,#f1edf8 0,#fbfaff 45%,#fff 75%); }
+.chatEmptyArt span { display:grid; place-items:center; width:112px; height:112px; border:1px solid #e7e1f0; border-radius:36px; background:#fff; color:#9c91c2; font-size:58px; box-shadow:0 18px 55px rgba(47,39,76,.08); }
+@media(max-width:480px) {
+  .chatListItemWrap .chatProfileLink, .chatListItemWrap .removeChatButton { width:19px; margin-right:1px; font-size:12px; }
+  .chatListItemWrap .removeChatButton { font-size:16px; }
+  .unreadBadge { min-width:16px; height:16px; padding:0 3px; font-size:8px; }
+  .startChatButton { padding:5px 6px; font-size:9px; }
+  .attachmentButton span { display:none; }
+  .chatWelcome h2 { font-size:17px; }
+  .chatWelcome p { font-size:10px; }
+}
