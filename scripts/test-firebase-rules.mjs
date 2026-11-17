@@ -210,11 +210,12 @@ await expectAllowed(createChat, "participant creates a two-person conversation")
 await expectAllowed(await firestore("GET", "chats/" + chatId, bob.token), "conversation participant reads conversation");
 await expectDenied(await firestore("GET", "chats/" + chatId, mallory.token), "non-participant cannot read conversation");
 
-async function createMessageWithLimit(id, count, token = alice.token, uid = alice.uid) {
+async function createMessageWithLimit(id, count, token = alice.token, uid = alice.uid, imagePath = null) {
   const messagePath = "chats/" + chatId + "/messages/" + id;
   const messageWrite = updateWrite(messagePath, {
     id: { stringValue: id }, text: { stringValue: "Message " + count },
     senderId: { stringValue: uid }, date: { timestampValue: new Date().toISOString() },
+    ...(imagePath ? { img: { stringValue: imagePath } } : {}),
   }, null, { exists: false });
   const limitPath = "abuseLimits/messages_" + uid;
   const limitWrite = {
@@ -235,6 +236,15 @@ for (let count = 1; count <= 8; count++) {
   await expectAllowed(await createMessageWithLimit("message-" + count, count), "message " + count + " is allowed within the per-minute limit");
 }
 await expectDenied(await createMessageWithLimit("message-9", 9), "ninth message in the same minute is denied");
+const validImagePath = `chat-images/${chatId}/${bob.uid}/image-path-message-test.png`;
+await expectAllowed(
+  await createMessageWithLimit("image-path-message", 1, bob.token, bob.uid, validImagePath),
+  "message may reference only its sender-owned chat attachment path"
+);
+await expectDenied(
+  await createMessageWithLimit("bearer-url-message", 2, bob.token, bob.uid, "https://firebasestorage.googleapis.com/v0/b/demo-thirdwheel.appspot.com/o/chat-images%2Ftokenized"),
+  "new messages cannot persist bearer download URLs"
+);
 await expectDenied(
   await firestore("GET", "chats/" + chatId + "/messages/message-1", mallory.token),
   "non-participant cannot read a message document"
