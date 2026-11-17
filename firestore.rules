@@ -76,8 +76,10 @@ service cloud.firestore {
         && request.resource.data.userInfo.uid is string && request.resource.data.userInfo.uid != userId
         && chat.participants.hasAny([request.resource.data.userInfo.uid])
         && request.resource.data.userInfo.displayName is string && request.resource.data.userInfo.photoURL is string
-        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
-        && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL
+        && (chat.deletedParticipants is list && chat.deletedParticipants.hasAny([request.resource.data.userInfo.uid])
+          ? request.resource.data.userInfo.displayName == 'Deleted account' && request.resource.data.userInfo.photoURL == ''
+          : get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
+            && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL)
         && request.resource.data.date is timestamp
         && (!('unreadCount' in request.resource.data) || (request.resource.data.unreadCount is int && request.resource.data.unreadCount >= 0))
         && (!('lastReadAt' in request.resource.data) || request.resource.data.lastReadAt is timestamp)
