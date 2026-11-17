@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, startAfter, where } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db } from "../firebase";
@@ -36,13 +36,16 @@ const Search = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
   const [blockedUids, setBlockedUids] = useState([]);
+  const searchGeneration = useRef(0);
   const { currentUser } = useContext(AuthContext);
   const { dispatch } = useContext(ChatContext);
 
   useEffect(() => {
     const normalized = term.trim().toLowerCase().replace(/^@/, "");
+    const generation = ++searchGeneration.current;
     let active = true;
     setUsers([]);
+    setBlockedUids([]);
     setCursors({ names: null, usernames: null });
     setHasMore(false);
     setVisibleCount(10);
@@ -105,6 +108,7 @@ const Search = () => {
 
   const loadMore = async () => {
     if (loadingMore || !hasMore || !currentUser?.uid) return;
+    const generation = searchGeneration.current;
     if (users.length > visibleCount) {
       setVisibleCount(count => count + 10);
       return;
@@ -130,8 +134,8 @@ const Search = () => {
           limit(PAGE_SIZE)
         )) : Promise.resolve({ docs: [] })
       ]);
-      setUsers(previous => mergeMatches([...names.docs, ...usernames.docs], normalized, previous, currentUser.uid)
-        .filter(profile => !blockedUids.includes(profile.uid)));
+      if (generation !== searchGeneration.current) return;
+      setUsers(previous => mergeMatches([...names.docs, ...usernames.docs], normalized, previous, currentUser.uid, blockedUids));
       setCursors({
         names: names.docs.length === PAGE_SIZE ? names.docs[names.docs.length - 1] : null,
         usernames: usernames.docs.length === PAGE_SIZE ? usernames.docs[usernames.docs.length - 1] : null
@@ -140,9 +144,9 @@ const Search = () => {
       setVisibleCount(count => count + 10);
     } catch (error) {
       console.error("Unable to load more search results:", error);
-      setErr("More people could not be loaded. Please try again.");
+      if (generation === searchGeneration.current) setErr("More people could not be loaded. Please try again.");
     } finally {
-      setLoadingMore(false);
+      if (generation === searchGeneration.current) setLoadingMore(false);
     }
   };
 
