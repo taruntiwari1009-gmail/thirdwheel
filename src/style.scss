@@ -1241,3 +1241,157 @@ button:disabled, input:disabled, select:disabled, textarea:disabled { cursor:not
   .home .container .chat .input > input[type="text"] { font-size:16px; }
   .home .container .chat .input .send button { min-width:66px; }
 }
+
+
+/* Final application-wide page system: consistent hierarchy beyond registration. */
+.pageShell {
+  width: min(100% - 40px, 980px);
+  padding: clamp(24px, 4vw, 48px) 0 64px;
+}
+.pageHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  margin-bottom: 28px;
+}
+.pageHeader > .eyebrow { flex-basis:100%; margin:12px 0 -6px; }
+.pageHeader > h1 { flex:1 1 100%; margin:0; font-size:clamp(27px,4vw,38px); letter-spacing:-.045em; line-height:1.12; }
+.pageHeader > p.muted { flex:1 1 100%; max-width:650px; margin:0; }
+.pageShell > h1 { margin:0 0 8px; font-size:clamp(28px,4vw,38px); letter-spacing:-.045em; }
+.pageShell > .muted { margin:0 0 24px; max-width:680px; }
+.pageShell .textLink, .pageShell .pageHeader > a:first-child {
+  display:inline-flex;
+  align-items:center;
+  min-height:38px;
+  color:var(--tw-primary-dark);
+  font-size:12px;
+  font-weight:750;
+  text-decoration:none;
+}
+.pageShell .textLink:hover, .pageShell .pageHeader > a:first-child:hover { color:var(--tw-rose-dark); }
+.profileHero {
+  position:relative;
+  gap:clamp(18px,3vw,30px);
+  padding:clamp(22px,4vw,34px);
+  border-radius:22px;
+  box-shadow:0 16px 45px rgba(102,73,116,.07);
+}
+.profileAvatar { width:116px; height:116px; flex-basis:116px; box-shadow:0 0 0 5px rgba(255,255,255,.78),0 8px 24px rgba(70,45,83,.12); }
+.profileHero h1 { font-size:clamp(25px,4vw,34px); letter-spacing:-.04em; }
+.profileHero .eyebrow { margin:0 0 8px; }
+.profileHero .muted { margin:5px 0; font-size:13px; }
+.profileSection {
+  margin-top:16px;
+  padding:clamp(18px,3vw,24px);
+  border-radius:16px;
+}
+.profileSection h2 { font-size:15px; letter-spacing:-.015em; }
+.profileGrid { gap:0 16px; }
+.profileGrid .profileSection { min-width:0; }
+.profileTags { gap:8px; }
+.profileTag { padding:7px 12px; font-size:11px; }
+.profileActions { margin:16px 0; gap:9px; }
+.secondaryAction, .textAction, .primaryAction {
+  min-height:42px;
+  padding:10px 15px;
+  border-radius:10px;
+  font-size:12px;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.secondaryAction:hover:not(:disabled), .primaryAction:hover:not(:disabled), .textAction:hover:not(:disabled) { transform:translateY(-1px); }
+.primaryAction { border:0; background:linear-gradient(135deg,var(--tw-primary),var(--tw-rose)); color:#fff; font-weight:750; cursor:pointer; }
+.primaryAction:hover:not(:disabled) { filter:brightness(.97); }
+.accountDangerZone { border-color:#f0dbe2; background:linear-gradient(135deg,#fff 0%,#fff8fa 100%); }
+.accountDangerZone h2 { color:#98536b; }
+.profileForm { gap:18px; max-width:760px; }
+.profileForm > label { gap:8px; font-size:12px; }
+.profileForm input:not([type="checkbox"]), .profileForm textarea {
+  min-height:44px;
+  padding:12px 14px;
+  border-color:#e5dce9;
+  border-radius:11px;
+  background:#fff;
+  transition:border-color .16s ease,box-shadow .16s ease;
+}
+.profileForm textarea { min-height:110px; }
+.profileForm input:focus, .profileForm textarea:focus { border-color:#c18bad; outline:0; box-shadow:0 0 0 4px rgba(217,119,154,.11); }
+.profilePreview {
+  padding:22px;
+  border:1px solid #eadfeb;
+  border-radius:18px;
+  background:linear-gradient(125deg,#f3edfb 0%,#fff0f5 100%);
+}
+.profilePreview > .eyebrow { margin:0 0 16px; }
+.profilePreviewIdentity { display:flex; align-items:center; gap:14px; }
+.profilePreviewIdentity img, .profilePreviewAvatar {
+  display:grid; place-items:center; width:64px; height:64px; flex:0 0 64px;
+  border:3px solid #fff; border-radius:50%; object-fit:cover;
+  background:#e7dff0; color:var(--tw-primary-dark); font-size:18px; font-weight:800;
+  box-shadow:0 4px 14px rgba(68,45,84,.1);
+}
+.profilePreviewIdentity h2 { margin:0 0 4px; color:var(--tw-ink); font-size:18px; }
+.profilePreviewIdentity p { margin:3px 0; color:var(--tw-muted); font-size:11px; }
+.profilePreviewBio { margin:16px 0 12px; color:#5f536b; font-size:13px; line-height:1.65; }
+.profilePreviewTags { display:flex; flex-wrap:wrap; gap:7px; }
+.profilePreviewTags span { padding:6px 10px; border:1px solid #e8d8eb; border-radius:99px; background:rgba(255,255,255,.75); color:#765d91; font-size:10px; font-weight:700; }
+.profilePreviewVisibility { margin:14px 0 0; color:var(--tw-primary-dark); font-size:11px; font-weight:700; }
+.blockedList, .moderationCases { display:grid; gap:12px; }
+.blockedUser {
+  display:flex; align-items:center; gap:14px; min-width:0; padding:15px 17px;
+  border:1px solid var(--tw-border); border-radius:14px; background:#fff;
+  box-shadow:0 6px 20px rgba(70,45,83,.035);
+}
+.blockedUser > img, .blockedAvatar {
+  display:grid; place-items:center; width:46px; height:46px; flex:0 0 46px;
+  border-radius:50%; object-fit:cover; background:var(--tw-lavender); color:var(--tw-primary-dark); font-weight:800;
+}
+.blockedUserInfo { display:flex; flex:1; min-width:0; flex-direction:column; gap:4px; }
+.blockedUserInfo strong { overflow:hidden; color:var(--tw-ink); text-overflow:ellipsis; }
+.emptyState, .moderationEmpty {
+  padding:34px 24px; border:1px dashed #dcd1e4; border-radius:18px;
+  background:linear-gradient(135deg,#fff 0%,#fcf8fd 100%); text-align:center;
+}
+.emptyState h2, .moderationEmpty h2 { margin:0 0 8px; color:var(--tw-ink); font-size:18px; }
+.emptyState p, .moderationEmpty p { margin:0 auto; max-width:460px; }
+.moderationToolbar {
+  display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px;
+  padding:14px 16px; border:1px solid var(--tw-border); border-radius:14px; background:#fff;
+}
+.moderationToolbar label { color:var(--tw-muted); font-size:12px; font-weight:700; }
+.moderationToolbar select, .caseNote textarea {
+  min-height:40px; padding:9px 12px; border:1px solid #e4dce9; border-radius:9px;
+  background:#fff; color:var(--tw-ink); font:inherit;
+}
+.moderationToolbar select { min-width:150px; }
+.moderationCase {
+  min-width:0; padding:20px; border:1px solid var(--tw-border); border-radius:16px;
+  background:#fff; box-shadow:0 8px 26px rgba(77,52,88,.04);
+}
+.moderationCaseHeader { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.moderationCase h2 { margin:13px 0; color:var(--tw-ink); font-size:18px; text-transform:capitalize; }
+.caseStatus { padding:6px 10px; border-radius:99px; background:#f0eafa; color:#70539f; font-size:10px; font-weight:800; text-transform:capitalize; }
+.caseStatus.status-actioned { background:#e8f4ec; color:#34724b; }
+.caseStatus.status-dismissed { background:#f0eef2; color:#777186; }
+.caseStatus.status-escalated { background:#fff0f5; color:#a54d70; }
+.caseMetadata { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0 0 14px; }
+.caseMetadata > div { min-width:0; padding:11px; border-radius:10px; background:#faf8fc; }
+.caseMetadata dt { color:var(--tw-muted); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+.caseMetadata dd { margin:5px 0 0; overflow-wrap:anywhere; color:var(--tw-ink); font-size:11px; }
+.caseEvidence { padding:13px; border:1px solid #eee8f1; border-radius:11px; background:#fdfbfd; }
+.caseEvidence strong, .caseNote { color:var(--tw-ink); font-size:12px; font-weight:750; }
+.caseEvidence p { margin:7px 0 0; color:#625b6e; font-size:12px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.caseNote { display:grid; gap:8px; margin-top:15px; }
+.caseNote textarea { width:100%; min-height:84px; box-sizing:border-box; resize:vertical; font-size:12px; }
+.caseActions { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+@media(max-width:640px) {
+  .pageShell { width:calc(100% - 28px); padding:20px 0 40px; }
+  .profileHero { align-items:center; }
+  .profileAvatar { width:82px; height:82px; flex-basis:82px; }
+  .blockedUser { padding:12px; gap:10px; }
+  .blockedUser .secondaryAction { padding:8px 10px; }
+  .moderationCase { padding:15px; }
+  .caseMetadata { grid-template-columns:minmax(0,1fr); }
+  .caseActions > button { flex:1 1 42%; }
+}
