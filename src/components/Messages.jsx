@@ -74,7 +74,7 @@ const Messages = () => {
     grouped.push({ type: "message", message });
   });
 
-  return <div ref={listRef} className="messages" aria-live="polite" onScroll={handleScroll}>
+  return <div ref={listRef} className="messages" role="log" aria-label="Conversation messages" aria-live="polite" aria-relevant="additions text" aria-atomic="false" onScroll={handleScroll}>
     {loading && <p role="status">Loading messages…</p>}
     {error && <p role="alert">{error}</p>}
     {!loading && !error && data.chatId && messages.length === 0 && <p className="messageEmpty">No messages yet. Say hello!</p>}
