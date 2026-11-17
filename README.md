@@ -8,7 +8,9 @@ A real-time, one-to-one chat application built with React and Firebase.
 - User registration with a profile avatar
 - Real-time conversation and message updates with Firestore
 - Image attachments stored in Firebase Storage
-- Conversation previews and latest-message timestamps
+- Conversation previews, unread counts and latest-message timestamps
+- People discovery with profile previews and privacy-aware search
+- Profile blocking and user reporting with Firestore-enforced message restrictions
 
 ## Tech stack
 
@@ -49,7 +51,7 @@ Prerequisites: Java 21 or later and Node.js matching `.nvmrc`.
 npx --yes firebase-tools@14.22.0 emulators:exec --project demo-thirdwheel --only auth,firestore,storage "npm run test:rules"
 ```
 
-The emulator tests cover authenticated profile access, participant-only conversation reads, message authorship, per-user conversation lists, avatar ownership, chat-media membership and image upload restrictions. They do not deploy rules or touch the configured Firebase project.
+The emulator tests cover authenticated profile access, participant-only conversation reads, message authorship, per-user conversation lists, profile blocking, report submission, avatar ownership, chat-media membership and image upload restrictions. They do not deploy rules or touch the configured Firebase project.
 
 ### Current Firestore model
 
@@ -94,6 +96,7 @@ Firebase client configuration is not an authorization boundary. Configure Fireba
 ## Current limitations
 
 - The application is designed around one-to-one conversations.
+- Blocking is enforced for new conversation creation and message writes; report submissions are write-only from the client and require an operational review process outside the app.
 - Firebase rules are versioned and emulator tests are part of CI, but production rule deployment has not been performed.
 - Messages are still stored in an embedded array; bounded pagination and the message-subcollection migration remain future work.
 - Firebase Storage download URLs are bearer links; do not treat tokenized URLs as confidential media access.
