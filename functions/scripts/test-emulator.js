@@ -73,7 +73,7 @@ async function main() {
   const audit = await db.collection("moderationAudit").where("caseId", "==", reportId).get();
   assert.equal(audit.size, 1, "report, case and audit record should be created together");
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const result = await call("submitReport", reporter.token, { targetUid: target.uid, reason: "spam" });
     assert.equal(result.body.result?.submitted, true, JSON.stringify(result.body));
   }
@@ -81,9 +81,9 @@ async function main() {
 
   expectCallableError(await call("listModerationCases", reporter.token), "PERMISSION_DENIED");
   await auth.setCustomUserClaims(owner.uid, { owner: true, moderator: true });
-  const ownerToken = await signInWithCustomToken(await auth.createCustomToken(owner.uid));
+  const ownerToken = await signInWithPassword("owner@thirdwheel.test");
   const queue = await call("listModerationCases", ownerToken, { status: "open" });
-  assert.equal(queue.body.result?.cases?.length, 4, JSON.stringify(queue.body));
+  assert.equal(queue.body.result?.cases?.length, 5, JSON.stringify(queue.body));
   const reviewed = await call("reviewModerationCase", ownerToken, { caseId: reportId, status: "reviewing", note: "Evidence reviewed" });
   assert.equal(reviewed.body.result?.updated, true, JSON.stringify(reviewed.body));
   assert.equal((await db.doc(`moderationCases/${reportId}`).get()).get("moderatorNote"), "Evidence reviewed");
