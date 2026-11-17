@@ -36,7 +36,7 @@ There are currently no version-controlled Firestore Rules, Storage Rules, Fireba
 
 ### User profiles
 
-Keep `users/{uid}` as the discoverable profile document, but store only:
+Use a separate `publicProfiles/{uid}` collection for discoverable profile documents, and keep per-user chat-list entries under `users/{uid}/userChats/{chatId}`. This prevents legacy private user fields from being exposed through public profile queries. Store only:
 
 ```json
 {
