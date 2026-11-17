@@ -26,6 +26,3 @@ export const isAllowedImage = (file, maxBytes = 5 * 1024 * 1024) =>
       file.size > 0 &&
       file.size <= maxBytes
   );
-
-export const hasMessageId = (messages, messageId) =>
-  Array.isArray(messages) && messages.some(message => message?.id === messageId);
