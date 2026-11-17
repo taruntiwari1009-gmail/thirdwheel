@@ -344,7 +344,7 @@ await expectDenied(
         text: { stringValue: "This should not send" },
         senderId: { stringValue: bob.uid },
         date: { timestampValue: new Date().toISOString() },
-      } },
+      } } },
     }] } } },
     "?updateMask.fieldPaths=messages"
   ),
