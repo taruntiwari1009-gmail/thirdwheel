@@ -48,6 +48,7 @@ const Search = () => {
     setBlockedUids([]);
     setCursors({ names: null, usernames: null });
     setHasMore(false);
+    setLoadingMore(false);
     setVisibleCount(10);
     setErr("");
     if (!normalized || !currentUser?.uid) {
