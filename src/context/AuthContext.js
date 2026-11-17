@@ -23,9 +23,10 @@ export const AuthContextProvider = ({ children }) => {
           const profile=snapshot.data();
           const displayName=(profile.displayName || user.displayName || "").trim();
           const displayNameLower=displayName.toLowerCase();
-          if(displayName && profile.displayNameLower!==displayNameLower) {
-            return updateDoc(doc(db,"publicProfiles",user.uid),{displayNameLower});
-          }
+          const patch={};
+          if(displayName && profile.displayNameLower!==displayNameLower) patch.displayNameLower=displayNameLower;
+          if(typeof profile.discoverable!=="boolean") patch.discoverable=true;
+          if(Object.keys(patch).length) return updateDoc(doc(db,"publicProfiles",user.uid),patch);
         }).catch(error=>console.warn("Profile search metadata will be repaired later:",error));
       }
     });

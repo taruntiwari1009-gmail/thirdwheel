@@ -8,7 +8,7 @@ import { auth, db, storage } from "../firebase";
 import { isAllowedImage } from "../utils/chat";
 
 const fields = [
-  ["username","Username","text"],["displayName","Display name","text"],["bio","A little about you","textarea"],
+  ["username","Username","text"],["displayName","Display name","text"],["pronouns","Pronouns (optional)","text"],["bio","A little about you","textarea"],
   ["interests","Interests (comma separated)","list"],["hobbies","Hobbies (comma separated)","list"],
   ["languages","Languages (comma separated)","list"],["education","Course / field of study","text"],
   ["institution","College or university","text"],["graduationYear","Graduation year","text"],
@@ -51,7 +51,7 @@ export default function EditProfile() {
         const task=uploadBytesResumable(avatarRef,avatar);await task;photoURL=await getDownloadURL(task.snapshot.ref);
       }
       const data={
-        uid:currentUser.uid,username,displayName,displayNameLower:displayName.toLowerCase(),photoURL,
+        uid:currentUser.uid,username,displayName,displayNameLower:displayName.toLowerCase(),photoURL,discoverable:form.discoverable!==false,pronouns:(form.pronouns||"").trim().slice(0,40),
         bio:(form.bio||"").trim().slice(0,300),education:(form.education||"").trim().slice(0,100),
         institution:(form.institution||"").trim().slice(0,120),graduationYear:(form.graduationYear||"").trim().slice(0,4),
         city:(form.city||"").trim().slice(0,80),website:(form.website||"").trim().slice(0,300),
@@ -71,11 +71,12 @@ export default function EditProfile() {
     <h1>Edit your profile</h1><p className="muted">Share as much or as little as you like. Only your display name is required.</p>
     <form className="profileForm" onSubmit={save}>
       <label>Profile photo<input type="file" accept="image/*" onChange={e=>setAvatar(e.target.files?.[0]||null)} /></label>
+      <label className="privacyToggle"><input type="checkbox" checked={form.discoverable!==false} onChange={e=>change("discoverable",e.target.checked)} /> Show my profile in search results</label>
       {avatar&&<p className="muted small">New photo selected: {avatar.name}</p>}
       {fields.map(([key,label,type])=><label key={key}>{label}
         {type==="textarea"?<textarea rows="4" maxLength="300" value={form[key]||""} onChange={e=>change(key,e.target.value)}/>:<input type={type==="list"?"text":type} maxLength={type==="list"?500:300} value={form[key]||""} onChange={e=>change(key,e.target.value)}/>}
       </label>)}
-      <p className="muted small">Username is a profile label in this release; display-name search remains the discovery mechanism. Your email and authentication details are never public.</p>
+      <p className="muted small">Username is a profile label in this release; people can find you by display name. Turn off search visibility to hide your profile from discovery. Your email and authentication details are never public.</p>
       {error&&<p role="alert" className="errorText">{error}</p>}
       <div className="formActions"><Link to="/profile">Cancel</Link><button disabled={saving}>{saving?"Saving…":"Save profile"}</button></div>
     </form>

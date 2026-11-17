@@ -37,6 +37,8 @@ function profileFields(uid, displayName) {
     uid: { stringValue: uid },
     displayName: { stringValue: displayName },
     displayNameLower: { stringValue: displayName.toLowerCase() },
+    discoverable: { booleanValue: true },
+    pronouns: { stringValue: "" },
     photoURL: { stringValue: "https://example.test/avatar.png" },
   };
 }

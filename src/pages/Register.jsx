@@ -32,7 +32,7 @@ const Register = () => {
         const task=uploadBytesResumable(storageRef,file); await task; photoURL=await getDownloadURL(task.snapshot.ref);
       } catch(uploadError){console.warn("Avatar upload skipped:",uploadError);}
       const profile={
-        uid:credential.user.uid, displayName, displayNameLower:displayName.toLowerCase(), photoURL,
+        uid:credential.user.uid, displayName, displayNameLower:displayName.toLowerCase(), photoURL, discoverable:true, pronouns:"",
         bio:(form.elements.bio?.value||"").trim().slice(0,300),
         interests:split(form.elements.interests?.value||""),
         institution:(form.elements.institution?.value||"").trim().slice(0,120),

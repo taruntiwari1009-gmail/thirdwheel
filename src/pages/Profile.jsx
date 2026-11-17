@@ -3,7 +3,7 @@ import{doc,getDoc}from"firebase/firestore";
 import{Link,useParams}from"react-router-dom";
 import{AuthContext}from"../context/AuthContext";
 import{db}from"../firebase";
-const EMPTY={username:"",displayName:"",bio:"",interests:[],hobbies:[],languages:[],education:"",institution:"",graduationYear:"",city:"",connectionGoals:[],website:"",instagram:"",linkedin:""};
+const EMPTY={username:"",displayName:"",pronouns:"",bio:"",interests:[],hobbies:[],languages:[],education:"",institution:"",graduationYear:"",city:"",connectionGoals:[],website:"",instagram:"",linkedin:""};
 const list=v=>Array.isArray(v)?v:[];
 export default function Profile(){
  const{uid}=useParams();const{currentUser}=useContext(AuthContext);const id=uid||currentUser?.uid;const owner=currentUser?.uid===id;
@@ -13,7 +13,7 @@ export default function Profile(){
  if(error)return <main className="pageShell"><p role="alert">{error}</p><Link to="/">Back to conversations</Link></main>;
  return <main className="pageShell profilePage">
   <header className="pageHeader"><Link to="/" className="textLink">← Third Wheel</Link>{owner&&<Link className="primaryLink" to="/profile/edit">Edit profile</Link>}</header>
-  <section className="profileHero"><img className="profileAvatar" src={profile.photoURL||""} alt=""/><div><p className="eyebrow">COMMUNITY PROFILE</p><h1>{profile.displayName||"New member"}</h1>{profile.username&&<p className="muted">@{profile.username}</p>}<p className="muted">{profile.city||"Location not added"}</p></div></section>
+  <section className="profileHero"><img className="profileAvatar" src={profile.photoURL||""} alt=""/><div><p className="eyebrow">COMMUNITY PROFILE</p><h1>{profile.displayName||"New member"}</h1>{profile.username&&<p className="muted">@{profile.username}</p>}{profile.pronouns&&<p className="muted">{profile.pronouns}</p>}<p className="muted">{profile.city||"Location not added"}</p></div></section>
   {profile.bio&&<section className="profileSection"><h2>About</h2><p>{profile.bio}</p></section>}
   <section className="profileGrid">{[["Interests",profile.interests],["Hobbies",profile.hobbies],["Languages",profile.languages],["Education",[profile.education,profile.institution,profile.graduationYear]],["Connect over",profile.connectionGoals]].map(([title,values])=><div className="profileSection" key={title}><h2>{title}</h2><p>{list(values).filter(Boolean).join(" · ")||"Not added yet"}</p></div>)}</section>
   <section className="profileSection"><h2>Elsewhere</h2><div className="linkRow">{profile.website&&<a href={profile.website} target="_blank" rel="noreferrer">Website</a>}{profile.instagram&&<a href={profile.instagram} target="_blank" rel="noreferrer">Instagram</a>}{profile.linkedin&&<a href={profile.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}{!profile.website&&!profile.instagram&&!profile.linkedin&&<span className="muted">No links added</span>}</div></section>
