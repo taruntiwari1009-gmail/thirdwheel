@@ -7,6 +7,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   where,
@@ -38,7 +39,6 @@ const Search = () => {
       return undefined;
     }
 
-    // Debounce requests so each keystroke does not trigger a Firestore read.
     const timeoutId = setTimeout(async () => {
       setSearching(true);
       try {
@@ -57,9 +57,7 @@ const Search = () => {
           .filter((profile) => profile.uid !== currentUser.uid);
 
         setUsers(matches);
-        if (matches.length === 0) {
-          setErr("No users found. Try another name.");
-        }
+        if (matches.length === 0) setErr("No users found. Try another name.");
       } catch (error) {
         console.error("User search failed:", error);
         if (active) setErr("Search failed. Please try again.");
@@ -79,41 +77,62 @@ const Search = () => {
 
     setSelectingUid(selectedUser.uid);
     setErr("");
-
-    const combinedId = getChatId(currentUser.uid, selectedUser.uid);
+    const chatId = getChatId(currentUser.uid, selectedUser.uid);
 
     try {
-      const chatRef = doc(db, "chats", combinedId);
-      const chatSnapshot = await getDoc(chatRef);
+      const chatRef = doc(db, "chats", chatId);
+      const participants = [currentUser.uid, selectedUser.uid].sort();
 
-      if (!chatSnapshot.exists()) {
-        await setDoc(chatRef, {
-          participants: [currentUser.uid, selectedUser.uid].sort(),
-          messages: [],
-        });
+      // A transaction prevents two users opening the same new chat from overwriting it.
+      await runTransaction(db, async (transaction) => {
+        const chatSnapshot = await transaction.get(chatRef);
+        if (!chatSnapshot.exists()) {
+          transaction.set(chatRef, { participants, messages: [] });
+          return;
+        }
 
-        const chatListEntryForCurrentUser = {
-          userInfo: {
-            uid: selectedUser.uid,
-            displayName: selectedUser.displayName,
-            photoURL: selectedUser.photoURL,
-          },
+        const existingParticipants = chatSnapshot.data().participants || [];
+        if (
+          existingParticipants.length !== 2 ||
+          !participants.every((uid) => existingParticipants.includes(uid))
+        ) {
+          throw new Error("Conversation participants do not match.");
+        }
+      });
+
+      // Repair either missing chat-list entry without replacing existing history.
+      const currentEntryRef = doc(db, "users", currentUser.uid, "userChats", chatId);
+      const otherEntryRef = doc(db, "users", selectedUser.uid, "userChats", chatId);
+      const [currentEntry, otherEntry] = await Promise.all([
+        getDoc(currentEntryRef),
+        getDoc(otherEntryRef),
+      ]);
+
+      const currentUserInfo = {
+        uid: currentUser.uid,
+        displayName: currentUser.displayName || "",
+        photoURL: currentUser.photoURL || "",
+      };
+      const selectedUserInfo = {
+        uid: selectedUser.uid,
+        displayName: selectedUser.displayName || "",
+        photoURL: selectedUser.photoURL || "",
+      };
+
+      const repairs = [];
+      if (!currentEntry.exists()) {
+        repairs.push(setDoc(currentEntryRef, {
+          userInfo: selectedUserInfo,
           date: serverTimestamp(),
-        };
-        const chatListEntryForSelectedUser = {
-          userInfo: {
-            uid: currentUser.uid,
-            displayName: currentUser.displayName,
-            photoURL: currentUser.photoURL || "",
-          },
-          date: serverTimestamp(),
-        };
-
-        await Promise.all([
-          setDoc(doc(db, "users", currentUser.uid, "userChats", combinedId), chatListEntryForCurrentUser),
-          setDoc(doc(db, "users", selectedUser.uid, "userChats", combinedId), chatListEntryForSelectedUser),
-        ]);
+        }));
       }
+      if (!otherEntry.exists()) {
+        repairs.push(setDoc(otherEntryRef, {
+          userInfo: currentUserInfo,
+          date: serverTimestamp(),
+        }));
+      }
+      await Promise.all(repairs);
 
       dispatch({ type: "CHANGE_USER", payload: selectedUser });
       setUsers([]);
@@ -156,9 +175,7 @@ const Search = () => {
           }}
         >
           <img src={user.photoURL} alt="" />
-          <div className="userChatInfo">
-            <span>{user.displayName}</span>
-          </div>
+          <div className="userChatInfo"><span>{user.displayName}</span></div>
           {selectingUid === user.uid && <span>Opening...</span>}
         </div>
       ))}
