@@ -77,6 +77,10 @@ The development server runs at [http://localhost:3000](http://localhost:3000).
 npm run build
 ```
 
+## Project roadmap
+
+The quality-first dating product roadmap, including phased delivery, safety requirements and release gates, is documented in [docs/DATING_PRODUCT_ROADMAP.md](docs/DATING_PRODUCT_ROADMAP.md).
+
 ## Project structure
 
 ```text
