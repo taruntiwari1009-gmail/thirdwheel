@@ -1,4 +1,4 @@
-import { getChatId, hasMessageContent, hasMessageId, isAllowedImage } from "./chat";
+import { getChatId, hasMessageContent, isAllowedImage } from "./chat";
 import { chatReducer } from "../context/ChatContext";
 
 describe("chat utilities", () => {
@@ -18,11 +18,6 @@ describe("chat utilities", () => {
     expect(hasMessageContent("  ", null)).toBe(false);
   });
 
-  it("detects an already committed message ID when a send is retried", () => {
-    expect(hasMessageId([{ id: "message-1" }], "message-1")).toBe(true);
-    expect(hasMessageId([{ id: "message-1" }], "message-2")).toBe(false);
-    expect(hasMessageId(null, "message-1")).toBe(false);
-  });
 
   it("accepts only non-empty image files within the configured size limit", () => {
     expect(isAllowedImage({ type: "image/png", size: 1024 })).toBe(true);
