@@ -25,9 +25,11 @@ const Search = () => {
       return undefined;
     }
 
-    // Keep visibility filtering in Firestore while avoiding the former
-    // discoverable + name composite-index dependency. Search the discoverable
-    // public-profile set, then apply the prefix match locally.
+    // Query the indexed display-name field alone. The former combination of
+    // discoverable + display-name filters required a composite index to be
+    // deployed; that caused search to fail in production when it was absent.
+    // Public profile fields are readable to signed-in users by design, and
+    // discoverability is still enforced before a result is displayed.
     const timeout = setTimeout(async () => {
       setSearching(true);
       try {
@@ -44,6 +46,7 @@ const Search = () => {
           .map((profileDoc) => profileDoc.data())
           .filter((profile) =>
             profile.uid !== currentUser.uid &&
+            profile.discoverable !== false &&
             typeof profile.displayNameLower === "string" &&
             profile.displayNameLower.startsWith(normalized)
           )
