@@ -73,7 +73,7 @@ export default function EditProfile() {
       });
       await updateProfile(auth.currentUser,{displayName,photoURL});
       navigate("/profile",{replace:true});
-    }catch(e){setError(avatar?"Profile couldn't be saved. If the photo upload failed, try saving without a new photo.":"Your profile couldn't be saved. Check your connection and try again.");}
+    }catch(e){setError(e.message?.includes("already taken")?e.message:(avatar?"Profile could not be saved. If the photo upload failed, try saving without a new photo.":"Your profile could not be saved. Check your connection and try again."));}
     finally{setSaving(false);}
   };
 

@@ -81,46 +81,10 @@ service cloud.firestore {
             && request.resource.data.lastMessage.text is string
             && request.resource.data.lastMessage.text.size() <= 4000));
     }
-
     match /usernames/{username} {
       allow read: if signedIn();
       allow create: if signedIn()
-        && username.matches('^[a-z0-9_.]{3,24}
-      allow read: if signedIn();
-      allow create: if signedIn() && validPublicProfile(userId);
-      allow update: if signedIn() && request.auth.uid == userId
-        && validPublicProfile(userId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'username','displayName','displayNameLower','photoURL','discoverable','pronouns','bio','interests','hobbies',
-          'languages','education','institution','graduationYear','city','connectionGoals',
-          'website','instagram','linkedin'
-        ]);
-      allow delete: if signedIn() && request.auth.uid == userId;
-    }
-    match /users/{userId}/userChats/{chatId} {
-      allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
-      allow create: if validChatListEntry(userId,chatId);
-      allow update: if validChatListEntry(userId,chatId) && isChatParticipant(chatId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date']);
-      allow delete: if signedIn() && request.auth.uid == userId && isChatParticipant(chatId);
-    }
-    match /chats/{chatId} {
-      allow read: if signedIn() && resource.data.participants.hasAny([request.auth.uid]);
-      allow create: if signedIn() && validChatId(chatId,request.resource.data.participants)
-        && request.resource.data.participants.hasAny([request.auth.uid])
-        && request.resource.data.keys().hasOnly(['participants','messages'])
-        && request.resource.data.messages is list && request.resource.data.messages.size() == 0;
-      allow update: if signedIn() && resource.data.participants.hasAny([request.auth.uid])
-        && request.resource.data.participants == resource.data.participants
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
-        && request.resource.data.messages is list
-        && request.resource.data.messages.size() == resource.data.messages.size()+1
-        && request.resource.data.messages.hasAll(resource.data.messages)
-        && validMessage(request.resource.data.messages[request.resource.data.messages.size()-1]);
-      allow delete: if false;
-    }
-  }
-})
+        && username.matches('^[a-z0-9_.]{3,24}$')
         && request.resource.data.keys().hasOnly(['uid','createdAt'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.createdAt is timestamp
