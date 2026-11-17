@@ -5,7 +5,7 @@
 - Block management screen at `/settings/blocked`; owner-only list and unblock controls.
 - Firestore rules prevent self-blocking, require an existing public profile, and prevent blocked participants from creating new chats or appending messages.
 - Report submissions use a trusted callable function instead of direct client writes.
-- The backend validates report target, reason and bounded details, applies a per-user daily submission cap, and atomically creates a private report, moderation case and audit event.
+- The backend validates report target, reason and bounded details, applies a per-user daily submission cap, and atomically creates a private report, moderation case and audit event. Unit tests and Firebase Auth/Firestore/Functions emulator integration tests cover report validation, authentication, throttling, atomic records, moderator authorization/review and duplicate deletion requests.
 - Moderator queue and review callables require the Firebase custom claim `moderator: true`; case status changes and notes create audit events.
 - Moderator role changes require an `owner: true` custom claim and are audited.
 - Account deletion request intake is authenticated and prevents duplicate active requests. It records a pending request and audit event; it does not automatically destroy data.
@@ -16,7 +16,7 @@
 - **App Check:** The web client now supports optional reCAPTCHA v3 initialization through `REACT_APP_FIREBASE_APPCHECK_SITE_KEY`. The report callable reads `ENFORCE_APPCHECK` at runtime. Keep it unset/false for local emulator work; set it to `true` only after a real staging site key is configured, valid tokens are observed and failure behavior is tested. Never commit the key or use a placeholder.
 - **Rate limiting:** Report intake has a transactional daily submission cap. Message spam and broader account throttling need server-authoritative message writes or an approved migration from the embedded-message model.
 - **Moderator provisioning:** Set the initial owner custom claim through a trusted administrative process outside the client. Never grant owner/moderator claims from a client-writable Firestore document.
-- **Operations:** Define moderation staffing, response expectations, evidence retention, appeals and legal retention exceptions.
+- **Operations:** Define moderation staffing, response expectations, evidence retention, appeals and legal retention exceptions.\n- **Indexes:** The moderation queue status/date query has a composite index definition in `firestore.indexes.json`; deploy it only to the approved staging/production project as part of a separately reviewed release.
 
 ## Chat product scope
 
