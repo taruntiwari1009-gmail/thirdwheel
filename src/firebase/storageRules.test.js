@@ -1,6 +1,13 @@
 import { initializeApp, deleteApp } from "firebase/app";
 import { getStorage, connectStorageEmulator, ref, uploadBytes, getBytes } from "firebase/storage";
 
+describe("Firebase Storage emulator security rules", () => {
+  if (!process.env.STORAGE_TEST_ALICE_UID || !process.env.STORAGE_TEST_BOB_UID
+    || !process.env.STORAGE_TEST_MALLORY_UID || !process.env.STORAGE_TEST_CHAT_ID) {
+    it.skip("runs in the Firebase Emulator security workflow", () => {});
+    return;
+  }
+
 const projectId = "demo-thirdwheel";
 const bucket = `gs://${projectId}.appspot.com`;
 const aliceUid = process.env.STORAGE_TEST_ALICE_UID;
@@ -69,4 +76,6 @@ it("rejects non-image and oversized uploads", async () => {
   await expect(uploadBytes(ref(aliceStorage, `avatars/${aliceUid}/oversized.png`), new Uint8Array(5 * 1024 * 1024 + 1), {
     contentType: "image/png",
   })).rejects.toBeDefined();
+});
+
 });
