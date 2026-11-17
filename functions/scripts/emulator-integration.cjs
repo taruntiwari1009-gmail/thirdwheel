@@ -24,6 +24,18 @@ async function signUp(label) {
   return { uid: payload.localId, token: payload.idToken };
 }
 
+
+async function signInWithPassword(email) {
+  const response = await fetch(`${authBase}/accounts:signInWithPassword?key=fake-api-key`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password: "Thirdwheel-test-123!", returnSecureToken: true }),
+  });
+  const payload = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(payload));
+  return payload.idToken;
+}
+
 async function signInWithCustomToken(token) {
   const response = await fetch(`${authBase}/accounts:signInWithCustomToken?key=fake-api-key`, {
     method: "POST",
@@ -88,9 +100,42 @@ async function main() {
   assert.equal(reviewed.body.result?.updated, true, JSON.stringify(reviewed.body));
   assert.equal((await db.doc(`moderationCases/${reportId}`).get()).get("moderatorNote"), "Evidence reviewed");
 
+  const deletionChatId = [reporter.uid, target.uid].sort().join("");
+  await db.doc(`chats/${deletionChatId}`).set({
+    participants: [reporter.uid, target.uid].sort(),
+    messages: [{ id: "retained-message", text: "Keep this history", senderId: reporter.uid, date: new Date() }],
+  });
+  await db.doc(`users/${reporter.uid}/userChats/${deletionChatId}`).set({
+    userInfo: { uid: target.uid, displayName: "Target", photoURL: "" }, date: new Date(), unreadCount: 0,
+  });
+  await db.doc(`users/${target.uid}/userChats/${deletionChatId}`).set({
+    userInfo: { uid: reporter.uid, displayName: "Reporter", photoURL: "https://example.test/reporter.png" }, date: new Date(), unreadCount: 0,
+  });
+  await db.doc(`publicProfiles/${reporter.uid}`).set({
+    uid: reporter.uid, username: "reporter_test", displayName: "Reporter", displayNameLower: "reporter",
+    photoURL: "https://example.test/reporter.png",
+  });
+  await db.doc("usernames/reporter_test").set({ uid: reporter.uid, createdAt: new Date() });
+
   const deletion = await call("requestAccountDeletion", reporter.token);
   assert.equal(deletion.body.result?.status, "pending_review", JSON.stringify(deletion.body));
   expectCallableError(await call("requestAccountDeletion", reporter.token), "ALREADY_EXISTS");
+  expectCallableError(await call("approveAccountDeletion", reporter.token, { uid: reporter.uid }), "PERMISSION_DENIED");
+  const approved = await call("approveAccountDeletion", ownerToken, { uid: reporter.uid });
+  assert.equal(approved.body.result?.approved, true, JSON.stringify(approved.body));
+  const firstDeletionPass = await call("processAccountDeletion", ownerToken, { uid: reporter.uid });
+  assert.equal(firstDeletionPass.body.result?.completed, false, JSON.stringify(firstDeletionPass.body));
+  const secondDeletionPass = await call("processAccountDeletion", ownerToken, { uid: reporter.uid });
+  assert.equal(secondDeletionPass.body.result?.completed, true, JSON.stringify(secondDeletionPass.body));
+  const retainedChat = await db.doc(`chats/${deletionChatId}`).get();
+  assert.equal(retainedChat.exists, true, "shared conversation must be retained");
+  assert.equal(retainedChat.get("messages").length, 1, "shared messages must be retained");
+  assert.deepEqual(retainedChat.get("deletedParticipants"), [reporter.uid]);
+  assert.equal((await db.doc(`users/${reporter.uid}/userChats/${deletionChatId}`).get()).exists, false);
+  assert.equal((await db.doc(`users/${target.uid}/userChats/${deletionChatId}`).get()).get("userInfo.displayName"), "Deleted account");
+  assert.equal((await db.doc(`publicProfiles/${reporter.uid}`).get()).exists, false);
+  assert.equal((await db.doc("usernames/reporter_test").get()).exists, false);
+  await assert.rejects(() => auth.getUser(reporter.uid), error => error.code === "auth/user-not-found");
 
   const granted = await call("setModeratorRole", ownerToken, { uid: target.uid, enabled: true });
   assert.equal(granted.body.result?.updated, true, JSON.stringify(granted.body));
