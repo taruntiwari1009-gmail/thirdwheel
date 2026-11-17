@@ -1,4 +1,4 @@
-import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
+import { collection, doc, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
@@ -28,14 +28,23 @@ const Messages = () => {
     if (!data.chatId) { setMessages([]); setLoading(false); setError(""); return undefined; }
     shouldStickToBottom.current = true;
     setMessages([]); setLoading(true); setError("");
-    return onSnapshot(doc(db, "chats", data.chatId), snapshot => {
-      setMessages(snapshot.exists() ? snapshot.data().messages || [] : []);
+    const chatRef = doc(db, "chats", data.chatId);
+    const stopChat = onSnapshot(chatRef, snapshot => {
       setDeletedParticipants(snapshot.exists() ? snapshot.data().deletedParticipants || [] : []);
+    }, listenerError => {
+      console.error("Unable to load conversation metadata:", listenerError);
+      setError("Conversation details could not be loaded. Check your connection and try again.");
+      setLoading(false);
+    });
+    const messagesQuery = query(collection(db, "chats", data.chatId, "messages"), orderBy("date", "asc"), limitToLast(50));
+    const stopMessages = onSnapshot(messagesQuery, snapshot => {
+      setMessages(snapshot.docs.map(messageDoc => ({ id: messageDoc.id, ...messageDoc.data() })));
       setLoading(false); setError("");
     }, listenerError => {
       console.error("Unable to load messages:", listenerError);
       setLoading(false); setError("Messages could not be loaded. Check your connection and try again.");
     });
+    return () => { stopChat(); stopMessages(); };
   }, [data.chatId]);
 
   useEffect(() => {
