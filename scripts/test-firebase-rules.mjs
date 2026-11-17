@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 
 const PROJECT_ID = "demo-thirdwheel";
 const BUCKET = `${PROJECT_ID}.appspot.com`;
@@ -70,23 +71,6 @@ function chatListFields(other, displayName) {
     },
     date: { timestampValue: new Date().toISOString() },
   };
-}
-
-async function upload(path, token, contentType = "image/png", bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) {
-  return fetch(`${STORAGE_URL}?uploadType=media&name=${encodeURIComponent(path)}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Firebase ${token}`,
-      "Content-Type": contentType,
-    },
-    body: bytes,
-  });
-}
-
-async function download(path, token) {
-  return fetch(`${STORAGE_URL}/${encodeURIComponent(path)}?alt=media`, {
-    headers: { Authorization: `Firebase ${token}` },
-  });
 }
 
 async function expectAllowed(response, label) {
@@ -308,33 +292,24 @@ await expectDenied(
   "non-participant cannot read another user's conversation-list entry"
 );
 
-await expectAllowed(
-  await upload(`avatars/${alice.uid}/avatar.png`, alice.token),
-  "owner uploads own avatar"
+
+const storageTests = spawnSync(
+  process.platform === "win32" ? "npm.cmd" : "npm",
+  ["test", "--", "--watchAll=false", "--runInBand", "src/firebase/storageRules.test.js"],
+  {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      CI: "true",
+      STORAGE_TEST_ALICE_UID: alice.uid,
+      STORAGE_TEST_BOB_UID: bob.uid,
+      STORAGE_TEST_MALLORY_UID: mallory.uid,
+      STORAGE_TEST_CHAT_ID: chatId,
+    },
+  }
 );
-await expectDenied(
-  await upload(`avatars/${bob.uid}/avatar.png`, alice.token),
-  "user cannot upload another user's avatar"
-);
-await expectAllowed(
-  await upload(`chat-images/${chatId}/${alice.uid}/image.png`, alice.token),
-  "participant uploads chat image"
-);
-await expectDenied(
-  await download(`chat-images/${chatId}/${alice.uid}/image.png`, mallory.token),
-  "non-participant cannot download chat image"
-);
-await expectDenied(
-  await upload(`chat-images/${chatId}/${mallory.uid}/image.png`, mallory.token),
-  "non-participant cannot upload chat image"
-);
-await expectDenied(
-  await upload(`avatars/${alice.uid}/not-an-image.txt`, alice.token, "text/plain"),
-  "non-image upload is rejected"
-);
-await expectDenied(
-  await upload(`avatars/${alice.uid}/oversized.png`, alice.token, "image/png", Buffer.alloc(5 * 1024 * 1024 + 1)),
-  "oversized image upload is rejected"
-);
+if (storageTests.error) throw storageTests.error;
+assert.equal(storageTests.status, 0, "Firebase Storage SDK security tests must pass");
+
 
 console.log("Firebase Emulator Security Tests: all allowed and denied cases passed.");
