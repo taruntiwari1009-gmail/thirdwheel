@@ -338,14 +338,27 @@ await expectDenied(
     "PATCH",
     `chats/${chatId}`,
     bob.token,
-    { fields: { messages: { arrayValue: { values: [message, {
-      mapValue: { fields: {
-        id: { stringValue: "blocked-message" },
-        text: { stringValue: "This should not send" },
-        senderId: { stringValue: bob.uid },
-        date: { timestampValue: new Date().toISOString() },
-      } } },
-    }] } } },
+    {
+      fields: {
+        messages: {
+          arrayValue: {
+            values: [
+              message,
+              {
+                mapValue: {
+                  fields: {
+                    id: { stringValue: "blocked-message" },
+                    text: { stringValue: "This should not send" },
+                    senderId: { stringValue: bob.uid },
+                    date: { timestampValue: new Date().toISOString() },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
     "?updateMask.fieldPaths=messages"
   ),
   "blocked participants cannot exchange new messages"
