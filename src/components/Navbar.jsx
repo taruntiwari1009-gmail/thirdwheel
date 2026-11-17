@@ -19,6 +19,7 @@ const Navbar = () => {
   return <div className="navbar">
     <Link className="logo" to="/">Third Wheel</Link>
     <div className="user">
+      <Link to="/settings/blocked" className="navSettings">Blocked accounts</Link>
       <Link to="/profile" className="navProfile">{currentUser?.photoURL ? <img src={currentUser.photoURL} alt="" /> : <span className="avatarFallback" aria-hidden="true">{initials}</span>}<span>{currentUser?.displayName || "Your profile"}</span></Link>
       <button type="button" onClick={logout} disabled={busy}>{busy ? "Signing out…" : "Sign out"}</button>
     </div>
