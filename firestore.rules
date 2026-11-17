@@ -12,13 +12,16 @@ service cloud.firestore {
     }
 
     function validPublicProfile(userId) {
-      return request.resource.data.keys().hasOnly(['uid', 'displayName', 'photoURL'])
-        && request.resource.data.keys().hasAll(['uid', 'displayName', 'photoURL'])
+      return request.resource.data.keys().hasOnly(['uid', 'displayName', 'displayNameLower', 'photoURL'])
+        && request.resource.data.keys().hasAll(['uid', 'displayName', 'displayNameLower', 'photoURL'])
         && request.resource.data.uid == userId
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.displayName is string
         && request.resource.data.displayName.size() > 0
         && request.resource.data.displayName.size() <= 80
+        && request.resource.data.displayNameLower is string
+        && request.resource.data.displayNameLower.size() > 0
+        && request.resource.data.displayNameLower.size() <= 80
         && request.resource.data.photoURL is string
         && request.resource.data.photoURL.size() <= 2048;
     }
@@ -80,7 +83,7 @@ service cloud.firestore {
       allow update: if signedIn()
         && request.auth.uid == userId
         && validPublicProfile(userId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'displayNameLower', 'photoURL']);
       allow delete: if signedIn() && request.auth.uid == userId;
     }
 
