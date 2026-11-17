@@ -92,6 +92,7 @@ await expectDenied(
 );
 await expectAllowed(await createProfile(alice, "Alice"), "owner creates public profile");
 await expectAllowed(await createProfile(bob, "Bob"), "second user creates public profile");
+await expectAllowed(await firestore("POST", "publicProfiles?documentId=" + mallory.uid, mallory.token, { fields: { ...profileFields(mallory.uid, "Mallory"), discoverable: { booleanValue: false } } }), "owner can create a hidden profile");
 
 const usernameReservation = (uid) => ({
   uid: { stringValue: uid },
@@ -505,4 +506,6 @@ if (storageTests.error) throw storageTests.error;
 assert.equal(storageTests.status, 0, "Firebase Storage SDK security tests must pass");
 
 
+await expectDenied(await firestore("GET", "publicProfiles/" + mallory.uid, alice.token), "hidden profile cannot be read by another signed-in user");
+await expectAllowed(await firestore("GET", "publicProfiles/" + mallory.uid, mallory.token), "profile owner can read their own hidden profile");
 console.log("Firebase Emulator Security Tests: all allowed and denied cases passed.");
