@@ -1,7 +1,7 @@
 import React from "react";
 import { act, render, screen } from "@testing-library/react";
 import { onAuthStateChanged } from "firebase/auth";
-import { getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { AuthContext, AuthContextProvider } from "./AuthContext";
 
 jest.mock("../firebase", () => ({ auth: {}, db: {} }));
@@ -30,6 +30,7 @@ describe("AuthContextProvider", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    doc.mockReturnValue("mock-profile-reference");
     getDoc.mockResolvedValue({
       exists: () => false,
     });
@@ -82,10 +83,9 @@ describe("AuthContextProvider", () => {
       await authListener({ uid: "user-123", displayName: "Test User" });
     });
 
-    expect(updateDoc).toHaveBeenCalledWith(
-      expect.anything(),
-      { displayNameLower: "test user" }
-    );
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateDoc.mock.calls[0][0]).toBe("mock-profile-reference");
+    expect(updateDoc.mock.calls[0][1]).toEqual({ displayNameLower: "test user" });
   });
 
   it("unsubscribes from Firebase when the provider unmounts", () => {
