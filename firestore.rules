@@ -7,6 +7,10 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/chats/$(chatId))
         && get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
     }
+    function isBlockedBetween(firstUid, secondUid) {
+      return exists(/databases/$(database)/documents/users/$(firstUid)/blockedUsers/$(secondUid))
+        || exists(/databases/$(database)/documents/users/$(secondUid)/blockedUsers/$(firstUid));
+    }
     function validStringList(value, maxItems) {
       return value is list && value.size() <= maxItems && value.toSet().size() == value.size();
     }
@@ -90,6 +94,26 @@ service cloud.firestore {
         ]);
       allow delete: if signedIn() && request.auth.uid == userId;
     }
+    match /users/{userId}/blockedUsers/{blockedUid} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == userId && blockedUid != userId
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt is timestamp;
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+    match /reports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['reporterId','targetUid','reason','details','createdAt'])
+        && request.resource.data.keys().hasAll(['reporterId','targetUid','reason','createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetUid is string
+        && request.resource.data.targetUid != request.auth.uid
+        && request.resource.data.reason in ['spam','harassment','inappropriate','impersonation','other']
+        && (!('details' in request.resource.data) || (request.resource.data.details is string && request.resource.data.details.size() <= 500))
+        && request.resource.data.createdAt is timestamp;
+      allow read, update, delete: if false;
+    }
     match /users/{userId}/userChats/{chatId} {
       allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
       allow create: if validChatListEntry(userId,chatId);
@@ -103,9 +127,11 @@ service cloud.firestore {
       allow read: if signedIn() && resource.data.participants.hasAny([request.auth.uid]);
       allow create: if signedIn() && validChatId(chatId,request.resource.data.participants)
         && request.resource.data.participants.hasAny([request.auth.uid])
+        && !isBlockedBetween(request.resource.data.participants[0],request.resource.data.participants[1])
         && request.resource.data.keys().hasOnly(['participants','messages'])
         && request.resource.data.messages is list && request.resource.data.messages.size() == 0;
       allow update: if signedIn() && resource.data.participants.hasAny([request.auth.uid])
+        && !isBlockedBetween(resource.data.participants[0],resource.data.participants[1])
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
         && request.resource.data.messages is list && request.resource.data.messages.size() == resource.data.messages.size()+1
