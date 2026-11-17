@@ -4,6 +4,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase";
+import { safeExternalUrl } from "../utils/profile";
 
 const EMPTY = {
   username: "", displayName: "", pronouns: "", bio: "", interests: [], hobbies: [],
@@ -185,10 +186,10 @@ export default function Profile() {
       })}
     </section>
     <section className="profileSection"><h2>Elsewhere</h2><div className="linkRow">
-      {profile.website && <a href={profile.website} target="_blank" rel="noreferrer">Website</a>}
-      {profile.instagram && <a href={profile.instagram} target="_blank" rel="noreferrer">Instagram</a>}
-      {profile.linkedin && <a href={profile.linkedin} target="_blank" rel="noreferrer">LinkedIn</a>}
-      {!profile.website && !profile.instagram && !profile.linkedin && <span className="muted">No links added</span>}
+      {safeExternalUrl(profile.website) && <a href={safeExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer">Website</a>}
+      {safeExternalUrl(profile.instagram) && <a href={safeExternalUrl(profile.instagram)} target="_blank" rel="noopener noreferrer">Instagram</a>}
+      {safeExternalUrl(profile.linkedin) && <a href={safeExternalUrl(profile.linkedin)} target="_blank" rel="noopener noreferrer">LinkedIn</a>}
+      {!safeExternalUrl(profile.website) && !safeExternalUrl(profile.instagram) && !safeExternalUrl(profile.linkedin) && <span className="muted">No links added</span>}
     </div></section>
   </main>;
 }
