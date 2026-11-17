@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 const PROJECT_ID = "demo-thirdwheel";
-const BUCKET = "thirdwheel-1009.appspot.com";
+const BUCKET = `${PROJECT_ID}.appspot.com`;
 const AUTH_URL = "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1";
 const FIRESTORE_URL = `http://127.0.0.1:8080/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 const STORAGE_URL = `http://127.0.0.1:9199/v0/b/${BUCKET}/o`;
