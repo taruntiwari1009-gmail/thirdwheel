@@ -68,7 +68,8 @@ const Input = () => {
       const lastMessage = { text: messageText || "Image" };
 
       await runTransaction(db, async transaction => {
-        const rateLimitRef = doc(db, "abuseLimits", `messages_${currentUser.uid}`);\n        const [chat, mine, theirs, rateLimit] = await Promise.all([transaction.get(chatRef), transaction.get(mineRef), transaction.get(theirsRef), transaction.get(rateLimitRef)]);
+        const rateLimitRef = doc(db, "abuseLimits", `messages_${currentUser.uid}`);
+        const [chat, mine, theirs, rateLimit] = await Promise.all([transaction.get(chatRef), transaction.get(mineRef), transaction.get(theirsRef), transaction.get(rateLimitRef)]);
         if (!chat.exists()) throw new Error("This conversation no longer exists.");
         const participants = chat.data().participants || [];
         if (!participants.includes(currentUser.uid) || !participants.includes(data.user.uid)) throw new Error("You are no longer a participant in this conversation.");
