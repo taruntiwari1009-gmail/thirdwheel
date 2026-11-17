@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { collection, getDocs, limit, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
+import { collection, doc, getDocs, limit, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
@@ -84,11 +84,11 @@ const Search = () => {
     }
 
     try {
-      const chatRef = (await import("firebase/firestore")).doc(db, "chats", chatId);
-      const currentEntryRef = (await import("firebase/firestore")).doc(db, "users", currentUser.uid, "userChats", chatId);
-      const otherEntryRef = (await import("firebase/firestore")).doc(db, "users", selected.uid, "userChats", chatId);
-      const currentProfileRef = (await import("firebase/firestore")).doc(db, "publicProfiles", currentUser.uid);
-      const otherProfileRef = (await import("firebase/firestore")).doc(db, "publicProfiles", selected.uid);
+      const chatRef = doc(db, "chats", chatId);
+      const currentEntryRef = doc(db, "users", currentUser.uid, "userChats", chatId);
+      const otherEntryRef = doc(db, "users", selected.uid, "userChats", chatId);
+      const currentProfileRef = doc(db, "publicProfiles", currentUser.uid);
+      const otherProfileRef = doc(db, "publicProfiles", selected.uid);
       const participants = [currentUser.uid, selected.uid].sort();
 
       await runTransaction(db, async (transaction) => {
