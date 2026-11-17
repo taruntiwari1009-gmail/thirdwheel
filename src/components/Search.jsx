@@ -40,13 +40,6 @@ const Search = () => {
   const { dispatch } = useContext(ChatContext);
 
   useEffect(() => {
-    if (!currentUser?.uid) { setBlockedIds([]); return undefined; }
-    return onSnapshot(collection(db, "users", currentUser.uid, "blockedUsers"), snapshot => {
-      setBlockedIds(snapshot.docs.map(item => item.id));
-    }, error => console.warn("Unable to refresh your block list:", error));
-  }, [currentUser?.uid]);
-
-  useEffect(() => {
     const normalized = term.trim().toLowerCase().replace(/^@/, "");
     let active = true;
     setUsers([]);
@@ -108,7 +101,7 @@ const Search = () => {
     }, 250);
 
     return () => { active = false; clearTimeout(timeout); };
-  }, [term, currentUser, blockedIds]);
+  }, [term, currentUser]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore || !currentUser?.uid) return;
@@ -138,7 +131,7 @@ const Search = () => {
         )) : Promise.resolve({ docs: [] })
       ]);
       setUsers(previous => mergeMatches([...names.docs, ...usernames.docs], normalized, previous, currentUser.uid)
-        .filter(profile => !blockedIds.includes(profile.uid)));
+        .filter(profile => !blockedUids.includes(profile.uid)));
       setCursors({
         names: names.docs.length === PAGE_SIZE ? names.docs[names.docs.length - 1] : null,
         usernames: usernames.docs.length === PAGE_SIZE ? usernames.docs[usernames.docs.length - 1] : null
