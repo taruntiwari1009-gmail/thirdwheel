@@ -8,7 +8,7 @@ import {
   doc,
   serverTimestamp,
   Timestamp,
-  updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
@@ -43,7 +43,10 @@ const Input = () => {
       }
 
       const messageText = text.trim();
-      await updateDoc(doc(db, "chats", data.chatId), {
+      const batch = writeBatch(db);
+      const lastMessage = { text: messageText || (imageUrl ? "Image" : "") };
+
+      batch.update(doc(db, "chats", data.chatId), {
         messages: arrayUnion({
           id: uuid(),
           text: messageText,
@@ -52,18 +55,15 @@ const Input = () => {
           ...(imageUrl ? { img: imageUrl } : {}),
         }),
       });
-
-      const lastMessage = { text: messageText || (imageUrl ? "Image" : "") };
-      await Promise.all([
-        updateDoc(doc(db, "userChats", currentUser.uid), {
-          [data.chatId + ".lastMessage"]: lastMessage,
-          [data.chatId + ".date"]: serverTimestamp(),
-        }),
-        updateDoc(doc(db, "userChats", data.user.uid), {
-          [data.chatId + ".lastMessage"]: lastMessage,
-          [data.chatId + ".date"]: serverTimestamp(),
-        }),
-      ]);
+      batch.update(doc(db, "userChats", currentUser.uid), {
+        [data.chatId + ".lastMessage"]: lastMessage,
+        [data.chatId + ".date"]: serverTimestamp(),
+      });
+      batch.update(doc(db, "userChats", data.user.uid), {
+        [data.chatId + ".lastMessage"]: lastMessage,
+        [data.chatId + ".date"]: serverTimestamp(),
+      });
+      await batch.commit();
 
       setText("");
       setImg(null);
@@ -93,7 +93,7 @@ const Input = () => {
           onChange={(event) => setImg(event.target.files?.[0] || null)}
         />
         <label htmlFor="file">
-          <img src={Img} alt="Choose an image" />
+          <img src={Img} alt="Choose an attachment" />
         </label>
         <button type="submit" disabled={sending}>
           {sending ? "Sending..." : "Send"}
