@@ -85,7 +85,7 @@ describe("AuthContextProvider", () => {
 
     expect(updateDoc).toHaveBeenCalledTimes(1);
     expect(updateDoc.mock.calls[0][0]).toBe("mock-profile-reference");
-    expect(updateDoc.mock.calls[0][1]).toEqual({ displayNameLower: "test user" });
+    expect(updateDoc.mock.calls[0][1]).toEqual({ displayNameLower: "test user", discoverable: true });
   });
 
   it("unsubscribes from Firebase when the provider unmounts", () => {
