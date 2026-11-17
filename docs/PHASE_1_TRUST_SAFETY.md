@@ -13,7 +13,7 @@
 ## Remaining before production
 
 - **Deletion execution:** Requests remain `pending_review`. Destructive cleanup is not automatic until retention policy and shared-conversation handling are approved. A deletion worker must preserve the other participant's records and handle Storage, Auth, usernames, profile and inbox data with retry/reconciliation.
-- **App Check:** The report callable currently has enforcement disabled. Configure a real provider and validate staging traffic before enabling enforcement. Do not use a placeholder key.
+- **App Check:** The web client now supports optional reCAPTCHA v3 initialization through `REACT_APP_FIREBASE_APPCHECK_SITE_KEY`. The report callable still has enforcement disabled. Configure a real staging site key, validate token traffic and monitor errors before enabling server enforcement. Never commit the key or use a placeholder.
 - **Rate limiting:** Report intake has a transactional daily submission cap. Message spam and broader account throttling need server-authoritative message writes or an approved migration from the embedded-message model.
 - **Moderator provisioning:** Set the initial owner custom claim through a trusted administrative process outside the client. Never grant owner/moderator claims from a client-writable Firestore document.
 - **Operations:** Define moderation staffing, response expectations, evidence retention, appeals and legal retention exceptions.
