@@ -333,6 +333,57 @@ const blockEntry = await firestore(
   "?currentDocument.exists=false"
 );
 await expectAllowed(blockEntry, "user can block another account in their own block list");
+
+await expectDenied(
+  await firestore("PATCH", `users/${alice.uid}/blockedUsers/${mallory.uid}`, alice.token, {
+    fields: { createdAt: { timestampValue: new Date().toISOString() } },
+  }, "?currentDocument.exists=false"),
+  "user cannot block an account without a public profile"
+);
+await expectDenied(
+  await firestore("PATCH", `users/${alice.uid}/blockedUsers/${alice.uid}`, alice.token, {
+    fields: { createdAt: { timestampValue: new Date().toISOString() } },
+  }, "?currentDocument.exists=false"),
+  "user cannot block themselves"
+);
+await expectAllowed(
+  await firestore("DELETE", `users/${alice.uid}/blockedUsers/${bob.uid}`, alice.token),
+  "owner can unblock an account"
+);
+await expectAllowed(
+  await firestore("PATCH", `users/${alice.uid}/blockedUsers/${bob.uid}`, alice.token, {
+    fields: { createdAt: { timestampValue: new Date().toISOString() } },
+  }, "?currentDocument.exists=false"),
+  "owner can block the account again after unblocking"
+);
+await expectDenied(
+  await firestore("GET", "moderationCases/case-1", alice.token),
+  "ordinary client cannot read moderation cases"
+);
+await expectDenied(
+  await firestore("POST", "moderationCases?documentId=case-1", alice.token, {
+    fields: { status: { stringValue: "open" } },
+  }),
+  "ordinary client cannot create moderation cases"
+);
+await expectDenied(
+  await firestore("POST", "moderationAudit?documentId=event-1", alice.token, {
+    fields: { action: { stringValue: "reviewed" } },
+  }),
+  "ordinary client cannot write moderation audit events"
+);
+await expectDenied(
+  await firestore("POST", "matches?documentId=match-1", alice.token, {
+    fields: { participants: { arrayValue: { values: [{ stringValue: alice.uid }, { stringValue: bob.uid }] } } },
+  }),
+  "ordinary client cannot forge a mutual match"
+);
+await expectDenied(
+  await firestore("PATCH", `users/${alice.uid}/likes/${bob.uid}`, alice.token, {
+    fields: { createdAt: { timestampValue: new Date().toISOString() } },
+  }, "?currentDocument.exists=false"),
+  "likes remain server-authoritative until abuse controls exist"
+);
 await expectDenied(
   await firestore(
     "PATCH",
