@@ -7,6 +7,16 @@ import { ChatContext } from "../context/ChatContext";
 import { getChatId } from "../utils/chat";
 
 const PAGE_SIZE = 30;
+const mergeMatches = (snapshots, normalized, existing, currentUid) => {
+  const byUid = new Map((existing || []).map(user => [user.uid, user]));
+  snapshots.forEach(snapshot => {
+    const profile = snapshot.data();
+    const nameMatch = typeof profile.displayNameLower === "string" && profile.displayNameLower.startsWith(normalized);
+    const usernameMatch = typeof profile.username === "string" && profile.username.toLowerCase().startsWith(normalized);
+    if (profile.uid && profile.uid !== currentUid && profile.discoverable !== false && (nameMatch || usernameMatch)) byUid.set(profile.uid, profile);
+  });
+  return Array.from(byUid.values()).sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
+};
 const Search = () => {
   const [term, setTerm] = useState("");
   const [users, setUsers] = useState([]);
@@ -19,17 +29,6 @@ const Search = () => {
   const [visibleCount, setVisibleCount] = useState(10);
   const { currentUser } = useContext(AuthContext);
   const { dispatch } = useContext(ChatContext);
-
-  const mergeMatches = (snapshots, normalized, existing) => {
-    const byUid = new Map((existing || []).map(user => [user.uid, user]));
-    snapshots.forEach(snapshot => {
-      const profile = snapshot.data();
-      const nameMatch = typeof profile.displayNameLower === "string" && profile.displayNameLower.startsWith(normalized);
-      const usernameMatch = typeof profile.username === "string" && profile.username.toLowerCase().startsWith(normalized);
-      if (profile.uid && profile.uid !== currentUser.uid && profile.discoverable !== false && (nameMatch || usernameMatch)) byUid.set(profile.uid, profile);
-    });
-    return Array.from(byUid.values()).sort((a, b) => (a.displayName || "").localeCompare(b.displayName || ""));
-  };
 
   useEffect(() => {
     const normalized = term.trim().toLowerCase().replace(/^@/, "");
@@ -54,7 +53,7 @@ const Search = () => {
           usernames: usernames.docs.length === PAGE_SIZE ? usernames.docs[usernames.docs.length - 1] : null
         });
         setHasMore(names.docs.length === PAGE_SIZE || usernames.docs.length === PAGE_SIZE);
-        const matches = mergeMatches([...names.docs, ...usernames.docs], normalized, []);
+        const matches = mergeMatches([...names.docs, ...usernames.docs], normalized, [], currentUser.uid);
         setUsers(matches);
         if (!matches.length) setErr("No people found. Try a name or @username.");
       } catch (error) {
@@ -63,7 +62,7 @@ const Search = () => {
       } finally { if (active) setSearching(false); }
     }, 250);
     return () => { active = false; clearTimeout(timeout); };
-  }, [term, currentUser && currentUser.uid]);
+  }, [term, currentUser?.uid]);
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
@@ -77,7 +76,7 @@ const Search = () => {
         cursors.names ? getDocs(query(profiles, where("displayNameLower", ">=", normalized), where("displayNameLower", "<=", normalized + "\uf8ff"), startAfter(cursors.names), limit(PAGE_SIZE))) : Promise.resolve({ docs: [] }),
         cursors.usernames ? getDocs(query(profiles, where("username", ">=", normalized), where("username", "<=", normalized + "\uf8ff"), startAfter(cursors.usernames), limit(PAGE_SIZE))) : Promise.resolve({ docs: [] })
       ]);
-      setUsers(previous => mergeMatches([...names.docs, ...usernames.docs], normalized, previous));
+      setUsers(previous => mergeMatches([...names.docs, ...usernames.docs], normalized, previous, currentUser.uid));
       setCursors({
         names: names.docs.length === PAGE_SIZE ? names.docs[names.docs.length - 1] : null,
         usernames: usernames.docs.length === PAGE_SIZE ? usernames.docs[usernames.docs.length - 1] : null
