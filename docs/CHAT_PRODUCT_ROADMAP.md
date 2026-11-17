@@ -38,9 +38,11 @@ The PR head has passing CI at the time of this roadmap update. This is emulator/
 
 ### 3. Messaging
 - Implemented: separate message documents, latest-50 real-time listener, older-history cursor pagination, stable timestamp/document-ID ordering, deduplication, and scroll-position preservation.
-- Implemented: inbox unread count reset on opening a conversation.
+- Implemented: inbox unread count reset on opening a conversation and live read receipts for the latest outgoing message using the recipient's inbox `lastReadAt` boundary.
+- Implemented: stable message IDs retained across in-session retries; image upload progress; message documents store Storage object paths rather than bearer download URLs; attachment display uses authenticated Storage SDK reads and temporary object URLs.
+- Implemented: Firestore message validation binds attachment paths to the chat and authenticated sender.
 
-**Remaining:** Explicit per-message delivery/read states; idempotent send/retry behavior across ambiguous network failures; durable offline recovery; attachment progress/cancel/retry/cleanup; authenticated media reads (the UI currently renders tokenized Firebase download URLs); and end-to-end verification of message ordering and unread boundaries.
+**Remaining:** Durable offline outbox/recovery across reloads; cancel/retry/cleanup of partially uploaded attachments; browser CORS configuration and authenticated-media end-to-end verification in staging; and end-to-end verification of message ordering and unread boundaries.
 
 ### 4. Profiles and settings
 - Profile editing, discovery visibility, block management and profile presentation exist.
@@ -59,7 +61,7 @@ The PR head has passing CI at the time of this roadmap update. This is emulator/
 - Rules/Functions are not deployed to the live Firebase project.
 - App Check initialization is optional; callable enforcement is controlled by `ENFORCE_APPCHECK`.
 
-**Remaining:** Authenticated private-media delivery, App Check staging configuration/verification, review of every callable and Storage path, secrets/configuration review, index/query review, and deployment documentation. Production enforcement is a separately approved owner action.
+**Remaining:** Staging bucket CORS configuration and authenticated-media browser verification (see [media CORS setup](./CHAT_MEDIA_CORS.md)), App Check staging configuration/verification, review of every callable and Storage path, secrets/configuration review, index/query review, and deployment documentation. Production enforcement is a separately approved owner action.
 
 ### 7. Quality
 - CI currently runs application tests/build, trusted Functions unit/integration tests, and Firebase Emulator security tests.
