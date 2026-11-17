@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { auth, db, storage } from "../firebase";
 import { isAllowedImage } from "../utils/chat";
+import { safeExternalUrl } from "../utils/profile";
 
 const fields = [
   ["username","Username","text"],["displayName","Display name","text"],["pronouns","Pronouns (optional)","text"],["bio","A little about you","textarea"],
@@ -42,6 +43,9 @@ export default function EditProfile() {
     const displayName=(form.displayName||"").trim();
     const username=(form.username||"").trim().replace(/^@/,"").toLowerCase();
     if(!displayName){setError("Display name is required.");setSaving(false);return;}
+    const externalLinks = ["website", "instagram", "linkedin"];
+    const invalidLink = externalLinks.some(key => (form[key] || "").trim() && !safeExternalUrl(form[key]));
+    if(invalidLink){setError("Website and social links must be valid HTTP or HTTPS URLs.");setSaving(false);return;}
     if(username && !/^[a-z0-9_.]{3,24}$/.test(username)){setError("Username must be 3–24 characters and use letters, numbers, dots or underscores.");setSaving(false);return;}
     if(avatar&&!isAllowedImage(avatar)){setError("Choose an image smaller than 5 MB.");setSaving(false);return;}
     try{
@@ -54,8 +58,8 @@ export default function EditProfile() {
         uid:currentUser.uid,username,displayName,displayNameLower:displayName.toLowerCase(),photoURL,discoverable:form.discoverable!==false,pronouns:(form.pronouns||"").trim().slice(0,40),
         bio:(form.bio||"").trim().slice(0,300),education:(form.education||"").trim().slice(0,100),
         institution:(form.institution||"").trim().slice(0,120),graduationYear:(form.graduationYear||"").trim().slice(0,4),
-        city:(form.city||"").trim().slice(0,80),website:(form.website||"").trim().slice(0,300),
-        instagram:(form.instagram||"").trim().slice(0,300),linkedin:(form.linkedin||"").trim().slice(0,300),
+        city:(form.city||"").trim().slice(0,80),website:safeExternalUrl(form.website||""),
+        instagram:safeExternalUrl(form.instagram||""),linkedin:safeExternalUrl(form.linkedin||""),
         interests:split(form.interests||""),hobbies:split(form.hobbies||""),languages:split(form.languages||""),
         connectionGoals:split(form.connectionGoals||"")
       };
