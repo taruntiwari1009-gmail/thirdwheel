@@ -1183,3 +1183,24 @@ body { background: #fbf7fb; color: var(--tw-ink); }
 .profilePreviewTags { display: flex; flex-wrap: wrap; gap: 6px; }
 .profilePreviewTags span { padding: 5px 9px; border-radius: 999px; background: #eee7f4; color: #5e557b; font-size: 11px; }
 .profilePreviewVisibility { margin: 12px 0 0; color: #746b86; font-size: 11px; }
+
+
+/* History pagination stays visually quiet and preserves the conversation rhythm. */
+.olderMessagesControl {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 16px;
+}
+.olderMessagesControl .secondaryAction {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid var(--tw-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--tw-primary-dark);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.olderMessagesControl .secondaryAction:hover:not(:disabled) { background: var(--tw-lavender-soft); }
+.olderMessagesControl .secondaryAction:disabled { opacity: .65; cursor: wait; }
