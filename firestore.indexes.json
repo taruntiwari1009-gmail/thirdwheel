@@ -4,8 +4,28 @@
       "collectionGroup": "publicProfiles",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "discoverable", "order": "ASCENDING" },
-        { "fieldPath": "displayNameLower", "order": "ASCENDING" }
+        {
+          "fieldPath": "discoverable",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "displayNameLower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "moderationCases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
