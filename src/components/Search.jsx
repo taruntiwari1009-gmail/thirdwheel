@@ -7,7 +7,7 @@ import { ChatContext } from "../context/ChatContext";
 import { getChatId } from "../utils/chat";
 
 const PAGE_SIZE = 30;
-// People blocked by the signed-in user are filtered from discovery.
+// Firestore rules require discoverable=true for non-owner profile reads.
 
 const mergeMatches = (snapshots, normalized, existing, currentUid, blockedUids = []) => {
   const byUid = new Map((existing || []).map(user => [user.uid, user]));
@@ -69,12 +69,14 @@ const Search = () => {
         const [names, usernames] = await Promise.all([
           getDocs(query(
             profiles,
+            where("discoverable", "==", true),
             where("displayNameLower", ">=", normalized),
             where("displayNameLower", "<=", normalized + "\uf8ff"),
             limit(PAGE_SIZE)
           )),
           getDocs(query(
             profiles,
+            where("discoverable", "==", true),
             where("username", ">=", normalized),
             where("username", "<=", normalized + "\uf8ff"),
             limit(PAGE_SIZE)
@@ -122,14 +124,16 @@ const Search = () => {
       const [names, usernames] = await Promise.all([
         cursors.names ? getDocs(query(
           profiles,
-          where("displayNameLower", ">=", normalized),
+          where("discoverable", "==", true),
+            where("displayNameLower", ">=", normalized),
           where("displayNameLower", "<=", normalized + "\uf8ff"),
           startAfter(cursors.names),
           limit(PAGE_SIZE)
         )) : Promise.resolve({ docs: [] }),
         cursors.usernames ? getDocs(query(
           profiles,
-          where("username", ">=", normalized),
+          where("discoverable", "==", true),
+            where("username", ">=", normalized),
           where("username", "<=", normalized + "\uf8ff"),
           startAfter(cursors.usernames),
           limit(PAGE_SIZE)
