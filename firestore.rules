@@ -113,9 +113,22 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == userId && blockedUid != userId
         && request.resource.data.keys().hasOnly(['createdAt'])
         && request.resource.data.createdAt is timestamp
-        && exists(/databases/$(database)/documents/publicProfiles/$(blockedUid));
+        && exists(/databases/$(database)/documents/publicProfiles/$(blockedUid))
+        && existsAfter(/databases/$(database)/documents/users/$(blockedUid)/blockedBy/$(userId));
       allow update: if false;
-      allow delete: if signedIn() && request.auth.uid == userId;
+      allow delete: if signedIn() && request.auth.uid == userId
+        && !existsAfter(/databases/$(database)/documents/users/$(blockedUid)/blockedBy/$(userId));
+    }
+    // Reverse index lets a person hide accounts that have blocked them.
+    match /users/{userId}/blockedBy/{blockerUid} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == blockerUid
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt is timestamp
+        && existsAfter(/databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(userId));
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == blockerUid
+        && !existsAfter(/databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(userId));
     }
     match /reports/{reportId} {
       allow read, write: if false;
