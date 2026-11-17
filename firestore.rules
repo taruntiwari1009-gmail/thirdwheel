@@ -48,7 +48,8 @@ service cloud.firestore {
         && chatId == (participants[0] < participants[1] ? participants[0] + participants[1] : participants[1] + participants[0]);
     }
     function validMessageRateLimit() {
-      let limitPath = /databases/$(database)/documents/abuseLimits/messages_$(request.auth.uid);
+      let limitId = 'messages_' + request.auth.uid;
+      let limitPath = /databases/$(database)/documents/abuseLimits/$(limitId);
       let limit = getAfter(limitPath).data;
       return limit.uid == request.auth.uid
         && limit.updatedAt == request.time
@@ -116,7 +117,26 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /abuseLimits/{limitId} {
-      allow read, write: if false;
+      allow read: if signedIn() && limitId == 'messages_' + request.auth.uid;
+      allow create: if signedIn() && limitId == 'messages_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','count','windowStart','updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.count == 1
+        && request.resource.data.windowStart == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn() && limitId == 'messages_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','count','windowStart','updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.count is int
+        && ((request.resource.data.windowStart == resource.data.windowStart
+          && request.resource.data.count == resource.data.count + 1
+          && request.time < resource.data.windowStart + duration.value(60, 's')
+          && request.resource.data.count <= 8)
+          || (request.time >= resource.data.windowStart + duration.value(60, 's')
+            && request.resource.data.count == 1
+            && request.resource.data.windowStart == request.time));
+      allow delete: if false;
     }
     match /accountDeletionRequests/{userId} {
       allow read: if signedIn() && request.auth.uid == userId;
@@ -151,7 +171,8 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['messages'])
         && request.resource.data.messages is list && request.resource.data.messages.size() == resource.data.messages.size()+1
         && request.resource.data.messages.hasAll(resource.data.messages)
-        && validMessage(request.resource.data.messages[request.resource.data.messages.size()-1]);
+        && validMessage(request.resource.data.messages[request.resource.data.messages.size()-1])
+        && validMessageRateLimit();
       allow delete: if false;
     }
   }
