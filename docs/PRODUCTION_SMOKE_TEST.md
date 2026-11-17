@@ -14,7 +14,7 @@ Run only after the reviewed PR is merged and the application plus Firebase rules
 - [ ] Save a profile with display name, bio, interests, hobbies, languages, education, city and connection goals.
 - [ ] Leave optional fields blank and save successfully.
 - [ ] Confirm email and credentials are not present in public profile data.
-- [ ] Search using upper-, lower- and mixed-case prefixes.
+- [ ] Search using upper-, lower- and mixed-case prefixes.\n- [ ] Search by display-name prefix and @username without requiring a composite Firestore index.\n- [ ] Confirm opted-out profiles and the signed-in account are excluded.\n- [ ] Load more than one page of results and verify there are no duplicate people.
 - [ ] Confirm the current account is excluded and multiple matches can be selected.
 - [ ] Sign in an older account and confirm its normalized search field is backfilled.
 
@@ -22,7 +22,7 @@ Run only after the reviewed PR is merged and the application plus Firebase rules
 - [ ] Start a conversation from account A and verify it appears in both inboxes.
 - [ ] Repeat selection from account B; verify the same conversation is reused.
 - [ ] Send text in both directions and verify live delivery.
-- [ ] Confirm the latest message and timestamp update in both chat lists.
+- [ ] Confirm the latest message and timestamp update in both chat lists.\n- [ ] Confirm recipient unread counts increment and opening the conversation clears the count.\n- [ ] Remove a conversation from one inbox and verify the other participant retains their copy.\n- [ ] Verify mobile inbox and conversation tabs switch correctly.\n- [ ] Verify an image attachment preview can be removed before sending.
 - [ ] Reopen an existing conversation and confirm history is preserved.
 - [ ] Verify empty, loading and listener-error states.
 
