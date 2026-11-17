@@ -79,7 +79,7 @@ npm run build
 
 ## Project roadmap
 
-The quality-first dating product roadmap, including phased delivery, safety requirements and release gates, is documented in [docs/DATING_PRODUCT_ROADMAP.md](docs/DATING_PRODUCT_ROADMAP.md).
+The quality-first chat product roadmap, including phased delivery, safety requirements and release gates, is documented in [docs/DATING_PRODUCT_ROADMAP.md](docs/DATING_PRODUCT_ROADMAP.md).
 
 ## Project structure
 
