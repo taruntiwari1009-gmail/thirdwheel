@@ -18,7 +18,7 @@
 
 React 18, React Router, Firebase Authentication, Firestore and Storage. Existing capabilities include profiles, people search, real-time one-to-one chat, image attachments, unread counts, blocking and report submission. Messages currently live in an embedded array in each chat document.
 
-Known gaps: moderation operations still need staffing and runbooks; account deletion requires staging validation and a user-facing support process; messages need a future backwards-compatible subcollection migration; Storage download URLs are bearer links; production App Check and Firebase rule deployment require separate owner review.
+Known gaps: moderation operations still need staffing and runbooks; account deletion requires staging validation and a user-facing support process; messages remain in an embedded array; a backwards-compatible subcollection migration is still a separately reviewed future project; Storage download URLs are bearer links; production App Check and Firebase rule deployment require separate owner review.
 
 ## Phases
 
@@ -38,7 +38,7 @@ Known gaps: moderation operations still need staffing and runbooks; account dele
 - Implement account deletion as a trusted, retryable workflow that preserves the other participant's data and follows approved retention rules.
 - Prepare App Check in staging; production enforcement is a separate approved action.
 
-**Status:** Block management and Firestore block enforcement are implemented. Trusted report intake, moderator queue/review, owner-controlled role checks, message rate limiting and owner-approved resumable account deletion are implemented on PR #14 and covered by passing CI emulator tests. App Check staging validation, moderator provisioning, operational staffing and a production rollout remain outstanding. See [Phase 1 notes](./PHASE_1_TRUST_SAFETY.md).
+**Status:** Block management and Firestore block enforcement are implemented. Trusted report intake, moderator queue/review, owner-controlled role checks, message rate limiting and the owner-approved resumable account-deletion mechanism is implemented on PR #14 and covered by passing CI emulator tests; the retention policy remains proposed pending explicit owner approval. App Check staging validation, moderator provisioning, operational staffing and a production rollout remain outstanding. See [Phase 1 notes](./PHASE_1_TRUST_SAFETY.md).
 
 ### Phase 2 — Profiles and people discovery
 - Improve profile editing/preview, people search, query behavior and empty/loading/error states.
