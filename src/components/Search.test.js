@@ -54,8 +54,8 @@ describe("Search", () => {
     await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(3));
 
     const fields = where.mock.calls.map(([field]) => field);
-    expect(fields).toEqual(["displayNameLower", "displayNameLower", "username", "username"]);
-    expect(fields).not.toContain("discoverable");
+    expect(fields).toEqual(["discoverable", "displayNameLower", "displayNameLower", "discoverable", "username", "username"]);
+    expect(fields.filter(field => field === "discoverable")).toHaveLength(2);
     expect(orderBy).not.toHaveBeenCalled();
   });
 
