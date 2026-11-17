@@ -16,6 +16,7 @@ const dayLabel = value => {
 
 const Messages = () => {
   const [messages, setMessages] = useState([]);
+  const [deletedParticipants, setDeletedParticipants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { data } = useContext(ChatContext);
@@ -29,6 +30,7 @@ const Messages = () => {
     setMessages([]); setLoading(true); setError("");
     return onSnapshot(doc(db, "chats", data.chatId), snapshot => {
       setMessages(snapshot.exists() ? snapshot.data().messages || [] : []);
+      setDeletedParticipants(snapshot.exists() ? snapshot.data().deletedParticipants || [] : []);
       setLoading(false); setError("");
     }, listenerError => {
       console.error("Unable to load messages:", listenerError);
@@ -76,7 +78,7 @@ const Messages = () => {
     {loading && <p role="status">Loading messages…</p>}
     {error && <p role="alert">{error}</p>}
     {!loading && !error && data.chatId && messages.length === 0 && <p className="messageEmpty">No messages yet. Say hello!</p>}
-    {grouped.map(item => item.type === "day" ? <div className="dateDivider" key={item.key}><span>{item.label}</span></div> : <Message message={item.message} key={item.message.id} />)}
+    {grouped.map(item => item.type === "day" ? <div className="dateDivider" key={item.key}><span>{item.label}</span></div> : <Message message={item.message} deleted={deletedParticipants.includes(item.message.senderId)} key={item.message.id} />)}
   </div>;
 };
 export default Messages;
