@@ -79,14 +79,14 @@ describe("Search", () => {
     getDocs
       .mockResolvedValueOnce({ docs: [{ id: "blocked-user" }] })
       .mockResolvedValueOnce({ docs: [
-        profileDoc({ uid: "blocked-user", displayName: "Blocked Person", displayNameLower: "blocked person", discoverable: true }),
+        profileDoc({ uid: "blocked-user", displayName: "Visible Blocked", displayNameLower: "visible blocked", discoverable: true }),
         profileDoc({ uid: "visible-user", displayName: "Visible Person", displayNameLower: "visible person", discoverable: true }),
       ] })
       .mockResolvedValueOnce({ docs: [] });
     renderSearch();
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "person" } });
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "visible" } });
     expect(await screen.findByText("Visible Person")).toBeInTheDocument();
-    expect(screen.queryByText("Blocked Person")).not.toBeInTheDocument();
+    expect(screen.queryByText("Visible Blocked")).not.toBeInTheDocument();
   });
 
   test("shows a recoverable message when Firestore search fails", async () => {
