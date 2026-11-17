@@ -4,6 +4,7 @@ import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
+import BlockedUsers from "./pages/BlockedUsers";
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./style.scss";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -17,6 +18,7 @@ function App() {
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     <Route path="/profile/:uid" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+    <Route path="/settings/blocked" element={<ProtectedRoute><BlockedUsers /></ProtectedRoute>} />
   </Routes></BrowserRouter>;
 }
 export default App;
