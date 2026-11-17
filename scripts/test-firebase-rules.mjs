@@ -107,6 +107,80 @@ await expectDenied(
 );
 await expectAllowed(await createProfile(alice, "Alice"), "owner creates public profile");
 await expectAllowed(await createProfile(bob, "Bob"), "second user creates public profile");
+
+const usernameReservation = (uid) => ({
+  uid: { stringValue: uid },
+  createdAt: { timestampValue: new Date().toISOString() },
+});
+async function commit(writes) {
+  return fetch(`${FIRESTORE_URL}:commit`, {
+    method: "POST",
+    headers: authHeaders(alice.token),
+    body: JSON.stringify({ writes }),
+  });
+}
+function updateWrite(path, fields, updateMask, currentDocument) {
+  return {
+    update: {
+      name: `projects/${PROJECT_ID}/databases/(default)/documents/${path}`,
+      fields,
+    },
+    ...(updateMask ? { updateMask: { fieldPaths: updateMask } } : {}),
+    ...(currentDocument ? { currentDocument } : {}),
+  };
+}
+const usernamePath = (username) => `usernames/${username}`;
+const profilePath = (uid) => `publicProfiles/${uid}`;
+const usernameFields = (uid) => usernameReservation(uid);
+const aliceUsername = "alice_unique";
+const aliceUsernameRef = updateWrite(usernamePath(aliceUsername), usernameFields(alice.uid), null, { exists: false });
+const aliceProfileUsername = updateWrite(profilePath(alice.uid), {
+  username: { stringValue: aliceUsername },
+}, ["username"]);
+await expectAllowed(
+  await commit([aliceUsernameRef, aliceProfileUsername]),
+  "username reservation and profile claim succeed atomically"
+);
+await expectDenied(
+  await firestore("POST", `${usernamePath(aliceUsername)}?documentId=${aliceUsername}`, bob.token, {
+    fields: usernameFields(bob.uid),
+  }),
+  "another user cannot reserve an already claimed username"
+);
+await expectDenied(
+  await firestore("POST", "usernames/Invalid_Name?documentId=Invalid_Name", bob.token, {
+    fields: usernameFields(bob.uid),
+  }),
+  "username reservation IDs must be lowercase and valid"
+);
+await expectDenied(
+  await commit([updateWrite(profilePath(bob.uid), {
+    username: { stringValue: "unreserved_name" },
+  }, ["username"])]),
+  "profile cannot claim a username without a reservation"
+);
+await expectDenied(
+  await commit([updateWrite("usernames/bob_spoof", usernameFields(alice.uid), null, { exists: false }),
+    updateWrite(profilePath(bob.uid), { username: { stringValue: "bob_spoof" } }, ["username"])]),
+  "username reservation cannot be attached to a different user's profile"
+);
+await expectDenied(
+  await firestore("DELETE", usernamePath(aliceUsername), alice.token),
+  "owner cannot release a username while profile still claims it"
+);
+const renamedUsername = "alice_renamed";
+await expectAllowed(
+  await commit([
+    { delete: `projects/${PROJECT_ID}/databases/(default)/documents/${usernamePath(aliceUsername)}` },
+    updateWrite(usernamePath(renamedUsername), usernameFields(alice.uid), null, { exists: false }),
+    updateWrite(profilePath(alice.uid), { username: { stringValue: renamedUsername } }, ["username"]),
+  ]),
+  "username change atomically releases old reservation and claims new one"
+);
+await expectDenied(
+  await firestore("GET", usernamePath(aliceUsername), alice.token),
+  "released username reservation no longer exists"
+);
 await expectDenied(
   await firestore("PATCH", `publicProfiles/${alice.uid}`, alice.token, {
     fields: {
