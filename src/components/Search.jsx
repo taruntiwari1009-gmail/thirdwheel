@@ -16,7 +16,7 @@ const Search = () => {
   const { dispatch } = useContext(ChatContext);
 
   useEffect(() => {
-    const normalized = term.trim().toLowerCase();
+    const normalized = term.trim().toLowerCase().replace(/^@/, "");
     let active = true;
     setUsers([]);
     setErr("");
@@ -96,7 +96,7 @@ const Search = () => {
     {users.length > 0 && <div className="searchResults" aria-label="Search results">
       {users.map(user => <div className="userChat searchResult" key={user.uid}>
         <img src={user.photoURL || undefined} alt="" />
-        <span className="userChatInfo"><Link className="personName" to={`/profile/${user.uid}`}>{user.displayName || "Third Wheel member"}</Link><span className="personHint">{user.username ? `@${user.username}` : "Community member"}</span></span>
+        <span className="userChatInfo"><Link className="personName" to={`/profile/${user.uid}`}>{user.displayName || "Third Wheel member"}</Link><span className="personHint">{[user.username ? `@${user.username}` : "", user.city || "", (user.interests || []).slice(0, 2).join(" · ")].filter(Boolean).join(" · ") || "Community member"}</span></span>
         <button type="button" className="startChatButton" onClick={() => handleSelect(user)} disabled={Boolean(selectingUid)}>{selectingUid === user.uid ? "Opening…" : "Say hello"}</button>
       </div>)}
     </div>}
