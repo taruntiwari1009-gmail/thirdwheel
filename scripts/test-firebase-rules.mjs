@@ -85,7 +85,7 @@ async function upload(path, token, contentType = "image/png", bytes = Buffer.fro
 
 async function download(path, token) {
   return fetch(`${STORAGE_URL}/${encodeURIComponent(path)}?alt=media`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Firebase ${token}` },
   });
 }
 
