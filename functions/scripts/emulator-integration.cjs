@@ -68,7 +68,9 @@ async function main() {
   await db.doc(`publicProfiles/${reporter.uid}`).set({ uid: reporter.uid, displayName: "Reporter" });
   await db.doc(`publicProfiles/${target.uid}`).set({ uid: target.uid, displayName: "Target" });
 
-  expectCallableError(await call("submitReport", null, { targetUid: target.uid, reason: "spam" }), "UNAUTHENTICATED");
+  const unauthenticatedReport = await call("submitReport", null, { targetUid: target.uid, reason: "spam" });
+  assert.equal(unauthenticatedReport.status, 401, JSON.stringify(unauthenticatedReport.body));
+  assert.match(unauthenticatedReport.body.error?.message || "", /sign in/i);
   expectCallableError(await call("submitReport", reporter.token, { targetUid: reporter.uid, reason: "spam" }), "INVALID_ARGUMENT");
   expectCallableError(await call("submitReport", reporter.token, { targetUid: target.uid, reason: "made_up" }), "INVALID_ARGUMENT");
 
