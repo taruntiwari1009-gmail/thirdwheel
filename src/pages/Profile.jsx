@@ -26,6 +26,7 @@ export default function Profile() {
   const [reason, setReason] = useState("spam");
   const [details, setDetails] = useState("");
   const [notice, setNotice] = useState("");
+  const [deletionStatus, setDeletionStatus] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -42,6 +43,10 @@ export default function Profile() {
         return;
       }
       setProfile({ ...EMPTY, ...snapshot.data() });
+      if (owner && currentUser?.uid) {
+        const deletionRequest = await getDoc(doc(db, "accountDeletionRequests", currentUser.uid));
+        if (active && deletionRequest.exists()) setDeletionStatus(deletionRequest.data().status || "");
+      }
       if (!owner && currentUser?.uid) {
         const block = await getDoc(doc(db, "users", currentUser.uid, "blockedUsers", id));
         if (active) setBlocked(block.exists());
@@ -76,6 +81,25 @@ export default function Profile() {
     } catch (actionError) {
       console.error("Unable to update block settings:", actionError);
       setError("This action couldn't be completed. Please try again.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const requestDeletion = async () => {
+    if (!currentUser?.uid || !owner || actionBusy || deletionStatus === "pending_review" || deletionStatus === "approved" || deletionStatus === "processing" || deletionStatus === "completed") return;
+    const confirmed = window.confirm("Request deletion of your Third Wheel account? An owner must review the request before deletion begins. If approved, your profile and account will be removed, while shared conversations remain for the other participant and show “Deleted account.”");
+    if (!confirmed) return;
+    setActionBusy(true);
+    setError("");
+    try {
+      const request = httpsCallable(getFunctions(), "requestAccountDeletion");
+      const result = await request();
+      setDeletionStatus(result.data.status || "pending_review");
+      setNotice("Your account deletion request has been submitted for review. Your account remains active until an owner approves and processes it.");
+    } catch (requestError) {
+      console.error("Unable to request account deletion:", requestError);
+      setError("Your deletion request couldn't be submitted. Please try again.");
     } finally {
       setActionBusy(false);
     }
@@ -143,6 +167,14 @@ export default function Profile() {
       </label>
       <div className="formActions"><button type="button" className="secondaryAction" onClick={() => setReportOpen(false)}>Cancel</button><button type="submit" disabled={actionBusy}>{actionBusy ? "Submitting…" : "Submit report"}</button></div>
     </form>}
+    {owner && <section className="profileSection accountDangerZone">
+      <h2>Account controls</h2>
+      <p className="muted">Request permanent account deletion. This requires review before it begins. Shared conversations and messages will be retained for the other participant.</p>
+      {deletionStatus && <p className="muted small" role="status">Deletion request status: {deletionStatus.replaceAll("_", " ")}</p>}
+      <button type="button" className="secondaryAction" onClick={requestDeletion} disabled={actionBusy || ["pending_review", "approved", "processing", "completed"].includes(deletionStatus)}>
+        {actionBusy ? "Submitting…" : deletionStatus === "completed" ? "Account deleted" : deletionStatus ? "Deletion request submitted" : "Request account deletion"}
+      </button>
+    </section>}
     {notice && <p className="successText" role="status">{notice}</p>}
     {error && <p className="errorText" role="alert">{error}</p>}
     {profile.bio && <section className="profileSection"><h2>About</h2><p>{profile.bio}</p></section>}
