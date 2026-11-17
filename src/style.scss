@@ -1159,3 +1159,7 @@ body { background: #fbf7fb; color: var(--tw-ink); }
 @media(max-width:600px) { .moderationPage { padding:22px 16px 48px; } .moderationToolbar { flex-wrap:wrap; } .caseMetadata { grid-template-columns:1fr; } .caseActions button { flex:1 1 40%; } }
 
 .deletedAccountLabel { color: var(--tw-muted, #82778d); font-size: 11px; font-style: italic; }
+
+.accountDangerZone { border-color: #e7d5dc; background: #fffafb; }
+.accountDangerZone h2 { color: #8c4056; }
+.accountDangerZone button { margin-top: 12px; }
