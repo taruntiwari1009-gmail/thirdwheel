@@ -54,8 +54,16 @@ export default function Profile() {
       }
       if (active) setLoading(false);
     };
-    load().catch(() => active && setError("We couldn't load this profile."))
-      .finally(() => active && setLoading(false));
+    load().catch(loadError => {
+      if (!active) return;
+      console.error("Unable to load profile:", loadError);
+      setProfile(EMPTY);
+      setError(loadError.code === "permission-denied" || loadError.code === "not-found"
+        ? "This profile isn't available. It may be private or no longer discoverable."
+        : loadError.code === "unavailable" || loadError.code === "deadline-exceeded"
+          ? "This profile couldn't be loaded because of a connection issue. Please try again."
+          : "We couldn't load this profile. Please try again.");
+    }).finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [id, owner, currentUser?.uid]);
 
