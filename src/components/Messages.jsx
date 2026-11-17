@@ -1,5 +1,5 @@
 import { doc, onSnapshot, runTransaction, serverTimestamp } from "firebase/firestore";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
 import { db } from "../firebase";
@@ -20,9 +20,12 @@ const Messages = () => {
   const [error, setError] = useState("");
   const { data } = useContext(ChatContext);
   const { currentUser } = useContext(AuthContext);
+  const listRef = useRef(null);
+  const shouldStickToBottom = useRef(true);
 
   useEffect(() => {
     if (!data.chatId) { setMessages([]); setLoading(false); setError(""); return undefined; }
+    shouldStickToBottom.current = true;
     setMessages([]); setLoading(true); setError("");
     return onSnapshot(doc(db, "chats", data.chatId), snapshot => {
       setMessages(snapshot.exists() ? snapshot.data().messages || [] : []);
@@ -50,6 +53,17 @@ const Messages = () => {
     return undefined;
   }, [data.chatId, currentUser?.uid, messages.length]);
 
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (list && shouldStickToBottom.current) list.scrollTop = list.scrollHeight;
+  }, [messages]);
+
+  const handleScroll = () => {
+    const list = listRef.current;
+    if (!list) return;
+    shouldStickToBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+  };
+
   const grouped = [];
   let previousDay = "";
   messages.forEach(message => {
@@ -58,7 +72,7 @@ const Messages = () => {
     grouped.push({ type: "message", message });
   });
 
-  return <div className="messages" aria-live="polite">
+  return <div ref={listRef} className="messages" aria-live="polite" onScroll={handleScroll}>
     {loading && <p role="status">Loading messages…</p>}
     {error && <p role="alert">{error}</p>}
     {!loading && !error && data.chatId && messages.length === 0 && <p className="messageEmpty">No messages yet. Say hello!</p>}
