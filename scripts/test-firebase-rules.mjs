@@ -36,6 +36,7 @@ function profileFields(uid, displayName) {
   return {
     uid: { stringValue: uid },
     displayName: { stringValue: displayName },
+    displayNameLower: { stringValue: displayName.toLowerCase() },
     photoURL: { stringValue: "https://example.test/avatar.png" },
   };
 }
@@ -104,6 +105,15 @@ await expectDenied(
 );
 await expectAllowed(await createProfile(alice, "Alice"), "owner creates public profile");
 await expectAllowed(await createProfile(bob, "Bob"), "second user creates public profile");
+await expectDenied(
+  await firestore("PATCH", `publicProfiles/${alice.uid}`, alice.token, {
+    fields: {
+      ...profileFields(alice.uid, "Alice Updated"),
+      displayNameLower: { stringValue: "not-alice" },
+    },
+  }, "?updateMask.fieldPaths=displayName&updateMask.fieldPaths=displayNameLower"),
+  "normalized display name must match the public display name"
+);
 await expectAllowed(
   await firestore("GET", `publicProfiles/${bob.uid}`, alice.token),
   "authenticated user reads public profile"
