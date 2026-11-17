@@ -38,6 +38,7 @@ describe("Search", () => {
   test("finds discoverable profiles by normalized display-name prefix without a composite index", async () => {
     getDocs
       .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [
         profileDoc({ uid: "alice", displayName: "Alice", displayNameLower: "alice", discoverable: true }),
         profileDoc({ uid: "current-user", displayName: "Current User", displayNameLower: "current user", discoverable: true }),
@@ -51,7 +52,7 @@ describe("Search", () => {
     expect(await screen.findByText("Alice")).toBeInTheDocument();
     expect(screen.queryByText("Alina")).not.toBeInTheDocument();
     expect(screen.queryByText("Current User")).not.toBeInTheDocument();
-    await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(4));
 
     const fields = where.mock.calls.map(([field]) => field);
     expect(fields).toEqual(["discoverable", "displayNameLower", "displayNameLower", "discoverable", "username", "username"]);
@@ -61,6 +62,7 @@ describe("Search", () => {
 
   test("supports @username prefix searches", async () => {
     getDocs
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [
@@ -78,6 +80,7 @@ describe("Search", () => {
   test("hides profiles blocked by the signed-in user", async () => {
     getDocs
       .mockResolvedValueOnce({ docs: [{ id: "blocked-user" }] })
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [
         profileDoc({ uid: "blocked-user", displayName: "Visible Blocked", displayNameLower: "visible blocked", discoverable: true }),
         profileDoc({ uid: "visible-user", displayName: "Visible Person", displayNameLower: "visible person", discoverable: true }),
@@ -121,6 +124,7 @@ describe("Search", () => {
 
   test("shows a recoverable message when Firestore search fails", async () => {
     getDocs
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [] })
       .mockRejectedValueOnce(Object.assign(new Error("index unavailable"), { code: "failed-precondition" }))
       .mockResolvedValueOnce({ docs: [] });
