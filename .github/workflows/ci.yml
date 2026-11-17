@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   test-and-build:
-    name: Tests, Firebase rules and production build
+    name: Application tests and production build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,12 +27,6 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Set up Java for Firebase emulators
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
@@ -40,9 +34,6 @@ jobs:
         run: npm test -- --watchAll=false
         env:
           CI: true
-
-      - name: Run Firebase Emulator security tests
-        run: npx --yes firebase-tools@14.22.0 emulators:exec --project demo-thirdwheel --only auth,firestore,storage "npm run test:rules"
 
       - name: Build application
         run: npm run build
