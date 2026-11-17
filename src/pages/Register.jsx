@@ -5,9 +5,10 @@ import { auth, db, storage } from "../firebase";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate, Link } from "react-router-dom";
+import { isAllowedImage } from "../utils/chat";
 
 const Register = () => {
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -16,7 +17,7 @@ const Register = () => {
     if (loading) return;
 
     setLoading(true);
-    setErr(false);
+    setErr("");
 
     const form = event.currentTarget;
     const displayName = form.elements.displayName.value.trim();
@@ -24,27 +25,32 @@ const Register = () => {
     const password = form.elements.password.value;
     const file = form.elements.avatar.files[0];
 
+    if (!isAllowedImage(file)) {
+      setErr("Choose an image smaller than 5 MB for your avatar.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
-      const storageRef = ref(storage, `avatars/${credential.user.uid}/${file.name}`);
+      const storageRef = ref(storage, `avatars/${credential.user.uid}/${Date.now()}-${file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
       await uploadTask;
       const photoURL = await getDownloadURL(uploadTask.snapshot.ref);
 
       await updateProfile(credential.user, { displayName, photoURL });
 
+      // Email remains in Firebase Authentication, not the searchable public profile.
       await setDoc(doc(db, "users", credential.user.uid), {
         uid: credential.user.uid,
         displayName,
-        email,
         photoURL,
       });
-      await setDoc(doc(db, "userChats", credential.user.uid), {});
 
       navigate("/", { replace: true });
     } catch (error) {
       console.error("Registration failed:", error);
-      setErr(true);
+      setErr("Registration could not be completed. If your account was created, try signing in.");
     } finally {
       setLoading(false);
     }
@@ -56,7 +62,7 @@ const Register = () => {
         <span className="logo">Third Wheel</span>
         <span className="title">Register</span>
         <form onSubmit={handleSubmit}>
-          <input required name="displayName" type="text" placeholder="display name" />
+          <input required name="displayName" type="text" placeholder="display name" maxLength={80} />
           <input required name="email" type="email" placeholder="email" />
           <input required name="password" type="password" placeholder="password" />
           <input
@@ -74,7 +80,7 @@ const Register = () => {
           <button disabled={loading}>
             {loading ? "Creating account..." : "Sign up"}
           </button>
-          {err && <span role="alert">Registration failed. Please check your details and try again.</span>}
+          {err && <span role="alert">{err}</span>}
         </form>
         <p>
           You already have an account? <Link to="/login">Login</Link>
