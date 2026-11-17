@@ -1,6 +1,6 @@
 # Thirdwheel — Firebase security design
 
-**Status:** Implemented in PR #8; emulator verification is part of CI. Rules are not deployed to the live Firebase project.  
+**Status:** Implemented and extended in PR #14; emulator verification is part of CI. Rules are not deployed to the live Firebase project.  
 **Scope:** Firestore and Storage authorization for the current React/Firebase application.
 
 ## 1. Why a design step is required
@@ -30,6 +30,8 @@ The current source uses:
 7. Restrict chat-image uploads and reads to authenticated conversation participants; enforce image MIME type and a maximum size of 5 MiB.
 8. Test both allowed and denied cases with Firebase Emulator Suite.
 9. Keep rule deployment separate from repository changes and require explicit owner approval before any production deployment.
+10. Let users block another account; block state is private to the blocking user and prevents new conversations and message writes in either direction.
+11. Let authenticated users submit structured profile reports; reports are write-only from the client and must be reviewed through a trusted administrative process.
 
 ## 3. Proposed minimal schema changes
 
@@ -60,6 +62,12 @@ Add a `participants` array to every new `chats/{chatId}` document:
 
 The participant list must contain exactly two distinct UIDs, including the authenticated creator. The existing deterministic chat ID remains for now to avoid combining this security phase with the later message-subcollection migration.
 
+### Blocking and reporting
+
+- `users/{uid}/blockedUsers/{blockedUid}` stores a private block relationship. Only the owner can read, create or delete entries.
+- Chat creation and message updates check both participants' block lists. A block therefore prevents new conversations and further message exchange even if a chat document already exists.
+- `reports/{reportId}` accepts a constrained report payload. Client reads, updates and deletes are denied. Reports are not yet connected to an in-app moderation dashboard or notification workflow; an operator must review them through a trusted administrative channel.
+
 ### Chat image paths
 
 Change new chat image uploads to:
@@ -80,7 +88,9 @@ The current app updates both participants' chat-list documents from the client. 
 |---|---|---|---|---|
 | `publicProfiles/{uid}` | Authenticated users | Owner, allowlisted public fields | Owner, allowlisted public fields | Owner only |
 | `users/{uid}/userChats/{chatId}` | Owner or conversation participant | Conversation participant, with counterpart profile verified | Conversation participant, only `lastMessage` and `date` | Owner who is a participant |
-| `chats/{chatId}` | Listed participants only | Authenticated creator, exactly two valid participants | Listed participants; only valid message append / approved metadata changes | Disabled in this phase |
+| `chats/{chatId}` | Listed participants only | Authenticated creator, exactly two valid participants, neither participant has blocked the other | Listed participants; only valid message append while no block exists | Disabled in this phase |
+| `users/{uid}/blockedUsers/{blockedUid}` | Owner only | Owner, distinct target UID | Disabled | Owner |
+| `reports/{reportId}` | Client denied | Authenticated reporter, constrained target/reason/details | Client denied | Client denied |
 | `avatars/{uid}/{fileName}` | Authenticated users | Owner, image, <= 5 MiB | Owner, image, <= 5 MiB | Owner |
 | `chat-images/{chatId}/{uid}/{fileName}` | Listed chat participants | Authenticated uploader who is a participant, image, <= 5 MiB | Same constraints | Uploader who is a participant |
 
@@ -117,6 +127,9 @@ The exact rules expressions and allowed field changes are implemented in `firest
 - Message with invalid types, missing required fields or excessive text length.
 - A participant modifying an unrelated chat entry in another user's chat list.
 - A third user adding themselves to an existing conversation or changing its participants.
+- A user sending a message after either participant has blocked the other.
+- A user creating a block entry for themselves or modifying another user's block list.
+- A user submitting a report for themselves or spoofing another reporter UID.
 
 ### Storage — allowed
 
@@ -152,6 +165,6 @@ Before treating chat media as confidential, replace tokenized download-URL usage
 - Firestore message-array to subcollection migration and pagination.
 - Production Firebase rules deployment.
 - Production data deletion or migration.
-- End-to-end encryption, abuse reporting, moderation, rate limiting and operational monitoring.
+- End-to-end encryption, moderation dashboard/workflow, rate limiting and operational monitoring.
 - Public launch approval.
 
