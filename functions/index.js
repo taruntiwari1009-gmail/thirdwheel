@@ -5,9 +5,9 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 
 initializeApp();
 const db = getFirestore();
-const reasons = new Set(["spam", "scam", "harassment", "threats", "stalking", "sexual_harassment", "underage", "inappropriate", "impersonation", "other"]);
 const statuses = new Set(["open", "reviewing", "actioned", "dismissed", "escalated"]);
 const dailyReportLimit = 5;
+const { parseReport } = require("./validation");
 
 function authenticated(request) {
   if (!request.auth?.uid) throw new HttpsError("unauthenticated", "Sign in to continue.");
@@ -17,16 +17,6 @@ function moderator(request) {
   const uid = authenticated(request);
   if (request.auth.token.moderator !== true) throw new HttpsError("permission-denied", "Moderator access is required.");
   return uid;
-}
-function parseReport(data, reporterUid) {
-  if (!data || typeof data !== "object" || Array.isArray(data)) throw new HttpsError("invalid-argument", "A report is required.");
-  const targetUid = typeof data.targetUid === "string" ? data.targetUid.trim() : "";
-  const reason = typeof data.reason === "string" ? data.reason : "";
-  const details = typeof data.details === "string" ? data.details.trim().slice(0, 500) : "";
-  if (!targetUid || targetUid === reporterUid || targetUid.length > 128 || !reasons.has(reason)) {
-    throw new HttpsError("invalid-argument", "The report details are invalid.");
-  }
-  return { targetUid, reason, ...(details ? { details } : {}) };
 }
 
 exports.submitReport = onCall({ enforceAppCheck: false }, async request => {
