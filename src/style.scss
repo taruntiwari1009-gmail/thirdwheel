@@ -956,3 +956,32 @@ button, input, textarea { font: inherit; }
 .conversationSkeleton b, .searchSkeleton b { width:28%; }
 @keyframes tw-shimmer { to { background-position:-200% 0; } }
 @media(prefers-reduced-motion:reduce) { .conversationSkeleton *, .searchSkeleton * { animation:none!important; } }
+
+
+/* Avatar fallbacks keep the UI intentional when a user has no uploaded photo. */
+.avatarFallback {
+  display: inline-grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #e9e3f3;
+  box-shadow: 0 0 0 1px var(--tw-border);
+  color: var(--tw-primary-dark);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.home .container .sidebar .navbar .user .avatarFallback { flex-basis: 30px; width: 30px; height: 30px; font-size: 10px; }
+.home .container .sidebar .search .searchResult .avatarFallback,
+.home .container .sidebar .chats .chatListItem .avatarFallback { flex-basis: 42px; }
+@media (max-width: 760px) {
+  .home .container .sidebar .search .searchResult .avatarFallback,
+  .home .container .sidebar .chats .chatListItem .avatarFallback { flex-basis: 34px; width: 34px; height: 34px; font-size: 10px; }
+}
+@media (max-width: 480px) {
+  .home .container .sidebar .search .searchResult .avatarFallback,
+  .home .container .sidebar .chats .chatListItem .avatarFallback { flex-basis: 28px; width: 28px; height: 28px; font-size: 9px; }
+}
