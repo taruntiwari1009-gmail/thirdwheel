@@ -189,7 +189,7 @@ const Search = () => {
             throw new Error("Conversation participants do not match.");
           }
         } else {
-          transaction.set(chatRef, { participants, messages: [] });
+          transaction.set(chatRef, { participants });
         }
         const mineInfo = {
           uid: currentUser.uid,
