@@ -8,7 +8,8 @@
   "scripts": {
     "test": "node --test",
     "bootstrap-owner": "node scripts/bootstrap-owner.js",
-    "test:emulator": "node scripts/emulator-integration.cjs"
+    "test:emulator": "node scripts/emulator-integration.cjs",
+    "reset:test-chat-data": "node scripts/reset-test-chat-data.js"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
