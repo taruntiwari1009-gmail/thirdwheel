@@ -111,7 +111,7 @@ await expectDenied(
   "user cannot create another user's profile"
 );
 await expectDenied(
-  await firestore("POST", `users?documentId=${alice.uid}-private`, alice.token, {
+  await firestore("POST", `publicProfiles?documentId=${alice.uid}-private`, alice.token, {
     fields: {
       ...profileFields(alice.uid, "Alice Private"),
       email: { stringValue: "alice@thirdwheel.test" },
