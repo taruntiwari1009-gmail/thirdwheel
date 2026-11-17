@@ -58,6 +58,9 @@ The following are known gaps, not assumed completed features:
 
 **Exit criteria:** Emulator tests cover allowed and denied paths for every new collection and transition; moderation access is server/admin-only; account deletion and block behavior are tested end-to-end.
 
+**Implementation status (PR #14):** The block-management screen, expanded report categories, stricter block-entry validation, and client-deny rules for likes/matches/moderation records are implemented. This is a partial Phase 1 delivery, not completion. The moderation queue, trusted abuse controls, account deletion, age assurance, App Check validation/enforcement and match-only messaging remain blocked on trusted backend work or the matching architecture. See [Phase 1 implementation notes](./PHASE_1_TRUST_SAFETY.md).
+
+
 ### Phase 2 — Dating profiles and onboarding
 
 **Goal:** Give people enough meaningful context to make informed choices.
