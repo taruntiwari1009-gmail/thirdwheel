@@ -29,10 +29,11 @@
 8. Reports, cases and audit records are not readable or mutable by ordinary clients; trusted Functions own their lifecycle.
 9. Moderator access is based on Firebase custom claims. Grant/revoke requires an owner custom claim.
 10. Account deletion requires an authenticated request, owner approval and owner-triggered resumable processing. Shared chat history is retained for the other participant under the currently implemented policy.
+11. New message attachment references must match `chat-images/{chatId}/{authenticatedSenderUid}/{fileName}`; a message cannot persist an arbitrary or tokenized download URL.
 
 ## Known limitations and release gates
 
-- **Media privacy:** The client still obtains/renders Firebase Storage download URLs. Tokenized download URLs are bearer links; anyone who obtains one may be able to access the object. Replace with authenticated Storage SDK reads or another authenticated delivery mechanism before treating chat media as confidential.
+- **Media privacy:** New messages store Storage object paths, and the client loads them through authenticated Storage SDK `getBlob()` reads; Firestore rules bind new image references to the sender's chat-image path. The browser receives a temporary object URL which is revoked on unmount. Bucket CORS and end-to-end browser verification remain staging requirements. Historical messages may still contain tokenized download URLs; the client resolves them as Storage references and does not render the bearer URL directly. See [media CORS setup](./CHAT_MEDIA_CORS.md).
 - **App Check:** Web initialization can use a configured site key; callable enforcement remains optional via `ENFORCE_APPCHECK`. Verify valid/invalid token behavior in a dedicated staging project before enabling enforcement. Do not commit keys.
 - **Deletion policy:** The owner-approved executor is implemented and emulator-tested, but the retention policy, legal exceptions, support process and real operational runbook still require review. It has not been executed on production accounts.
 - **Operations:** Define moderator staffing, escalation, evidence retention, appeals, incident handling and service-level expectations.
