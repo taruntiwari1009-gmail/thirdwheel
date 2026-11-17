@@ -58,3 +58,20 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Run Firestore and Storage security tests
         run: npx --yes firebase-tools@13.35.1 emulators:exec --project demo-thirdwheel --only auth,firestore,storage "npm run test:rules"
+
+  trusted-functions:
+    name: Trusted backend unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install backend dependencies
+        working-directory: functions
+        run: npm install --no-audit --no-fund
+      - name: Test trusted backend validation
+        working-directory: functions
+        run: npm test
