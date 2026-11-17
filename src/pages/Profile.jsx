@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { deleteDoc, doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
@@ -88,7 +88,9 @@ export default function Profile() {
       } else {
         batch.set(blockRef, { createdAt: serverTimestamp() });
         batch.set(reverseBlockRef, { createdAt: serverTimestamp() });
-        batch.delete(doc(db, "users", currentUser.uid, "userChats", [currentUser.uid, id].sort().join("")));
+        const inboxRef = doc(db, "users", currentUser.uid, "userChats", [currentUser.uid, id].sort().join(""));
+        const inboxEntry = await getDoc(inboxRef);
+        if (inboxEntry.exists()) batch.delete(inboxRef);
         await batch.commit();
         setBlocked(true);
         setNotice("This person is blocked. New messages between you are disabled.");
