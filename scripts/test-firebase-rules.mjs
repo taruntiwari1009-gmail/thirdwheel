@@ -236,14 +236,71 @@ const message = {
     },
   },
 };
-const appendMessage = await firestore(
+const rateLimitPath = `abuseLimits/messages_${alice.uid}`;
+const appendWithoutLimit = await firestore(
   "PATCH",
   `chats/${chatId}`,
   alice.token,
   { fields: { messages: { arrayValue: { values: [message] } } } },
   "?updateMask.fieldPaths=messages"
 );
-await expectAllowed(appendMessage, "participant appends a message as themselves");
+await expectDenied(appendWithoutLimit, "message append requires an atomic rate-limit update");
+
+async function appendMessageWithLimit(nextMessage, count) {
+  const messageFields = {
+    mapValue: {
+      fields: {
+        id: { stringValue: nextMessage.id },
+        text: { stringValue: nextMessage.text },
+        senderId: { stringValue: alice.uid },
+        date: { timestampValue: new Date().toISOString() },
+      },
+    },
+  };
+  const chatWrite = updateWrite(`chats/${chatId}`, {
+    messages: { arrayValue: { values: [...(count === 1 ? [] : []), messageFields] } },
+  }, ["messages"]);
+  // Read the existing message array so the REST commit mirrors arrayUnion semantics.
+  const chatSnapshot = await firestore("GET", `chats/${chatId}`, alice.token);
+  const chatData = await chatSnapshot.json();
+  const existing = chatData.fields?.messages?.arrayValue?.values || [];
+  chatWrite.update.fields.messages.arrayValue.values = [...existing, messageFields];
+  const limitFields = {
+    uid: { stringValue: alice.uid },
+    count: { integerValue: count },
+  };
+  const limitWrite = {
+    update: {
+      name: `projects/${PROJECT_ID}/databases/(default)/documents/${rateLimitPath}`,
+      fields: limitFields,
+    },
+    updateTransforms: [
+      { fieldPath: "updatedAt", setToServerValue: "REQUEST_TIME" },
+      ...(count === 1 ? [{ fieldPath: "windowStart", setToServerValue: "REQUEST_TIME" }] : []),
+    ],
+    ...(count === 1 ? { currentDocument: { exists: false } } : {}),
+  };
+  if (count > 1) {
+    const limitSnapshot = await firestore("GET", rateLimitPath, alice.token);
+    const limitData = await limitSnapshot.json();
+    limitWrite.update.fields.windowStart = limitData.fields.windowStart;
+  }
+  return commit([chatWrite, limitWrite], alice.token);
+}
+await expectAllowed(
+  await appendMessageWithLimit({ id: "message-1", text: "Hello from Alice" }, 1),
+  "participant appends a message with an atomic rate-limit counter"
+);
+for (let count = 2; count <= 8; count++) {
+  await expectAllowed(
+    await appendMessageWithLimit({ id: `message-${count}`, text: `Message ${count}` }, count),
+    `message ${count} stays within the per-minute limit`
+  );
+}
+await expectDenied(
+  await appendMessageWithLimit({ id: "message-9", text: "Too many messages" }, 9),
+  "ninth message within the same minute is denied"
+);
 
 const forgedMessage = {
   mapValue: {
