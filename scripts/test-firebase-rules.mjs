@@ -112,10 +112,10 @@ const usernameReservation = (uid) => ({
   uid: { stringValue: uid },
   createdAt: { timestampValue: new Date().toISOString() },
 });
-async function commit(writes) {
+async function commit(writes, token = alice.token) {
   return fetch(`${FIRESTORE_URL}:commit`, {
     method: "POST",
-    headers: authHeaders(alice.token),
+    headers: authHeaders(token),
     body: JSON.stringify({ writes }),
   });
 }
@@ -142,15 +142,15 @@ await expectAllowed(
   "username reservation and profile claim succeed atomically"
 );
 await expectDenied(
-  await firestore("POST", `${usernamePath(aliceUsername)}?documentId=${aliceUsername}`, bob.token, {
+  await firestore("PATCH", usernamePath(aliceUsername), bob.token, {
     fields: usernameFields(bob.uid),
   }),
   "another user cannot reserve an already claimed username"
 );
 await expectDenied(
-  await firestore("POST", "usernames/Invalid_Name?documentId=Invalid_Name", bob.token, {
+  await firestore("POST", "usernames", bob.token, {
     fields: usernameFields(bob.uid),
-  }),
+  }, "?documentId=Invalid_Name"),
   "username reservation IDs must be lowercase and valid"
 );
 await expectDenied(
@@ -161,7 +161,7 @@ await expectDenied(
 );
 await expectDenied(
   await commit([updateWrite("usernames/bob_spoof", usernameFields(alice.uid), null, { exists: false }),
-    updateWrite(profilePath(bob.uid), { username: { stringValue: "bob_spoof" } }, ["username"])]),
+    updateWrite(profilePath(bob.uid), { username: { stringValue: "bob_spoof" } }, ["username"])], bob.token),
   "username reservation cannot be attached to a different user's profile"
 );
 await expectDenied(
