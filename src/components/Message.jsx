@@ -5,32 +5,24 @@ import { ChatContext } from "../context/ChatContext";
 const Message = ({ message }) => {
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
-
   const ref = useRef();
+  const isOwner = message.senderId === currentUser?.uid;
 
   useEffect(() => {
-    ref.current?.scrollIntoView({ behavior: "smooth" });
+    ref.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [message]);
 
+  const avatar = isOwner ? currentUser?.photoURL : data.user?.photoURL;
+
   return (
-    <div
-      ref={ref}
-      className={`message ${message.senderId === currentUser.uid && "owner"}`}
-    >
+    <div ref={ref} className={`message ${isOwner ? "owner" : ""}`}>
       <div className="messageInfo">
-        <img
-          src={
-            message.senderId === currentUser.uid
-              ? currentUser.photoURL
-              : data.user.photoURL
-          }
-          alt=""
-        />
-        <span>just now</span>
+        {avatar && <img src={avatar} alt="" />}
+        <span>{message.date?.toDate ? message.date.toDate().toLocaleString() : "Just now"}</span>
       </div>
       <div className="messageContent">
-        <p>{message.text}</p>
-        {message.img && <img src={message.img} alt="" />}
+        {message.text && <p>{message.text}</p>}
+        {message.img && <img src={message.img} alt="Shared attachment" />}
       </div>
     </div>
   );
