@@ -76,6 +76,12 @@ async function upload(path, token, contentType = "image/png", bytes = Buffer.fro
   });
 }
 
+async function download(path, token) {
+  return fetch(`${STORAGE_URL}/${encodeURIComponent(path)}?alt=media`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 async function expectAllowed(response, label) {
   assert.equal(response.ok, true, `${label} should be allowed, got ${response.status}: ${await response.text()}`);
 }
@@ -88,6 +94,10 @@ const alice = await signUp("alice");
 const bob = await signUp("bob");
 const mallory = await signUp("mallory");
 
+await expectDenied(
+  await fetch(`${FIRESTORE_URL}/users/not-authenticated`),
+  "unauthenticated user cannot read profile"
+);
 await expectAllowed(await createProfile(alice, "Alice"), "owner creates public profile");
 await expectAllowed(await createProfile(bob, "Bob"), "second user creates public profile");
 await expectAllowed(
@@ -219,6 +229,10 @@ await expectDenied(
 await expectAllowed(
   await upload(`chat-images/${chatId}/${alice.uid}/image.png`, alice.token),
   "participant uploads chat image"
+);
+await expectDenied(
+  await download(`chat-images/${chatId}/${alice.uid}/image.png`, mallory.token),
+  "non-participant cannot download chat image"
 );
 await expectDenied(
   await upload(`chat-images/${chatId}/${mallory.uid}/image.png`, mallory.token),
