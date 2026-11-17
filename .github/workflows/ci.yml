@@ -75,3 +75,10 @@ jobs:
       - name: Test trusted backend validation
         working-directory: functions
         run: npm test
+      - name: Set up Java for Functions emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Run trusted Functions emulator integration tests
+        run: node scripts/test-functions-emulator.mjs
