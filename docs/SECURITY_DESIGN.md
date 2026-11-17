@@ -1,6 +1,6 @@
 # Thirdwheel — Firebase security design
 
-**Status:** Design proposal; not deployed.  
+**Status:** Implemented in PR #8; emulator verification is part of CI. Rules are not deployed to the live Firebase project.  
 **Scope:** Firestore and Storage authorization for the current React/Firebase application.
 
 ## 1. Why a design step is required
@@ -9,16 +9,15 @@ The current client data model does not contain enough explicit authorization met
 
 The current source uses:
 
-- `users/{uid}` documents containing `uid`, `displayName`, `email` and `photoURL`.
-- `userChats/{uid}` documents whose top-level keys are deterministic chat IDs. Each entry contains `userInfo`, `date` and optionally `lastMessage`.
+- Before the security implementation, `users/{uid}` documents contained `uid`, `displayName`, `email` and `photoURL`; the old `userChats/{uid}` document stored chat entries in a dynamic map.
+- The new client uses `publicProfiles/{uid}` for discoverable profile fields and `users/{uid}/userChats/{chatId}` for per-user conversation entries.
 - `chats/{chatId}` documents containing a `messages` array.
 - Chat IDs formed by concatenating the two UIDs in sorted order.
-- A chat creation flow that currently writes `{ messages: [] }`, without a participant list.
+- The new chat creation flow writes a sorted two-UID `participants` array and an empty `messages` array.
 - A message-send flow that updates both participants' `userChats` documents.
 - Avatar objects at `avatars/{uid}/{fileName}`.
-- Chat image objects currently stored under a flat `chat-images/` path, which does not encode the conversation ID or uploader UID.
-
-There are currently no version-controlled Firestore Rules, Storage Rules, Firebase CLI configuration or emulator rules tests in the repository.
+- New chat image objects are stored under `chat-images/{chatId}/{uid}/{fileName}`.
+- Firestore Rules, Storage Rules, Firebase Emulator configuration and a REST-based emulator test runner are now version-controlled. The emulator tests run in CI; no live rules have been deployed.
 
 ## 2. Security objectives
 
@@ -36,7 +35,7 @@ There are currently no version-controlled Firestore Rules, Storage Rules, Fireba
 
 ### User profiles
 
-Keep `users/{uid}` as the discoverable profile document, but store only:
+The implemented client uses a separate `publicProfiles/{uid}` collection for discoverable profile documents, and keeps per-user chat-list entries under `users/{uid}/userChats/{chatId}`. This prevents legacy private user fields from being exposed through public profile queries. Store only:
 
 ```json
 {
@@ -79,21 +78,22 @@ The current app updates both participants' chat-list documents from the client. 
 
 | Resource | Read | Create | Update | Delete |
 |---|---|---|---|---|
-| `users/{uid}` | Authenticated users (public profile only) | Owner, valid public fields | Owner, valid public fields | Owner only or disabled by product decision |
-| `userChats/{uid}` | Owner only | Owner, empty initial map | Owner or participant updating only the corresponding chat entry | Owner only |
+| `publicProfiles/{uid}` | Authenticated users | Owner, allowlisted public fields | Owner, allowlisted public fields | Owner only |
+| `users/{uid}/userChats/{chatId}` | Owner or conversation participant | Conversation participant, with counterpart profile verified | Conversation participant, only `lastMessage` and `date` | Owner who is a participant |
 | `chats/{chatId}` | Listed participants only | Authenticated creator, exactly two valid participants | Listed participants; only valid message append / approved metadata changes | Disabled in this phase |
 | `avatars/{uid}/{fileName}` | Authenticated users | Owner, image, <= 5 MiB | Owner, image, <= 5 MiB | Owner |
 | `chat-images/{chatId}/{uid}/{fileName}` | Listed chat participants | Authenticated uploader who is a participant, image, <= 5 MiB | Same constraints | Uploader who is a participant |
 
-The exact rules expressions and allowed field changes will be implemented and verified in the emulator test suite before any deployment.
+The exact rules expressions and allowed field changes are implemented in `firestore.rules` and `storage.rules`; the emulator test runner verifies the positive and negative cases before any deployment.
 
 ## 5. Required client changes
 
-- Stop writing `email` to public `users/{uid}` documents.
+- Write discoverable profiles to `publicProfiles/{uid}` without email.
 - Add the two participant UIDs when creating a conversation.
+- Store per-user chat list entries at `users/{uid}/userChats/{chatId}`.
 - Change chat image storage paths to include chat ID and uploader UID.
 - Preserve the current message-array model in this phase; moving messages to a subcollection remains a separate, gated Phase 4 change.
-- Keep the two userChats updates, but constrain them to the matching participant conversation entry in rules.
+- Keep the two per-user chat-list writes, constrained to the matching participant conversation entry in rules.
 - Handle permission-denied errors with user-facing messages rather than silently retrying.
 
 ## 6. Emulator test matrix

@@ -56,7 +56,7 @@ const Input = () => {
     try {
       let imageUrl = "";
       if (img) {
-        const storageRef = ref(storage, `chat-images/${uuid()}-${img.name}`);
+        const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${uuid()}-${img.name}`);
         const uploadTask = uploadBytesResumable(storageRef, img);
         await uploadTask;
         imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
@@ -75,18 +75,18 @@ const Input = () => {
           ...(imageUrl ? { img: imageUrl } : {}),
         }),
       });
-      batch.update(doc(db, "userChats", currentUser.uid), {
-        [data.chatId + ".lastMessage"]: lastMessage,
-        [data.chatId + ".date"]: serverTimestamp(),
-      });
-      batch.update(doc(db, "userChats", data.user.uid), {
-        [data.chatId + ".lastMessage"]: lastMessage,
-        [data.chatId + ".date"]: serverTimestamp(),
-      });
+      const chatListPatch = {
+        lastMessage,
+        date: serverTimestamp(),
+      };
+      batch.update(doc(db, "users", currentUser.uid, "userChats", data.chatId), chatListPatch);
+      batch.update(doc(db, "users", data.user.uid, "userChats", data.chatId), chatListPatch);
       await batch.commit();
 
       setText("");
       setImg(null);
+      const fileInput = document.getElementById("file");
+      if (fileInput) fileInput.value = "";
     } catch (sendError) {
       console.error("Unable to send message:", sendError);
       setError("Message could not be sent. Please try again.");
@@ -119,6 +119,7 @@ const Input = () => {
           {sending ? "Sending..." : "Send"}
         </button>
       </div>
+      {img && <span>{img.name}</span>}
       {error && <span role="alert">{error}</span>}
     </form>
   );

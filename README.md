@@ -37,7 +37,29 @@ npm install
 
 The application currently initializes Firebase in `src/firebase.js`. Before running it against your own backend, configure that file with the settings for your Firebase project.
 
-For a production deployment, review and deploy restrictive Firestore and Storage security rules. Do not rely on client-side checks as a substitute for Firebase Security Rules.
+The repository includes version-controlled `firestore.rules`, `storage.rules` and `firebase.json`. These rules are designed for the current participant-based chat model. Do not deploy them to a live project until the application schema and existing data have been reviewed.
+
+### Run Firebase security tests locally
+
+The security test runner uses the Firebase Emulator Suite and Node.js built-in fetch; it does not require real Firebase credentials.
+
+Prerequisites: Java 21 or later and Node.js matching `.nvmrc`.
+
+```bash
+npx --yes firebase-tools@14.22.0 emulators:exec --project demo-thirdwheel --only auth,firestore,storage "npm run test:rules"
+```
+
+The emulator tests cover authenticated profile access, participant-only conversation reads, message authorship, per-user conversation lists, avatar ownership, chat-media membership and image upload restrictions. They do not deploy rules or touch the configured Firebase project.
+
+### Current Firestore model
+
+- `publicProfiles/{uid}`: discoverable profile fields only (`uid`, `displayName`, `photoURL`). Email remains in Firebase Authentication; private per-user chat-list data is kept under `users/{uid}/userChats/{chatId}`.
+- `chats/{chatId}`: two immutable participant UIDs and the current embedded `messages` array.
+- `users/{uid}/userChats/{chatId}`: the user's conversation-list entry.
+- `avatars/{uid}/{fileName}`: user-owned avatar objects.
+- `chat-images/{chatId}/{uid}/{fileName}`: chat images scoped to a conversation and uploader.
+
+Existing demo data from the older `userChats/{uid}` layout and chat documents without participant metadata is not automatically migrated. Use a fresh demo dataset or perform a separately reviewed migration before testing the new client against an existing Firebase project.
 
 ### Run locally
 
@@ -72,8 +94,9 @@ Firebase client configuration is not an authorization boundary. Configure Fireba
 ## Current limitations
 
 - The application is designed around one-to-one conversations.
-- Automated tests and a dedicated error-monitoring flow are not yet implemented.
-- Firebase security rules and deployment configuration should be reviewed before production use.
+- Firebase rules are versioned and emulator tests are part of CI, but production rule deployment has not been performed.
+- Messages are still stored in an embedded array; bounded pagination and the message-subcollection migration remain future work.
+- Firebase Storage download URLs are bearer links; do not treat tokenized URLs as confidential media access.
 
 ## License
 

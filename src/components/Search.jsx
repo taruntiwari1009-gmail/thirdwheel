@@ -6,13 +6,13 @@ import {
   getDocs,
   setDoc,
   doc,
-  updateDoc,
   serverTimestamp,
   getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
+import { getChatId } from "../utils/chat";
 
 const Search = () => {
   const [username, setUsername] = useState("");
@@ -32,20 +32,24 @@ const Search = () => {
 
     try {
       const usersQuery = query(
-        collection(db, "users"),
+        collection(db, "publicProfiles"),
         where("displayName", "==", searchTerm)
       );
       const querySnapshot = await getDocs(usersQuery);
-      const match = querySnapshot.docs
+      const matches = querySnapshot.docs
         .map((userDoc) => userDoc.data())
-        .find((result) => result.uid !== currentUser?.uid);
+        .filter((result) => result.uid !== currentUser?.uid);
 
-      if (!match) {
+      if (matches.length === 0) {
         setErr("No other user found with that display name.");
         return;
       }
+      if (matches.length > 1) {
+        setErr("More than one user has that display name. Ask for a unique name.");
+        return;
+      }
 
-      setUser(match);
+      setUser(matches[0]);
     } catch (error) {
       console.error("User search failed:", error);
       setErr("Search failed. Please try again.");
@@ -66,35 +70,38 @@ const Search = () => {
     setErr("");
 
     const selectedUser = user;
-    const combinedId =
-      currentUser.uid > selectedUser.uid
-        ? currentUser.uid + selectedUser.uid
-        : selectedUser.uid + currentUser.uid;
+    const combinedId = getChatId(currentUser.uid, selectedUser.uid);
 
     try {
       const chatRef = doc(db, "chats", combinedId);
       const chatSnapshot = await getDoc(chatRef);
 
       if (!chatSnapshot.exists()) {
-        await setDoc(chatRef, { messages: [] });
+        await setDoc(chatRef, {
+          participants: [currentUser.uid, selectedUser.uid].sort(),
+          messages: [],
+        });
+
+        const chatListEntryForCurrentUser = {
+          userInfo: {
+            uid: selectedUser.uid,
+            displayName: selectedUser.displayName,
+            photoURL: selectedUser.photoURL,
+          },
+          date: serverTimestamp(),
+        };
+        const chatListEntryForSelectedUser = {
+          userInfo: {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL || "",
+          },
+          date: serverTimestamp(),
+        };
 
         await Promise.all([
-          updateDoc(doc(db, "userChats", currentUser.uid), {
-            [combinedId + ".userInfo"]: {
-              uid: selectedUser.uid,
-              displayName: selectedUser.displayName,
-              photoURL: selectedUser.photoURL,
-            },
-            [combinedId + ".date"]: serverTimestamp(),
-          }),
-          updateDoc(doc(db, "userChats", selectedUser.uid), {
-            [combinedId + ".userInfo"]: {
-              uid: currentUser.uid,
-              displayName: currentUser.displayName,
-              photoURL: currentUser.photoURL,
-            },
-            [combinedId + ".date"]: serverTimestamp(),
-          }),
+          setDoc(doc(db, "users", currentUser.uid, "userChats", combinedId), chatListEntryForCurrentUser),
+          setDoc(doc(db, "users", selectedUser.uid, "userChats", combinedId), chatListEntryForSelectedUser),
         ]);
       }
 
