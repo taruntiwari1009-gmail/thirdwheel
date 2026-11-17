@@ -6,7 +6,7 @@ import { ChatContext } from "../context/ChatContext";
 const Home = () => {
   const { data } = useContext(ChatContext);
   const [mobileView, setMobileView] = useState("inbox");
-  useEffect(() => { if (data.chatId) setMobileView("chat"); }, [data.chatId]);
+  useEffect(() => { setMobileView(data.chatId ? "chat" : "inbox"); }, [data.chatId]);
   return <div className="home">
     <div className={`container mobile-${mobileView}`}>
       <Sidebar />
