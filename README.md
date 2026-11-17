@@ -80,7 +80,7 @@ npm run build
 
 ## Project roadmap
 
-The quality-first chat product roadmap, including phased delivery, safety requirements and release gates, is documented in [docs/CHAT_PRODUCT_ROADMAP.md](docs/CHAT_PRODUCT_ROADMAP.md).
+The quality-first chat product roadmap is documented in [docs/CHAT_PRODUCT_ROADMAP.md](docs/CHAT_PRODUCT_ROADMAP.md). Security invariants are in [docs/SECURITY_DESIGN.md](docs/SECURITY_DESIGN.md), authenticated chat-media browser setup is in [docs/CHAT_MEDIA_CORS.md](docs/CHAT_MEDIA_CORS.md), and the product acceptance, operations and release gates are in [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md).
 
 ## Project structure
 
