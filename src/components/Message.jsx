@@ -47,7 +47,7 @@ const Message = ({ message, deleted = false, receipt = "" }) => {
       {message.text && <p>{message.text}</p>}
       {message.img && (imageState === "ready"
         ? <a href={imageUrl} target="_blank" rel="noreferrer"><img src={imageUrl} alt="Shared attachment" loading="lazy" /></a>
-        : <span className="attachmentLoadState" role={imageState === "unavailable" ? "status" : "progressbar"}>{imageState === "loading" ? "Loading secure attachment…" : "Attachment unavailable"}</span>)}
+        : <span className="attachmentLoadState" role="status">{imageState === "loading" ? "Loading secure attachment…" : "Attachment unavailable"}</span>)}
       {isOwner && receipt && <span className={`messageReceipt ${receipt === "Seen" ? "seen" : ""}`} aria-label={receipt}>{receipt}</span>}
     </div>
   </div>;
