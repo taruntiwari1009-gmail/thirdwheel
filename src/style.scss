@@ -941,3 +941,8 @@ button, input, textarea { font: inherit; }
   .mobileNav button:disabled { opacity:.4; }
 }
 .attachmentPreview img { width:44px; height:44px; border-radius:8px; object-fit:cover; border:1px solid var(--tw-border); }
+
+
+.loadMoreResults { display:block; width:calc(100% - 16px); margin:10px 8px 4px; padding:9px; border:1px solid var(--tw-border); border-radius:9px; background:#fff; color:var(--tw-primary-dark); font-size:11px; font-weight:700; cursor:pointer; }
+.loadMoreResults:hover { background:var(--tw-lavender-soft); }
+.loadMoreResults:disabled { opacity:.55; cursor:wait; }
