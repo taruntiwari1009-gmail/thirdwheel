@@ -97,7 +97,7 @@ const Input = () => {
       <label htmlFor="file" className="attachmentButton" title="Attach an image"><img src={Img} alt="" /><span>Photo</span></label>
       <button type="submit" disabled={sending || !hasMessageContent(text, img)}>{sending ? "Sending…" : "Send"}</button>
     </div>
-    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected image preview" /><span>Image ready: {img.name}</span><button type="button" onClick={() => { setImg(null); const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
+    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected attachment" /><span>Image ready: {img.name}</span><button type="button" onClick={() => { setImg(null); const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
     {error && <span role="alert">{error}</span>}
   </form>;
 };
