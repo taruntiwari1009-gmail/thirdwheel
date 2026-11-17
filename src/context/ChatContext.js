@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer } from "react";
 import { AuthContext } from "./AuthContext";
+import { getChatId } from "../utils/chat";
 
 export const ChatContext = createContext();
 
@@ -8,20 +9,18 @@ const INITIAL_STATE = {
   user: {},
 };
 
-const chatReducer = (state, action) => {
+export const chatReducer = (state, action) => {
   switch (action.type) {
     case "CHANGE_USER": {
       const selectedUser = action.payload;
-      if (!selectedUser?.uid || !action.currentUserId) {
+      const chatId = getChatId(action.currentUserId, selectedUser?.uid);
+      if (!chatId) {
         return state;
       }
 
       return {
         user: selectedUser,
-        chatId:
-          action.currentUserId > selectedUser.uid
-            ? action.currentUserId + selectedUser.uid
-            : selectedUser.uid + action.currentUserId,
+        chatId,
       };
     }
     default:
