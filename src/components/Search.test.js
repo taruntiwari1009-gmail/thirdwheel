@@ -37,6 +37,7 @@ beforeEach(() => {
 describe("Search", () => {
   test("finds discoverable profiles by normalized display-name prefix without a composite index", async () => {
     getDocs
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [
         profileDoc({ uid: "alice", displayName: "Alice", displayNameLower: "alice", discoverable: true }),
         profileDoc({ uid: "current-user", displayName: "Current User", displayNameLower: "current user", discoverable: true }),
@@ -61,6 +62,7 @@ describe("Search", () => {
   test("supports @username prefix searches", async () => {
     getDocs
       .mockResolvedValueOnce({ docs: [] })
+      .mockResolvedValueOnce({ docs: [] })
       .mockResolvedValueOnce({ docs: [
         profileDoc({ uid: "tarun", displayName: "Tarun Tiwari", displayNameLower: "tarun tiwari", username: "tarun_t", discoverable: true }),
       ] });
@@ -75,6 +77,7 @@ describe("Search", () => {
 
   test("shows a recoverable message when Firestore search fails", async () => {
     getDocs
+      .mockResolvedValueOnce({ docs: [] })
       .mockRejectedValueOnce(Object.assign(new Error("index unavailable"), { code: "failed-precondition" }))
       .mockResolvedValueOnce({ docs: [] });
 
