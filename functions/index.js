@@ -92,3 +92,79 @@ exports.setModeratorRole = onCall(async request => {
   await db.collection("moderationAudit").add({ actorUid: ownerUid, targetUid: uid, action: enabled ? "moderator_role_granted" : "moderator_role_revoked", createdAt: FieldValue.serverTimestamp() });
   return { updated: true };
 });
+
+
+// Account deletion is an owner-approved, resumable server-side workflow.
+// Shared chat documents and message attachments are retained; only the deleted
+// participant's identity and inbox copy are removed.
+exports.approveAccountDeletion = onCall(async request => {
+  const ownerUid = authenticated(request);
+  if (request.auth.token.owner !== true) throw new HttpsError("permission-denied", "Project owner access is required.");
+  const uid = request.data?.uid;
+  if (typeof uid !== "string" || !uid || uid === ownerUid) throw new HttpsError("invalid-argument", "A valid account UID is required.");
+  const ref = db.doc("accountDeletionRequests/" + uid);
+  await db.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.get("status") !== "pending_review") throw new HttpsError("failed-precondition", "Only pending deletion requests can be approved.");
+    transaction.update(ref, { status: "approved", approvedBy: ownerUid, approvedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+    transaction.create(db.collection("moderationAudit").doc(), { actorUid: ownerUid, targetUid: uid, action: "account_deletion_approved", createdAt: FieldValue.serverTimestamp() });
+  });
+  return { approved: true, uid };
+});
+
+exports.processAccountDeletion = onCall(async request => {
+  const ownerUid = authenticated(request);
+  if (request.auth.token.owner !== true) throw new HttpsError("permission-denied", "Project owner access is required.");
+  const uid = request.data?.uid;
+  if (typeof uid !== "string" || !uid || uid === ownerUid) throw new HttpsError("invalid-argument", "A valid account UID is required.");
+  const requestRef = db.doc("accountDeletionRequests/" + uid);
+  const state = await requestRef.get();
+  if (!state.exists || !["approved", "processing"].includes(state.get("status"))) throw new HttpsError("failed-precondition", "This account deletion has not been approved.");
+  await requestRef.set({ status: "processing", startedAt: state.get("startedAt") || FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+
+  const cursor = state.get("chatCursor") || null;
+  let query = db.collection("users").doc(uid).collection("userChats").orderBy("__name__").limit(100);
+  if (cursor) query = query.startAfter(db.doc("users/" + uid + "/userChats/" + cursor));
+  const inbox = await query.get();
+  if (inbox.empty) {
+    // Finalization is idempotent. Keep shared chat records/media so the other
+    // participant retains their history; replace their cached identity label.
+    const ownBlocks = await db.collection("users").doc(uid).collection("blockedUsers").get();
+    const batch = db.batch();
+    ownBlocks.docs.forEach(item => batch.delete(item.ref));
+    const profileRef = db.doc("publicProfiles/" + uid);
+    const profile = await profileRef.get();
+    if (profile.exists && profile.get("username")) batch.delete(db.doc("usernames/" + profile.get("username")));
+    batch.delete(profileRef);
+    batch.delete(db.doc("abuseLimits/messages_" + uid));
+    await batch.commit();
+    try { await getAuth().deleteUser(uid); } catch (error) { if (error.code !== "auth/user-not-found") throw error; }
+    await db.collection("moderationAudit").add({ actorUid: ownerUid, targetUid: uid, action: "account_deletion_completed", createdAt: FieldValue.serverTimestamp() });
+    await requestRef.set({ status: "completed", completedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    try { await getAuth().app.options.credential; } catch (_) { /* no-op: Storage cleanup is performed below through the default bucket */ }
+    const { getStorage } = require("firebase-admin/storage");
+    await getStorage().bucket().deleteFiles({ prefix: "avatars/" + uid + "/" });
+    return { completed: true, processed: inbox.size };
+  }
+
+  const batch = db.batch();
+  for (const entry of inbox.docs) {
+    const chatRef = db.doc("chats/" + entry.id);
+    const chat = await chatRef.get();
+    if (chat.exists) {
+      const participants = chat.get("participants") || [];
+      const otherUid = participants.find(participant => participant !== uid);
+      if (otherUid) {
+        batch.set(chatRef, { deletedParticipants: FieldValue.arrayUnion(uid) }, { merge: true });
+        const otherInboxRef = db.doc("users/" + otherUid + "/userChats/" + entry.id);
+        const otherInbox = await otherInboxRef.get();
+        if (otherInbox.exists) batch.update(otherInboxRef, { userInfo: { uid, displayName: "Deleted account", photoURL: "" } });
+      }
+    }
+    batch.delete(entry.ref);
+  }
+  await batch.commit();
+  const nextCursor = inbox.docs[inbox.docs.length - 1].id;
+  await requestRef.set({ status: "processing", chatCursor: nextCursor, chatsProcessed: FieldValue.increment(inbox.size), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+  return { completed: false, processed: inbox.size, next: true };
+});
