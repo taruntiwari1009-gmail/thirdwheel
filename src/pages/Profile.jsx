@@ -114,7 +114,7 @@ export default function Profile() {
       {owner && <Link className="primaryLink" to="/profile/edit">Edit profile</Link>}
     </header>
     <section className="profileHero">
-      {profile.photoURL ? <img className="profileAvatar" src={profile.photoURL} alt="" /> : <span className="profileAvatar profileAvatarFallback" aria-hidden="true">{(profile.displayName || "T").trim().split(/\\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
+      {profile.photoURL ? <img className="profileAvatar" src={profile.photoURL} alt="" /> : <span className="profileAvatar profileAvatarFallback" aria-hidden="true">{(profile.displayName || "T").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
       <div>
         <p className="eyebrow">COMMUNITY PROFILE</p>
         <h1>{profile.displayName || "New member"}</h1>
@@ -147,9 +147,10 @@ export default function Profile() {
     {error && <p className="errorText" role="alert">{error}</p>}
     {profile.bio && <section className="profileSection"><h2>About</h2><p>{profile.bio}</p></section>}
     <section className="profileGrid">
-      {[["Interests", profile.interests], ["Hobbies", profile.hobbies], ["Languages", profile.languages], ["Education", [profile.education, profile.institution, profile.graduationYear]], ["Connect over", profile.connectionGoals]].map(([title, values]) =>
-        <div className="profileSection" key={title}><h2>{title}</h2><p>{list(values).filter(Boolean).join(" · ") || "Not added yet"}</p></div>
-      )}
+      {[["Interests", profile.interests], ["Hobbies", profile.hobbies], ["Languages", profile.languages], ["Education", [profile.education, profile.institution, profile.graduationYear]], ["Connect over", profile.connectionGoals]].map(([title, values]) => {
+        const items = list(values).filter(Boolean);
+        return <div className="profileSection" key={title}><h2>{title}</h2>{items.length ? <div className="profileTags">{items.map(item => <span className="profileTag" key={item}>{item}</span>)}</div> : <p className="muted small">Not added yet</p>}</div>;
+      })}
     </section>
     <section className="profileSection"><h2>Elsewhere</h2><div className="linkRow">
       {profile.website && <a href={profile.website} target="_blank" rel="noreferrer">Website</a>}
