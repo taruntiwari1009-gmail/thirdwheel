@@ -13,6 +13,7 @@ import {
 import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
+import { hasMessageContent, isAllowedImage } from "../utils/chat";
 
 const Input = () => {
   const [text, setText] = useState("");
@@ -24,7 +25,7 @@ const Input = () => {
 
   const handleSend = async (event) => {
     event.preventDefault();
-    if (sending || (!text.trim() && !img)) return;
+    if (sending || !hasMessageContent(text, img)) return;
     if (!currentUser?.uid || !data.chatId || !data.user?.uid) {
       setError("Select a conversation before sending a message.");
       return;
@@ -90,7 +91,7 @@ const Input = () => {
           accept="image/*"
           style={{ display: "none" }}
           id="file"
-          onChange={(event) => setImg(event.target.files?.[0] || null)}
+          onChange={handleImageSelect}
         />
         <label htmlFor="file">
           <img src={Img} alt="Choose an attachment" />
