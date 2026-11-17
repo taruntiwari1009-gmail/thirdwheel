@@ -68,10 +68,22 @@ const Input = () => {
       const lastMessage = { text: messageText || "Image" };
 
       await runTransaction(db, async transaction => {
-        const [chat, mine, theirs] = await Promise.all([transaction.get(chatRef), transaction.get(mineRef), transaction.get(theirsRef)]);
+        const rateLimitRef = doc(db, "abuseLimits", `messages_${currentUser.uid}`);\n        const [chat, mine, theirs, rateLimit] = await Promise.all([transaction.get(chatRef), transaction.get(mineRef), transaction.get(theirsRef), transaction.get(rateLimitRef)]);
         if (!chat.exists()) throw new Error("This conversation no longer exists.");
         const participants = chat.data().participants || [];
         if (!participants.includes(currentUser.uid) || !participants.includes(data.user.uid)) throw new Error("You are no longer a participant in this conversation.");
+        const now = Timestamp.now();
+        const previousLimit = rateLimit.exists() ? rateLimit.data() : null;
+        const resetWindow = !previousLimit || !previousLimit.windowStart
+          || now.toMillis() - previousLimit.windowStart.toMillis() >= 60000;
+        const nextCount = resetWindow ? 1 : Number(previousLimit.count || 0) + 1;
+        if (nextCount > 8) throw new Error("You're sending messages too quickly. Please wait a moment and try again.");
+        transaction.set(rateLimitRef, {
+          uid: currentUser.uid,
+          count: nextCount,
+          windowStart: resetWindow ? serverTimestamp() : previousLimit.windowStart,
+          updatedAt: serverTimestamp(),
+        });
         transaction.update(chatRef, { messages: arrayUnion(message) });
         const date = serverTimestamp();
         const minePatch = { lastMessage, date, unreadCount: 0, lastReadAt: date };
