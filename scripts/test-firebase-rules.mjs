@@ -105,7 +105,7 @@ await expectAllowed(
   "authenticated user reads public profile"
 );
 await expectDenied(
-  await firestore("POST", `users?documentId=${bob.uid}-impostor`, alice.token, {
+  await firestore("POST", `publicProfiles?documentId=${bob.uid}-impostor`, alice.token, {
     fields: profileFields(bob.uid, "Impersonated"),
   }),
   "user cannot create another user's profile"
