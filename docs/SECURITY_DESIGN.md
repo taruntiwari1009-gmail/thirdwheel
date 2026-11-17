@@ -165,7 +165,7 @@ Before treating chat media as confidential, replace tokenized download-URL usage
 
 ## 9. Out of scope
 
-- Firestore message-array to subcollection migration and pagination.
+- Older-message cursor pagination and authenticated private-media delivery.
 - Production Firebase rules deployment.
 - Production data deletion or migration.
 - End-to-end encryption, moderation dashboard/workflow, rate limiting and operational monitoring.
