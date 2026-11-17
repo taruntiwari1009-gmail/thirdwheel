@@ -220,7 +220,7 @@ const Search = () => {
     {!searching && err && <p className="searchStatus" role="status">{err}</p>}
     {users.length > 0 && <div className="searchResults" aria-label="Search results">
       {users.slice(0, visibleCount).map(user => <div className="userChat searchResult" key={user.uid}>
-        <img src={user.photoURL || undefined} alt="" />
+        {user.photoURL ? <img src={user.photoURL} alt="" /> : <span className="avatarFallback" aria-hidden="true">{(user.displayName || "T").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
         <span className="userChatInfo">
           <Link className="personName" to={"/profile/" + user.uid}>{user.displayName || "Third Wheel member"}</Link>
           <span className="personHint">{[
