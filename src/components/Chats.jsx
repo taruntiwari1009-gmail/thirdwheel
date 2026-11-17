@@ -47,7 +47,7 @@ const Chats = () => {
     {!loading && !error && chats.length === 0 && <p className="inboxEmpty">Your inbox is waiting. Search for someone to start a conversation.</p>}
     {chats.map(chat => <div className={`chatListItemWrap ${data.chatId === chat.chatId ? "active" : ""}`} key={chat.chatId}>
       <button type="button" className="userChat chatListItem" onClick={() => chat.userInfo?.uid && dispatch({ type: "CHANGE_USER", payload: chat.userInfo })}>
-        <img src={chat.userInfo?.photoURL || undefined} alt="" />
+        {chat.userInfo?.photoURL ? <img src={chat.userInfo.photoURL} alt="" /> : <span className="avatarFallback" aria-hidden="true">{(chat.userInfo?.displayName || "C").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
         <span className="userChatInfo"><span>{chat.userInfo?.displayName || "Conversation"}</span><span className="chatPreview">{chat.lastMessage?.text || "Start a conversation"}</span></span>
         {Number(chat.unreadCount) > 0 && <span className="unreadBadge" aria-label={`${chat.unreadCount} unread messages`}>{chat.unreadCount > 9 ? "9+" : chat.unreadCount}</span>}
       </button>
