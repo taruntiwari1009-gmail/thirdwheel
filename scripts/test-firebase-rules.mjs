@@ -316,14 +316,19 @@ await expectDenied(
 );
 
 
-const blockEntry = await firestore(
-  "PATCH",
-  `users/${alice.uid}/blockedUsers/${bob.uid}`,
-  alice.token,
-  { fields: { createdAt: { timestampValue: new Date().toISOString() } } },
-  "?currentDocument.exists=false"
+const blockTimestamp = new Date().toISOString();
+const blockPath = `users/${alice.uid}/blockedUsers/${bob.uid}`;
+const reverseBlockPath = `users/${bob.uid}/blockedBy/${alice.uid}`;
+const blockFields = { createdAt: { timestampValue: blockTimestamp } };
+await expectAllowed(
+  await commit([
+    updateWrite(blockPath, blockFields, null, { exists: false }),
+    updateWrite(reverseBlockPath, blockFields, null, { exists: false }),
+  ], alice.token),
+  "blocking creates both privacy-index records atomically"
 );
-await expectAllowed(blockEntry, "user can block another account in their own block list");
+await expectAllowed(await firestore("GET", reverseBlockPath, bob.token), "blocked person can read their own blocked-by index");
+await expectDenied(await firestore("GET", reverseBlockPath, alice.token), "blocker cannot read another account blocked-by index");
 
 await expectDenied(
   await firestore("PATCH", `users/${alice.uid}/blockedUsers/${mallory.uid}`, alice.token, {
@@ -338,13 +343,17 @@ await expectDenied(
   "user cannot block themselves"
 );
 await expectAllowed(
-  await firestore("DELETE", `users/${alice.uid}/blockedUsers/${bob.uid}`, alice.token),
-  "owner can unblock an account"
+  await commit([
+    { delete: `projects/${PROJECT_ID}/databases/(default)/documents/${blockPath}` },
+    { delete: `projects/${PROJECT_ID}/databases/(default)/documents/${reverseBlockPath}` },
+  ], alice.token),
+  "unblocking removes both privacy-index records atomically"
 );
 await expectAllowed(
-  await firestore("PATCH", `users/${alice.uid}/blockedUsers/${bob.uid}`, alice.token, {
-    fields: { createdAt: { timestampValue: new Date().toISOString() } },
-  }, "?currentDocument.exists=false"),
+  await commit([
+    updateWrite(blockPath, { createdAt: { timestampValue: new Date().toISOString() } }, null, { exists: false }),
+    updateWrite(reverseBlockPath, { createdAt: { timestampValue: new Date().toISOString() } }, null, { exists: false }),
+  ], alice.token),
   "owner can block the account again after unblocking"
 );
 await expectDenied(
