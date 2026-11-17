@@ -123,6 +123,7 @@ async function main() {
   expectCallableError(await call("approveAccountDeletion", reporter.token, { uid: reporter.uid }), "PERMISSION_DENIED");
   const approved = await call("approveAccountDeletion", ownerToken, { uid: reporter.uid });
   assert.equal(approved.body.result?.approved, true, JSON.stringify(approved.body));
+  expectCallableError(await call("setModeratorRole", reporter.token, { uid: target.uid, enabled: false }), "PERMISSION_DENIED");
   const firstDeletionPass = await call("processAccountDeletion", ownerToken, { uid: reporter.uid });
   assert.equal(firstDeletionPass.body.result?.completed, false, JSON.stringify(firstDeletionPass.body));
   const secondDeletionPass = await call("processAccountDeletion", ownerToken, { uid: reporter.uid });
@@ -140,7 +141,6 @@ async function main() {
   const granted = await call("setModeratorRole", ownerToken, { uid: target.uid, enabled: true });
   assert.equal(granted.body.result?.updated, true, JSON.stringify(granted.body));
   assert.equal((await auth.getUser(target.uid)).customClaims.moderator, true);
-  expectCallableError(await call("setModeratorRole", reporter.token, { uid: target.uid, enabled: false }), "PERMISSION_DENIED");
 
   console.log("Trusted Functions emulator integration tests passed.");
 }
