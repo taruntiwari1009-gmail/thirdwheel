@@ -414,29 +414,19 @@ await expectDenied(
   ),
   "blocked participants cannot exchange new messages"
 );
-await expectAllowed(
+await expectDenied(
   await firestore("POST", "reports?documentId=report-1", alice.token, {
     fields: {
       reporterId: { stringValue: alice.uid },
       targetUid: { stringValue: bob.uid },
       reason: { stringValue: "spam" },
-      details: { stringValue: "Test report" },
+      details: { stringValue: "Direct client write must be denied" },
       createdAt: { timestampValue: new Date().toISOString() },
     },
   }),
-  "authenticated user can submit a valid report"
+  "ordinary clients cannot write reports directly; callable backend owns intake"
 );
-await expectDenied(
-  await firestore("POST", "reports?documentId=report-self", alice.token, {
-    fields: {
-      reporterId: { stringValue: alice.uid },
-      targetUid: { stringValue: alice.uid },
-      reason: { stringValue: "spam" },
-      createdAt: { timestampValue: new Date().toISOString() },
-    },
-  }),
-  "user cannot report themselves"
-);
+
 
 
 const storageTests = spawnSync(
