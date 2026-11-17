@@ -124,7 +124,7 @@ export default function Profile() {
       </div>
     </section>
     {!owner && <section className="profileActions" aria-label="Profile safety controls">
-      <button type="button" className="secondaryAction" onClick={toggleBlock} disabled={actionBusy || blocked && false}>{actionBusy ? "Please wait…" : blocked ? "Unblock person" : "Block person"}</button>
+      <button type="button" className="secondaryAction" onClick={toggleBlock} disabled={actionBusy}>{actionBusy ? "Please wait…" : blocked ? "Unblock person" : "Block person"}</button>
       <button type="button" className="textAction" onClick={() => setReportOpen(value => !value)}>Report profile</button>
     </section>}
     {reportOpen && <form className="reportForm" onSubmit={submitReport}>
