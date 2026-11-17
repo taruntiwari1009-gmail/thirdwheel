@@ -26,7 +26,7 @@ The prior cleanup PR (#2) is merged. It introduced auth-loading protection, list
 
 | Area | Observed state | Consequence / proposed response |
 |---|---|---|
-| Message persistence | All messages are stored in a `messages` array on one `chats/{chatId}` document using `arrayUnion`. | Unbounded document growth, no natural pagination and increasingly expensive conversation reads. Design a subcollection migration as a separate, gated change. |
+| Message persistence | Messages are separate documents at `chats/{chatId}/messages/{messageId}`. | Reads are bounded to the latest 50 messages; implement cursor pagination for older history. |
 | Message rendering | Each message displays “just now”; message components scroll themselves into view. | Misleading timestamps and potentially excessive/unwanted scrolling. Render actual timestamps and scroll only when appropriate. |
 | Chat header | Camera, add and more icons are rendered as images without actions. | Controls imply functionality that does not exist. Implement meaningful actions or remove them. |
 | Chat list | Rows use clickable `div` elements and have no keyboard interaction or explicit selected state. | Accessibility and navigation gaps. Use semantic buttons and visible focus/selection states. |
