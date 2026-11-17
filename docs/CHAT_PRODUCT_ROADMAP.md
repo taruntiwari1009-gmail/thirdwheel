@@ -16,9 +16,9 @@
 
 ## Baseline
 
-React 18, React Router, Firebase Authentication, Firestore and Storage. Existing capabilities include profiles, people search, real-time one-to-one chat, image attachments, unread counts, blocking and report submission. Messages currently live in an embedded array in each chat document.
+React 18, React Router, Firebase Authentication, Firestore and Storage. Existing capabilities include profiles, people search, real-time one-to-one chat, image attachments, unread counts, blocking and report submission. Messages are stored as individual documents under `chats/{chatId}/messages/{messageId}`; the client listens to the latest 50 messages.
 
-Known gaps: moderation operations still need staffing and runbooks; account deletion requires staging validation and a user-facing support process; messages remain in an embedded array; a backwards-compatible subcollection migration is still a separately reviewed future project; Storage download URLs are bearer links; production App Check and Firebase rule deployment require separate owner review.
+Known gaps: moderation operations still need staffing and runbooks; account deletion requires staging validation and a user-facing support process; Storage download URLs are bearer links; production App Check and Firebase rule deployment require separate owner review.
 
 ## Phases
 
@@ -28,7 +28,7 @@ Known gaps: moderation operations still need staffing and runbooks; account dele
 - Define participant, authorship and block invariants.
 - Document report access, moderation audit and retention.
 - Define account deletion/export expectations before destructive workflows.
-- Preserve current chat data; migrations require backup, dry run, reconciliation, rollback and approval.
+- Retire the old embedded-message array and legacy inbox layout; disposable test records are not migrated.
 
 ### Phase 1 — Trust, safety and account controls
 - Maintain block/unblock controls and enforce blocks in both directions.
@@ -48,8 +48,8 @@ Known gaps: moderation operations still need staffing and runbooks; account dele
 - Improve responsive layouts and accessibility.
 
 ### Phase 3 — Reliable messaging
-- Rehearse migration from embedded arrays to `chats/{chatId}/messages/{messageId}`.
-- Verify counts, ordering, timestamps and attachment references before cutover.
+- Load older message history on demand with cursor pagination.
+- Add delivery/read boundaries and explicit attachment retry/cleanup.
 - Add cursor pagination, unread boundaries, retry/offline handling and duplicate-send protection.
 - Consider replies, reactions, edit/delete, search, mute and archive with clear rules.
 - Replace bearer-link assumptions before treating media as private.
