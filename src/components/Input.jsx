@@ -93,7 +93,7 @@ const Input = () => {
           onChange={(event) => setImg(event.target.files?.[0] || null)}
         />
         <label htmlFor="file">
-          <img src={Img} alt="Choose an image" />
+          <img src={Img} alt="Choose an attachment" />
         </label>
         <button type="submit" disabled={sending}>
           {sending ? "Sending..." : "Send"}
