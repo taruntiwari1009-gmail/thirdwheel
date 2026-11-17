@@ -2,32 +2,26 @@
 
 ## Implemented in PR #14
 
-- Added a protected **Blocked accounts** screen at `/settings/blocked`, linked from the main navigation.
-- The screen reads only the signed-in user's block list, resolves display labels from public profiles, supports unblocking, and includes loading, empty, error and success states.
-- Tightened block creation so users cannot block themselves or create a block entry for an account without a public profile. Block deletion remains owner-only.
-- Firestore rules prevent blocked participants from creating a new conversation or appending new messages to an existing conversation.
-- Expanded report reasons to include scams, threats, stalking, sexual harassment and suspected underage accounts. Report details remain optional and capped at 500 characters.
-- Reports are client-create-only. Ordinary clients cannot read, update or delete report records.
-- Added explicit client-deny rules for moderation cases and moderation audit records.
-- Added emulator assertions for block/unblock behavior, blocked messaging denial, report submission and client denial of moderation records.
+- Block management screen at `/settings/blocked`; owner-only list and unblock controls.
+- Firestore rules prevent self-blocking, require an existing public profile, and prevent blocked participants from creating new chats or appending messages.
+- Report submissions use a trusted callable function instead of direct client writes.
+- The backend validates report target, reason and bounded details, applies a per-user daily submission cap, and atomically creates a private report, moderation case and audit event.
+- Moderator queue and review callables require the Firebase custom claim `moderator: true`; case status changes and notes create audit events.
+- Moderator role changes require an `owner: true` custom claim and are audited.
+- Account deletion request intake is authenticated and prevents duplicate active requests. It records a pending request and audit event; it does not automatically destroy data.
 
-## Remaining Phase 1 work
+## Remaining before production
 
-The repository currently contains a client-side React/Firebase application and does not yet include a trusted Cloud Functions/Admin SDK service or moderator identity provisioning. The following are not complete:
+- **Deletion execution:** Requests remain `pending_review`. Destructive cleanup is not automatic until retention policy and shared-conversation handling are approved. A deletion worker must preserve the other participant's records and handle Storage, Auth, usernames, profile and inbox data with retry/reconciliation.
+- **App Check:** The report callable currently has enforcement disabled. Configure a real provider and validate staging traffic before enabling enforcement. Do not use a placeholder key.
+- **Rate limiting:** Report intake has a transactional daily submission cap. Message spam and broader account throttling need server-authoritative message writes or an approved migration from the embedded-message model.
+- **Moderator provisioning:** Set the initial owner custom claim through a trusted administrative process outside the client. Never grant owner/moderator claims from a client-writable Firestore document.
+- **Operations:** Define moderation staffing, response expectations, evidence retention, appeals and legal retention exceptions.
 
-- **Moderation operations:** Build a trusted review queue with role-protected access, case status transitions, moderator notes, escalation and append-only audit events. Do not expose report records to ordinary clients.
-- **Account deletion:** Implement a deletion request state machine and trusted, retryable cleanup across Firebase Auth, public profile, usernames, inbox entries, conversations and Storage. Define retention exceptions before implementation.
-- **Abuse throttling:** Add server-side rate limits and idempotency for report submission and high-risk actions. Client timers are not security controls.
-- **App Check:** Configure a provider in development/staging, validate traffic and observe metrics. Production enforcement requires a separate owner-approved rollout.
-- **Operational process:** Define who reviews reports, response expectations, escalation and retention. A successful client submission is not evidence that a moderator has reviewed it.
+## Chat product scope
 
-## Chat-specific behavior
-
-- This product remains a one-to-one chatting app. There is no dating match system or match-only messaging requirement.
-- Existing chat creation remains participant-based and compatible with the current application.
-- Blocking must prevent new contact and messages in both directions; it must not silently delete the other participant's historical data.
-- Existing embedded message arrays remain unchanged until a separately rehearsed migration is approved.
+Third Wheel remains a one-to-one chat application. Dating profiles, likes, passes, matches, relationship-intent discovery and age-verification workflows are out of scope. Existing participant-based chats and embedded message arrays remain compatible.
 
 ## Release state
 
-All changes are intended for PR #14 on `fix/netlify-ci-lint-pr13`. Firestore and Storage rules are version-controlled and emulator-tested; they have **not** been deployed to production. No Netlify deployment, merge or production change is part of this phase.
+All changes are on PR #14, branch `fix/netlify-ci-lint-pr13`. Firestore and Storage rules are source-controlled and emulator-tested; they have not been deployed to production. No Netlify deployment, merge or production change is part of this work.
