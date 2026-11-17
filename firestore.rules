@@ -57,7 +57,7 @@ service cloud.firestore {
         && limit.count >= 1
         && limit.count <= 8;
     }
-    function validMessage(messageId) {
+    function validMessage(messageId, chatId) {
       return request.resource.data.keys().hasOnly(['id','text','senderId','date','img'])
         && request.resource.data.keys().hasAll(['id','text','senderId','date'])
         && request.resource.data.id == messageId
@@ -65,7 +65,140 @@ service cloud.firestore {
         && request.resource.data.text is string && request.resource.data.text.size() <= 4000
         && request.resource.data.senderId == request.auth.uid
         && request.resource.data.date is timestamp
-        && (!('img' in request.resource.data) || (request.resource.data.img is string && request.resource.data.img.size() <= 2048))
+        && (!('img' in request.resource.data) || (request.resource.data.img is string && request.resource.data.img.size() <= 2048
+          && request.resource.data.img.matches('^chat-images/' + chatId + '/' + request.auth.uid + '/[^/]{1,220}
+        && (request.resource.data.text.size() > 0 || ('img' in request.resource.data));
+    }
+    function validChatListEntry(userId, chatId) {
+      let chat = getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
+      return signedIn() && chat.participants is list && chat.participants.hasAny([userId]) && chat.participants.hasAny([request.auth.uid])
+        && request.resource.data.keys().hasOnly(['userInfo','date','lastMessage','unreadCount','lastReadAt'])
+        && request.resource.data.keys().hasAll(['userInfo','date'])
+        && request.resource.data.userInfo is map
+        && request.resource.data.userInfo.keys().hasOnly(['uid','displayName','photoURL'])
+        && request.resource.data.userInfo.uid is string && request.resource.data.userInfo.uid != userId
+        && chat.participants.hasAny([request.resource.data.userInfo.uid])
+        && request.resource.data.userInfo.displayName is string && request.resource.data.userInfo.photoURL is string
+        && (('deletedParticipants' in chat) && chat.deletedParticipants is list && chat.deletedParticipants.hasAny([request.resource.data.userInfo.uid])
+          ? request.resource.data.userInfo.displayName == 'Deleted account' && request.resource.data.userInfo.photoURL == ''
+          : get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.displayName == request.resource.data.userInfo.displayName
+            && get(/databases/$(database)/documents/publicProfiles/$(request.resource.data.userInfo.uid)).data.photoURL == request.resource.data.userInfo.photoURL)
+        && request.resource.data.date is timestamp
+        && (!('unreadCount' in request.resource.data) || (request.resource.data.unreadCount is int && request.resource.data.unreadCount >= 0))
+        && (!('lastReadAt' in request.resource.data) || request.resource.data.lastReadAt is timestamp)
+        && (!('lastMessage' in request.resource.data) || (request.resource.data.lastMessage is map
+          && request.resource.data.lastMessage.keys().hasOnly(['text']) && request.resource.data.lastMessage.text is string
+          && request.resource.data.lastMessage.text.size() <= 4000));
+    }
+    match /usernames/{username} {
+      allow read: if signedIn();
+      allow create: if signedIn() && username.matches('^[a-z0-9_.]{3,24}$')
+        && request.resource.data.keys().hasOnly(['uid','createdAt']) && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt is timestamp && !exists(/databases/$(database)/documents/usernames/$(username));
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.username != username;
+    }
+    match /publicProfiles/{userId} {
+      allow read: if signedIn() && (request.auth.uid == userId || resource.data.discoverable == true);
+      allow create: if signedIn() && validPublicProfile(userId);
+      allow update: if signedIn() && request.auth.uid == userId && validPublicProfile(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'username','displayName','displayNameLower','photoURL','discoverable','pronouns','bio','interests','hobbies',
+          'languages','education','institution','graduationYear','city','connectionGoals','website','instagram','linkedin'
+        ]);
+      allow delete: if signedIn() && request.auth.uid == userId;
+    }
+    match /users/{userId}/blockedUsers/{blockedUid} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == userId && blockedUid != userId
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt is timestamp
+        && exists(/databases/$(database)/documents/publicProfiles/$(blockedUid))
+        && existsAfter(/databases/$(database)/documents/users/$(blockedUid)/blockedBy/$(userId));
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == userId
+        && !existsAfter(/databases/$(database)/documents/users/$(blockedUid)/blockedBy/$(userId));
+    }
+    // Reverse index lets a person hide accounts that have blocked them.
+    match /users/{userId}/blockedBy/{blockerUid} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn() && request.auth.uid == blockerUid
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt is timestamp
+        && existsAfter(/databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(userId));
+      allow update: if false;
+      allow delete: if signedIn() && request.auth.uid == blockerUid
+        && !existsAfter(/databases/$(database)/documents/users/$(blockerUid)/blockedUsers/$(userId));
+    }
+    match /reports/{reportId} {
+      allow read, write: if false;
+    }
+    match /abuseLimits/{limitId} {
+      allow read: if signedIn() && limitId == 'messages_' + request.auth.uid;
+      allow create: if signedIn() && limitId == 'messages_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','count','windowStart','updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.count == 1
+        && request.resource.data.windowStart == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if signedIn() && limitId == 'messages_' + request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid','count','windowStart','updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.count is int
+        && ((request.resource.data.windowStart == resource.data.windowStart
+          && request.resource.data.count == resource.data.count + 1
+          && request.time < resource.data.windowStart + duration.value(60, 's')
+          && request.resource.data.count <= 8)
+          || (request.time >= resource.data.windowStart + duration.value(60, 's')
+            && request.resource.data.count == 1
+            && request.resource.data.windowStart == request.time));
+      allow delete: if false;
+    }
+    match /accountDeletionRequests/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+    // Moderation and account lifecycle records are trusted-server-only.
+    match /moderationCases/{caseId} {
+      allow read, write: if false;
+    }
+    match /moderationAudit/{eventId} {
+      allow read, write: if false;
+    }
+    match /users/{userId}/userChats/{chatId} {
+      allow read: if signedIn() && (request.auth.uid == userId || isChatParticipant(chatId));
+      allow create: if validChatListEntry(userId,chatId);
+      allow update: if validChatListEntry(userId,chatId) && isChatParticipant(chatId)
+        && (request.auth.uid == userId
+          ? request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date','unreadCount','lastReadAt'])
+          : request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage','date','unreadCount']));
+      allow delete: if signedIn() && request.auth.uid == userId && isChatParticipant(chatId);
+    }
+    match /chats/{chatId} {
+      allow read: if signedIn() && resource.data.participants.hasAny([request.auth.uid]);
+      allow create: if signedIn() && validChatId(chatId,request.resource.data.participants)
+        && request.resource.data.participants.hasAny([request.auth.uid])
+        && !isBlockedBetween(request.resource.data.participants[0],request.resource.data.participants[1])
+        && request.resource.data.keys().hasOnly(['participants']);
+      allow update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isChatParticipant(chatId);
+        allow create: if isChatParticipant(chatId)
+          && !isBlockedBetween(
+            get(/databases/$(database)/documents/chats/$(chatId)).data.participants[0],
+            get(/databases/$(database)/documents/chats/$(chatId)).data.participants[1]
+          )
+          && validMessage(messageId, chatId)
+          && validMessageRateLimit();
+        allow update, delete: if false;
+      }
+    }
+  }
+}
+)))
         && (request.resource.data.text.size() > 0 || ('img' in request.resource.data));
     }
     function validChatListEntry(userId, chatId) {
