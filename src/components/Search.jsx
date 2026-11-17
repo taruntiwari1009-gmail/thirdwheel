@@ -42,7 +42,7 @@ const Search = () => {
 
   useEffect(() => {
     const normalized = term.trim().toLowerCase().replace(/^@/, "");
-    const generation = ++searchGeneration.current;
+    searchGeneration.current += 1;
     let active = true;
     setUsers([]);
     setBlockedUids([]);
