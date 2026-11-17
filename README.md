@@ -1,70 +1,80 @@
-# Getting Started with Create React App
+# Thirdwheel
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A real-time, one-to-one chat application built with React and Firebase.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Email and password authentication
+- User registration with a profile avatar
+- Real-time conversation and message updates with Firestore
+- Image attachments stored in Firebase Storage
+- Conversation previews and latest-message timestamps
 
-### `npm start`
+## Tech stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React 18
+- React Router
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Storage
+- Sass
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Getting started
 
-### `npm test`
+### Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js (LTS recommended)
+- npm
+- A Firebase project with Authentication, Cloud Firestore and Storage enabled
 
-### `npm run build`
+### Install dependencies
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Configure Firebase
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+The application currently initializes Firebase in `src/firebase.js`. Before running it against your own backend, configure that file with the settings for your Firebase project.
 
-### `npm run eject`
+For a production deployment, review and deploy restrictive Firestore and Storage security rules. Do not rely on client-side checks as a substitute for Firebase Security Rules.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Run locally
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```bash
+npm start
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+The development server runs at [http://localhost:3000](http://localhost:3000).
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Build
 
-## Learn More
+```bash
+npm run build
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Project structure
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```text
+src/
+  components/   Chat interface and reusable UI components
+  context/      Authentication and selected-chat state
+  pages/        Login, registration and home screens
+  img/          Interface assets
+  firebase.js   Firebase client initialization
+  App.js        Application routes
+```
 
-### Code Splitting
+## Important security note
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Firebase client configuration is not an authorization boundary. Configure Firebase Authentication providers and enforce access through Firestore and Storage Security Rules. Never commit service-account credentials, private keys or other server-side secrets.
 
-### Analyzing the Bundle Size
+## Current limitations
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+- The application is designed around one-to-one conversations.
+- Automated tests and a dedicated error-monitoring flow are not yet implemented.
+- Firebase security rules and deployment configuration should be reviewed before production use.
 
-### Making a Progressive Web App
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+No license has been specified yet. Contact the repository owner before reusing or distributing this project.
