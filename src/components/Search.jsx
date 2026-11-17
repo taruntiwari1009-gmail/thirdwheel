@@ -25,10 +25,9 @@ const Search = () => {
       return undefined;
     }
 
-    // Keep this query on one indexed field. The former discoverable + name
-    // compound query required a production composite index to be deployed;
-    // until then Firestore returned FAILED_PRECONDITION and search always
-    // appeared broken. Apply visibility and self filters after the prefix read.
+    // Keep visibility filtering in Firestore while avoiding the former
+    // discoverable + name composite-index dependency. Search the discoverable
+    // public-profile set, then apply the prefix match locally.
     const timeout = setTimeout(async () => {
       setSearching(true);
       try {
@@ -45,7 +44,6 @@ const Search = () => {
           .map((profileDoc) => profileDoc.data())
           .filter((profile) =>
             profile.uid !== currentUser.uid &&
-            profile.discoverable !== false &&
             typeof profile.displayNameLower === "string" &&
             profile.displayNameLower.startsWith(normalized)
           )
