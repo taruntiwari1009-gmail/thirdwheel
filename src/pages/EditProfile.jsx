@@ -66,9 +66,10 @@ export default function EditProfile() {
         const newUsernameRef=username?doc(db,"usernames",username):null;
         const oldUsernameRef=previousUsername&&previousUsername!==username?doc(db,"usernames",previousUsername):null;
         const newUsernameSnapshot=newUsernameRef?await transaction.get(newUsernameRef):null;
+        const oldUsernameSnapshot=oldUsernameRef?await transaction.get(oldUsernameRef):null;
         if(newUsernameSnapshot?.exists()&&newUsernameSnapshot.data().uid!==currentUser.uid) throw new Error("That username is already taken. Please choose another.");
         if(username&&(!newUsernameSnapshot||!newUsernameSnapshot.exists())) transaction.set(newUsernameRef,{uid:currentUser.uid,createdAt:serverTimestamp()});
-        if(oldUsernameRef){const oldSnapshot=await transaction.get(oldUsernameRef);if(oldSnapshot.exists()&&oldSnapshot.data().uid===currentUser.uid)transaction.delete(oldUsernameRef);}
+        if(oldUsernameRef&&oldUsernameSnapshot?.exists()&&oldUsernameSnapshot.data().uid===currentUser.uid) transaction.delete(oldUsernameRef);
         transaction.set(profileRef,data,{merge:true});
       });
       await updateProfile(auth.currentUser,{displayName,photoURL});
