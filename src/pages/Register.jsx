@@ -41,7 +41,7 @@ const Register = () => {
       await updateProfile(credential.user, { displayName, photoURL });
 
       // Email remains in Firebase Authentication, not the searchable public profile.
-      await setDoc(doc(db, "users", credential.user.uid), {
+      await setDoc(doc(db, "publicProfiles", credential.user.uid), {
         uid: credential.user.uid,
         displayName,
         photoURL,
