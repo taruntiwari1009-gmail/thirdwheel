@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { auth, db, storage } from "../firebase";
 import { isAllowedImage } from "../utils/chat";
-import { safeExternalUrl } from "../utils/profile";
+import { safeExternalUrl, getProfileInitials } from "../utils/profile";
 
 const fields = [
   ["username","Username","text"],["displayName","Display name","text"],["pronouns","Pronouns (optional)","text"],["bio","A little about you","textarea"],
@@ -91,7 +91,7 @@ export default function EditProfile() {
         <div className="profilePreviewIdentity">
           {form.photoURL
             ? <img src={form.photoURL} alt="" />
-            : <span className="profilePreviewAvatar" aria-hidden="true">{(form.displayName || currentUser?.displayName || "T").trim().split(/\\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
+            : <span className="profilePreviewAvatar" aria-hidden="true">{getProfileInitials(form.displayName || currentUser?.displayName)}</span>}
           <div>
             <h2>{(form.displayName || "").trim() || "Your display name"}</h2>
             {form.username && <p>@{form.username.replace(/^@/, "")}</p>}
