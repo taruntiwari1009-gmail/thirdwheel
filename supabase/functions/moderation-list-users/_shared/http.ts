@@ -1,4 +1,4 @@
-const DEFAULT_ORIGINS = ["https://thirdwheel.netlify.app", "http://localhost:3000", "http://127.0.0.1:3000"];
+const DEFAULT_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
 
 export function corsHeaders(req: Request): Record<string, string> | null {
   const origin = req.headers.get("Origin");
