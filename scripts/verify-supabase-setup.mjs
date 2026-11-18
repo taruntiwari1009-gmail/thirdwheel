@@ -138,6 +138,14 @@ for (const name of functionNames) {
   }
 }
 
+if (!supabaseConfig.includes('"https://**--thirdwheel.netlify.app/**"')) {
+  throw new Error("Supabase Auth redirect allowlist must include Netlify deploy preview URLs.");
+}
+const registerSource = await readFile(path.join(root, "src", "pages", "Register.jsx"), "utf8");
+if (!registerSource.includes("emailRedirectTo: window.location.origin")) {
+  throw new Error("Signup confirmation must return to the origin where signup started.");
+}
+
 const canonicalAuth = await readFile(path.join(root, "supabase", "functions", "_shared", "auth.ts"), "utf8");
 const canonicalHttp = await readFile(path.join(root, "supabase", "functions", "_shared", "http.ts"), "utf8");
 for (const name of functionNames) {
