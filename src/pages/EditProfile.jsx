@@ -88,8 +88,14 @@ export default function EditProfile() {
 
   if (loading) return <main className="pageShell"><p role="status">Loading editor…</p></main>;
   return <main className="pageShell editPage">
-    <header className="pageHeader"><Link to="/profile">← Your profile</Link><p className="eyebrow">MAKE IT YOURS</p></header>
-    <h1>Edit your profile</h1><p className="muted">Share as much or as little as you like. Only your display name is required.</p>
+    <header className="pageHeader editProfileHeader">
+      <Link to="/profile" className="textLink">← Your profile</Link>
+      <span className="eyebrow">PERSONAL DETAILS</span>
+    </header>
+    <div className="pageIntro editProfileIntro">
+      <h1>Edit your profile.</h1>
+      <p className="muted">Share as much or as little as you like. Your profile should feel like you.</p>
+    </div>
     <form className="profileForm profileEditForm" onSubmit={save}>
       <section className="profilePreview profilePreviewCard" aria-label="Live profile preview">
         <p className="eyebrow">PREVIEW</p>
@@ -108,15 +114,31 @@ export default function EditProfile() {
         </div>
         <p className="profilePreviewVisibility">{form.discoverable === false ? "Hidden from people search" : "Visible in people search"}</p>
       </section>
-      <label>Profile photo<input type="file" accept="image/*" onChange={event => setAvatar(event.target.files?.[0] || null)} /></label>
+      <section className="profileFormSection profilePhotoSection">
+        <div>
+          <span className="eyebrow">PROFILE IMAGE</span>
+          <h2>Make it recognisable</h2>
+          <p className="muted small">Choose a clear photo that people will recognise.</p>
+        </div>
+        <label className="profilePhotoPicker">Choose photo<input type="file" accept="image/*" onChange={event => setAvatar(event.target.files?.[0] || null)} /></label>
+      </section>
       <label className="privacyToggle"><input type="checkbox" checked={form.discoverable !== false} onChange={event => change("discoverable", event.target.checked)} /> Show my profile in search results</label>
       {avatar && <p className="muted small">New photo selected: {avatar.name}</p>}
-      {fields.map(([key, label, type]) => <label key={key}>{label}
-        {type === "textarea"
-          ? <textarea rows="4" maxLength="300" value={form[key] || ""} onChange={event => change(key, event.target.value)} />
-          : <input type={type === "list" ? "text" : type} maxLength={type === "list" ? 500 : 300} value={form[key] || ""} onChange={event => change(key, event.target.value)} />}
-      </label>)}
-      <p className="muted small">Usernames are unique and reserved without regard to letter case. People can find you by display name. Turn off search visibility to hide your profile from discovery. Your email and authentication details are never public.</p>
+      <section className="profileFormSection profileDetailsSection">
+        <div className="profileFormSectionHeading">
+          <span className="eyebrow">YOUR DETAILS</span>
+          <h2>Tell people a little about yourself</h2>
+          <p className="muted small">These details help people know what you enjoy and what you’d like to connect over.</p>
+        </div>
+        <div className="profileFormFields">
+          {fields.map(([key, label, type]) => <label key={key} className={type === "textarea" ? "profileField profileField--wide" : "profileField"}>{label}
+            {type === "textarea"
+              ? <textarea rows="4" maxLength="300" value={form[key] || ""} onChange={event => change(key, event.target.value)} />
+              : <input type={type === "list" ? "text" : type} maxLength={type === "list" ? 500 : 300} value={form[key] || ""} onChange={event => change(key, event.target.value)} />}
+          </label>)}
+        </div>
+      </section>
+      <p className="muted small profilePrivacyNote">Usernames are unique and reserved without regard to letter case. People can find you by display name. Turn off search visibility to hide your profile from discovery. Your email and authentication details are never public.</p>
       {error && <p role="alert" className="errorText">{error}</p>}
       <div className="formActions profileFormActions"><Link to="/profile">Cancel</Link><button disabled={saving}>{saving ? "Saving…" : "Save profile"}</button></div>
     </form>
