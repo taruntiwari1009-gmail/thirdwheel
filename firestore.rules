@@ -200,9 +200,6 @@ service cloud.firestore {
     }
   }
 }
-)))
-        && (request.resource.data.text.size() > 0 || ('img' in request.resource.data));
-    }
     function validChatListEntry(userId, chatId) {
       let chat = getAfter(/databases/$(database)/documents/chats/$(chatId)).data;
       return signedIn() && chat.participants is list && chat.participants.hasAny([userId]) && chat.participants.hasAny([request.auth.uid])
