@@ -39,15 +39,35 @@ export default function ResetPassword() {
     } finally { setSaving(false); }
   };
 
-  return <main className="authPage"><section className="authCard">
-    <p className="eyebrow">THIRD WHEEL</p><h1>Choose a new password</h1>
-    <form onSubmit={submit} className="stack">
-      <label>New password<input type="password" minLength="8" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} required /></label>
-      <label>Confirm password<input type="password" minLength="8" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} required /></label>
-      <button disabled={!ready || saving}>{saving ? "Updating…" : "Update password"}</button>
-      {notice && <p role="status" className="successText">{notice}</p>}
-      {error && <p role="alert" className="errorText">{error}</p>}
-    </form>
-    <Link to="/login">Back to sign in</Link>
-  </section></main>;
+  return <main className="authPage authPage--recovery">
+    <div className="authLayout">
+      <aside className="authStory" aria-label="About Third Wheel">
+        <Link className="authStoryBrand" to="/">Third Wheel <span>✳</span></Link>
+        <div className="authStoryContent">
+          <span className="authStoryEyebrow">SECURE YOUR SPACE</span>
+          <h2>Back to the<br />good conversations.</h2>
+          <p>Choose a new password and return to your inbox.</p>
+          <div className="authStoryOrbit" aria-hidden="true"><span>✳</span><i></i><b></b></div>
+        </div>
+        <span className="authStoryFoot">Your account, your space.</span>
+      </aside>
+      <section className="authCard authCard--entry authCard--recovery">
+        <p className="eyebrow">PASSWORD RESET</p>
+        <h1>Choose a new password.</h1>
+        <p className="muted">Use a password you haven’t used for another account.</p>
+        <form onSubmit={submit} className="stack">
+          <label>New password
+            <input type="password" minLength="8" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} required />
+          </label>
+          <label>Confirm password
+            <input type="password" minLength="8" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} required />
+          </label>
+          <button disabled={!ready || saving}>{saving ? "Updating…" : "Update password"}</button>
+          {notice && <p role="status" className="successText">{notice}</p>}
+          {error && <p role="alert" className="errorText">{error}</p>}
+        </form>
+        <Link className="authBackLink" to="/login">← Back to sign in</Link>
+      </section>
+    </div>
+  </main>;
 }
