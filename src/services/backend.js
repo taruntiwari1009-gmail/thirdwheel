@@ -1,6 +1,20 @@
 import { supabase, supabaseUrl, supabasePublishableKey } from "../supabase";
 
 const PAGE_SIZE = 50;
+const SEARCH_BLOCK_CACHE_TTL_MS = 10000;
+const searchBlockCache = new Map();
+
+async function getSearchBlockedIds(client, currentUid) {
+  const cached = searchBlockCache.get(currentUid);
+  if (cached && cached.expiresAt > Date.now()) return cached.ids;
+
+  const rows = unwrap(await client.from("user_blocks").select("blocker_id,blocked_id")
+    .or(`blocker_id.eq.${currentUid},blocked_id.eq.${currentUid}`)) || [];
+  const ids = [...new Set(rows.flatMap(row => [row.blocker_id, row.blocked_id])
+    .filter(id => id && id !== currentUid))];
+  searchBlockCache.set(currentUid, { ids, expiresAt: Date.now() + SEARCH_BLOCK_CACHE_TTL_MS });
+  return ids;
+}
 
 function assertSupabase() {
   if (!supabase) {
@@ -68,10 +82,7 @@ export async function searchProfiles(term, currentUid, page = 0) {
     .replace(/[%_]/g, "\\$&");
   const pattern = `"${escapedTerm}%"`;
 
-  const blockRows = unwrap(await client.from("user_blocks").select("blocker_id,blocked_id")
-    .or(`blocker_id.eq.${currentUid},blocked_id.eq.${currentUid}`)) || [];
-  const blockedIds = [...new Set(blockRows.flatMap(row => [row.blocker_id, row.blocked_id])
-    .filter(id => id && id !== currentUid))];
+  const blockedIds = await getSearchBlockedIds(client, currentUid);
 
   const pageNumber = Math.max(0, Math.floor(Number(page) || 0));
   const from = pageNumber * 30;
@@ -459,6 +470,7 @@ export async function setBlocked(currentUid, targetUid, shouldBlock) {
     const { error } = await client.from("user_blocks")
       .insert({ blocker_id: currentUid, blocked_id: targetUid });
     if (error && error.code !== "23505") throw error;
+    searchBlockCache.delete(currentUid);
 
     // Preserve the conversation and messages for record/history, but remove
     // the conversation from this user's inbox. RLS prevents new messages.
@@ -477,6 +489,7 @@ export async function setBlocked(currentUid, targetUid, shouldBlock) {
   const { error } = await client.from("user_blocks").delete()
     .eq("blocker_id", currentUid).eq("blocked_id", targetUid);
   if (error) throw error;
+  searchBlockCache.delete(currentUid);
 }
 
 export async function listBlockedUsers(currentUid) {
