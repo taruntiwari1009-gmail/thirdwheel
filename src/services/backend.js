@@ -239,7 +239,7 @@ export async function sendMessage({ conversationId, senderId, text, image, clien
     const cleanName = image.name.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 100) || "attachment";
     attachmentPath = `${conversationId}/${senderId}/${clientMessageId}-${cleanName}`;
     const { error: uploadError } = await client.storage.from("chat-images")
-      .upload(attachmentPath, image, { contentType: image.type, upsert: false });
+      .upload(attachmentPath, image, { contentType: image.type, upsert: true });
     if (uploadError) throw uploadError;
   }
 
