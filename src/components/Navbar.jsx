@@ -27,6 +27,7 @@ const Navbar = () => {
   return <div className="navbar">
     <Link className="logo" to="/">Third Wheel</Link>
     <div className="user">
+      <Link to="/settings/account" className="navSettings">Account settings</Link>
       <Link to="/settings/blocked" className="navSettings">Blocked accounts</Link>
       {isModerator && <Link to="/moderation" className="navSettings">Moderation</Link>}
       <Link to="/profile" className="navProfile">{currentUser?.photoURL ? <img src={currentUser.photoURL} alt="" /> : <span className="avatarFallback" aria-hidden="true">{initials}</span>}<span>{currentUser?.displayName || "Your profile"}</span></Link>
