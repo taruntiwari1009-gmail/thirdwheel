@@ -32,7 +32,7 @@ export default function BlockedUsers() {
     if (!currentUser?.uid || busyUid) return;
     setBusyUid(user.uid); setError(""); setNotice("");
     try {
-      await setBlocked(currentUser.uid, user.uid, true);
+      await setBlocked(currentUser.uid, user.uid, false);
       setBlockedUsers(previous => previous.filter(entry => entry.uid !== user.uid));
       setNotice(`${user.displayName} has been unblocked. You can block them again at any time.`);
     } catch (unblockError) {
@@ -56,7 +56,7 @@ export default function BlockedUsers() {
       ? <section className="emptyState"><h2>Your block list is clear</h2><p className="muted">Accounts you block will appear here, and you can unblock them whenever you choose.</p></section>
       : <section className="blockedList blockedAccountList" aria-label="Blocked accounts">
         {blockedUsers.map(user => <article className="blockedUser blockedAccountCard" key={user.uid}>
-          {user.photoURL ? <img src={user.photoURL} alt="" /> : <span className="blockedAvatar" aria-hidden="true">{user.displayName.slice(0, 1).toUpperCase()}</span>}
+          {user.photoURL ? <img src={user.photoURL} alt="" /> : <span className="blockedAvatar" aria-hidden="true">{(user.displayName || "T").slice(0, 1).toUpperCase()}</span>}
           <div className="blockedUserInfo"><strong>{user.displayName}</strong><span className="muted small">Blocked account</span></div>
           <button type="button" className="secondaryAction" onClick={() => unblock(user)} disabled={Boolean(busyUid)}>{busyUid === user.uid ? "Unblocking…" : "Unblock"}</button>
         </article>)}
