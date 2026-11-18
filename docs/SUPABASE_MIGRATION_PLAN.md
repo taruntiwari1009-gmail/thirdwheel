@@ -1,15 +1,15 @@
 # Supabase migration plan
 
-**Status:** Planning baseline for the Third Wheel backend migration.  
-**Target:** Existing Supabase project `thirdwheel` on the Free plan, using the Asia-Pacific region selected during project creation.  
+**Status:** Fresh backend foundation applied; React client replacement in progress.  
+**Target:** Existing Supabase project `thirdwheel` (`uvxvizndmacoqfrdyifr`), Free plan, region `ap-northeast-1` (Tokyo, Asia-Pacific).  
 **Git workflow:** Continue only on `fix/netlify-ci-lint-pr13` / PR #14. Keep PR #14 open, draft and unmerged. No direct pushes to `main`.  
-**Deployment boundary:** No Supabase schema deployment, secrets, Firebase changes, Netlify changes or production release as part of this planning document.
+**Deployment boundary:** Supabase schema foundation applied to the new empty project only. No frontend production deployment, secrets, Firebase changes, Netlify changes or public release.
 
 ## Decision
 
-Supabase replaces Firebase as the intended application backend. The existing Supabase project will be retained; do not recreate it solely to change region. The selected region is recorded as Asia-Pacific because the project-creation UI exposed only North America, Europe and Asia-Pacific. Do not infer a more specific region from that label; verify the actual database region in Supabase project settings when convenient.
+Supabase replaces Firebase as the intended application backend. The existing Supabase project will be retained; do not recreate it solely to change region. The project API confirms the database region is `ap-northeast-1` (Tokyo). This is the region already created; we are proceeding with it.
 
-Firebase is not to be extended for new application functionality. Do not delete the Firebase project, Auth users, Firestore data or Storage objects as part of this migration. Existing Firebase resources remain untouched until the Supabase implementation has passed acceptance and the owner explicitly authorizes any cleanup.
+This is a fresh start, not a data migration. Do not copy Firebase Auth users, Firestore documents, messages, profile records or Storage objects into Supabase. New users will register again in Supabase Auth. Firebase is not to be extended for new functionality and remains untouched; do not delete the Firebase project or its data unless the owner separately authorizes that cleanup.
 
 ## Target architecture
 
@@ -49,7 +49,7 @@ Final column types, constraints, indexes, retention behavior and RLS policies mu
 - Never ship service-role keys, database passwords or other secrets in client code or Git.
 - Add abuse controls for message sending and report submission; client-side throttling is not a security boundary.
 
-## Migration sequence
+## Fresh-build sequence
 
 ### Phase 0 — repository inventory
 - Enumerate every Firebase Auth, Firestore, Storage and callable Functions import/use.
@@ -101,7 +101,7 @@ Final column types, constraints, indexes, retention behavior and RLS policies mu
 - Add usage monitoring and document the upgrade threshold before inviting real users.
 - Do not promise zero operating cost or uninterrupted production availability on the Free plan.
 
-## Acceptance criteria
+## Current implementation status\n\n- Supabase project verified healthy, empty before schema creation, and retained in Tokyo (`ap-northeast-1`).\n- `public.rls_auto_enable()` direct execution revoked from `anon` and `authenticated`; its `ensure_rls` event trigger remains enabled. Security advisor warning cleared.\n- Applied migration `initial_thirdwheel_schema`: profiles, conversations, read state, blocks, messages, reports, moderation audit, account-deletion requests; private rate-limit table; auth/profile and message triggers; private avatar/chat-image buckets; Storage policies; chat Realtime publication.\n- Applied migration `fk_indexes_and_explicit_denies`: explicit deny policies for internal tables and foreign-key indexes.\n- Post-apply verification: 9/9 application tables have RLS enabled, both Storage buckets private, 7 Storage policies present, 3 Realtime tables registered, security advisor clear, health advisor clear. Performance advisor only reports unused indexes because the new database has no workload yet.\n- No Supabase Auth users or application data have been seeded.\n\n## Acceptance criteria
 
 - No Firebase SDK imports or Firebase runtime dependency remain in the active application path.
 - No service-role key or database password is present in client bundles or repository history.
