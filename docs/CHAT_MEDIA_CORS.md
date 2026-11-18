@@ -1,48 +1,34 @@
-# Authenticated chat media reads
+# Private chat media on Supabase Storage
 
-New chat messages store a Storage object path (for example `chat-images/{chatId}/{senderUid}/{messageId}-photo.png`) rather than a Firebase download URL containing a bearer token.
+Third Wheel uses two private Supabase Storage buckets:
 
-The client resolves that path with the Firebase Storage SDK's authenticated `getBlob()` read. Storage Rules authorize the request using the signed-in participant and the chat membership document. The browser receives a temporary object URL which is revoked when the message component unmounts.
+- `avatars`: object path `{userUid}/{generatedFileName}`.
+- `chat-images`: object path `{conversationId}/{senderUid}/{messageId}-{safeFileName}`.
 
-## Browser CORS requirement
+The database stores only the object path in `profiles.photo_path` or `messages.attachment_path`. It never stores a long-lived bearer download URL. The browser requests a short-lived signed URL through the Supabase Storage SDK when rendering an image.
 
-The Cloud Storage bucket must allow browser reads from the exact application origins used in development and staging. This is bucket configuration, not a Firebase Storage Rules change.
+## Access controls
 
-Create a CORS JSON file for the staging bucket, replacing the example origins with the actual origins approved for the environment:
+- Avatar reads are allowed only when the corresponding profile row is visible to the signed-in user (self, discoverable profile, blocked profile or existing conversation partner).
+- Avatar writes, updates and deletes are restricted to the owner folder.
+- Chat-image reads require membership in the conversation.
+- Chat-image uploads and retry-safe updates require the uploader UID in the second path segment and membership in the conversation.
+- Either-direction blocks prevent new image uploads and message writes.
+- Buckets are private and limited to JPEG, PNG, WebP or GIF up to 5 MiB.
 
-```json
-[
-  {
-    "origin": [
-      "http://localhost:3000",
-      "https://YOUR-STAGING-ORIGIN"
-    ],
-    "method": ["GET", "HEAD"],
-    "responseHeader": ["Content-Type", "Content-Length"],
-    "maxAgeSeconds": 3600
-  }
-]
-```
+## Browser verification before release
 
-Apply it only to the explicitly selected staging bucket:
+- A signed-in owner can upload and read their avatar.
+- A different signed-in user can read an avatar only when the profile is discoverable or they are connected through an existing conversation/owner block relationship.
+- A conversation participant can upload/read the image object for that conversation.
+- A nonparticipant and an unauthenticated caller cannot read the image, even if the object path is known.
+- An uploader cannot write to another person's uploader path.
+- Oversized files and unsupported MIME types are rejected.
+- Retrying an ambiguous upload to the same path works without weakening owner/member authorization.
+- The client revokes temporary signed URL/object references when message components unmount.
 
-```bash
-gcloud storage buckets update gs://YOUR-STAGING-BUCKET --cors-file=cors.json
-```
-
-Do not apply this to production as part of PR #14. Confirm the bucket name and allowed origins with the project owner first. Do not use wildcard origins for authenticated private media.
-
-## Verification checklist
-
-- A signed-in participant can upload and read a chat image.
-- A signed-in non-participant cannot read the object, even if they know its object path.
-- An unauthenticated browser cannot read the object.
-- A browser from an unapproved origin cannot read the object.
-- A participant cannot write a message pointing at another user's uploader path.
-- Newly created message documents contain an object path, not a tokenized download URL.
-- Existing historical messages that contain a Firebase download URL are still interpreted as a Storage reference by the SDK; verify this compatibility in staging before rollout.
-- Image load failures show a recoverable unavailable state rather than exposing a bearer URL fallback.
+Supabase Storage is accessed through its HTTPS API. Do not add wildcard cross-origin settings or expose a public bucket to work around a browser error. Confirm the actual app origin and the project's current Storage/CORS configuration if a browser test fails.
 
 ## Current status
 
-The client-side authenticated SDK read, object-path writes and Firestore path validation are implemented on PR #14. Bucket CORS configuration and end-to-end browser verification remain staging tasks. No bucket configuration has been changed by this PR.
+The two private buckets and the access policies are applied to the empty Supabase project. Frontend SDK upload/read code is wired to them. End-to-end browser tests still require a signed-in disposable account and an authorized localhost or hosted origin. No production files have been uploaded.
