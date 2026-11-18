@@ -30,7 +30,7 @@ Deno.serve(async req => {
     // Remove every avatar object before deleting the Auth user. Fail closed if
     // Storage cannot be listed or cleaned; a retry can continue while status=processing.
     const bucket = admin.storage.from("avatars");
-    let offset = 0;
+    const offset = 0;
     const pageSize = 500;
     while (true) {
       const { data: avatarFiles, error: avatarListError } = await bucket.list(targetUid, {
@@ -53,7 +53,6 @@ Deno.serve(async req => {
         }
       }
       if (!avatarFiles || avatarFiles.length < pageSize) break;
-      offset += avatarFiles.length;
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(targetUid);
