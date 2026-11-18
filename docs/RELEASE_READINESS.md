@@ -1,84 +1,74 @@
-# Third Wheel — release readiness and operations
+# Third Wheel — release readiness
 
-This checklist is a gate, not an authorization to deploy. PR #14 remains open, draft and unmerged. No production Firebase, Netlify, or live-data operation is included.
+This checklist is a gate, not an authorization to deploy. PR #14 remains open, draft and unmerged. The Supabase database foundation and trusted functions are applied to the new empty project; the frontend has not been released.
 
-## 1. Code and CI gate
+## 1. Current backend status
 
-- [ ] Confirm the reviewed PR head SHA and that all required GitHub Actions jobs pass for that exact SHA.
-- [ ] Application unit tests and production build pass.
-- [ ] Firestore and Storage Emulator allow/deny tests pass.
-- [ ] Trusted Functions unit and emulator integration tests pass.
-- [ ] Review dependency audit output and resolve high/critical findings or document accepted exceptions.
-- [ ] Review Firestore indexes against every query used by discovery, inbox and moderation.
-- [ ] Confirm no credentials, private user data, test tokens or environment-specific secrets are committed.
+- [x] Supabase project `thirdwheel` verified healthy in Tokyo (`ap-northeast-1`).
+- [x] Fresh schema and RLS policies applied; no Firebase records were imported.
+- [x] Private `avatars` and `chat-images` buckets and seven initial Storage policies applied.
+- [x] Realtime enabled for messages, conversations and read receipts.
+- [x] Server-side message/report throttles and block inbox trigger applied.
+- [x] Atomic moderation review/audit database function applied and restricted to `service_role`.
+- [x] Six JWT-verified Edge Functions deployed.
+- [x] Supabase security and health advisors return no findings.
+- [x] No Supabase Auth accounts or application records have been seeded.
+- [ ] Owner's Supabase Auth account created and protected `owner: true` app_metadata claim provisioned.
+- [ ] Exact hosted frontend origin(s) configured in the Edge Function `ALLOWED_ORIGINS` secret.
 
-## 2. Product acceptance matrix
+## 2. Code and CI gate
 
-Test at desktop (1440px and 1280px), tablet (768px), and mobile (390px and 320px) widths.
+- [ ] Supabase client, auth context, pages and messaging flows pass the full React test suite.
+- [ ] Production build passes on Node.js 22+.
+- [ ] Supabase source checks pass.
+- [ ] All Firebase SDK imports and emulator workflows are removed from the active app pipeline.
+- [ ] Review package lock and dependency audit output.
+- [ ] Review schema migrations and deployed Edge Function source hashes against the PR branch.
 
-### Authentication and profile
-- [ ] Register, sign in, sign out, password reset, expired session and account error states.
-- [ ] Profile edit validation, avatar upload failure, username collision and visibility toggle.
-- [ ] Keyboard-only operation, visible focus, screen-reader labels, contrast and reduced-motion behavior.
+## 3. Auth and profile acceptance
 
-### Discovery and blocking
-- [ ] Search by display name and username, including empty, no-result, slow-network and pagination states.
-- [ ] Hidden profiles are not visible to other users.
-- [ ] Either-direction block excludes the account from discovery and prevents chat creation/message writes.
-- [ ] Unblock removes both privacy-index records atomically.
-- [ ] Verify behavior if either reciprocal index is missing or a transaction fails.
+- [ ] Signup with email confirmation enabled; confirm profile metadata is retained before a session exists.
+- [ ] Signup with confirmation disabled; verify profile and avatar upload.
+- [ ] Sign in, sign out, session restoration, expired session and password recovery.
+- [ ] Redirect URLs and email sender/template are configured for each environment.
+- [ ] Profile edit validation, username collision, image upload failure and discoverability toggle.
+- [ ] Hidden profiles disappear from search but remain viewable by existing conversation partners.
 
-### Messaging and attachments
-- [ ] Send text, image-only and mixed messages; verify ordering when timestamps collide.
-- [ ] Retry after an ambiguous acknowledgement and confirm no duplicate message is created.
-- [ ] Read receipts update when the recipient opens the conversation.
-- [ ] Verify unread counts when a conversation is open, backgrounded, reopened and switched quickly.
-- [ ] Load multiple older pages while new messages arrive; confirm scroll position is preserved.
-- [ ] Verify offline/reconnect behavior and explicitly test that a pending message is not silently lost.
-- [ ] Verify image progress, failed upload, failed message commit and orphan cleanup.
-- [ ] Verify authenticated media reads, CORS and non-participant denial in a browser.
+## 4. Discovery, conversation and messaging
 
-### Trust and safety
-- [ ] Report submission, rate limiting, moderation queue filters, status changes and audit trail.
-- [ ] Verify moderators cannot grant themselves roles and only an owner claim can grant/revoke moderator access.
-- [ ] Test account deletion approval, repeated batches, partial failures, retry, already-deleted Auth user, username cleanup, reciprocal block-index cleanup and retained counterpart history.
-- [ ] Review retention, legal exceptions, support contact and user-facing deletion disclosures before enabling the workflow operationally.
+- [ ] Search by display name and @username with empty, no-result, slow-network and pagination states.
+- [ ] A user cannot start a conversation with themselves, a hidden profile or a user who blocked them.
+- [ ] A unique one-to-one conversation is reused instead of duplicated.
+- [ ] A block hides the blocker's inbox copy and prevents new messages/media in either direction.
+- [ ] Unblock permits a future conversation; existing conversation is restored when reopened.
+- [ ] Text, image-only and mixed message sends succeed.
+- [ ] Ambiguous send acknowledgements can be retried without duplicate messages.
+- [ ] Server ordering and older-message pagination work when timestamps collide.
+- [ ] Read receipts update when the recipient opens the conversation; unread counts update correctly.
+- [ ] Rapid chat switching does not allow stale listeners or older pages to contaminate the active conversation.
+- [ ] Deleted-account messages remain in shared history and show “Deleted account.”
 
-## 3. Staging-only Firebase preparation
+## 5. Storage, moderation and deletion
 
-Requires explicit owner approval and a dedicated non-production Firebase project.
+- [ ] Verify private bucket participant/owner allow and deny cases in a browser.
+- [ ] Verify supported MIME types and the 5 MiB upload cap.
+- [ ] Submit a report, verify the five-per-hour throttle, moderator queue and atomic audit record.
+- [ ] Confirm ordinary users cannot read moderation records or change status/claims.
+- [ ] Set initial owner claim with a trusted operator process; sign out and back in to refresh app metadata.
+- [ ] Grant/revoke moderator access as owner and verify moderator access updates after token refresh.
+- [ ] Submit a deletion request, approve it as owner and process it as owner.
+- [ ] Test deletion retry/partial failure, avatar cleanup, blocks/read-state cleanup, sender anonymization and retained shared message/media history.
+- [ ] Review user-facing deletion notice, legal retention requirements, support contact and moderator operating process.
 
-- [ ] Confirm project ID, billing, region, bucket and authorized origins.
-- [ ] Deploy rules, indexes and Functions to staging only.
-- [ ] Apply the exact-origin CORS configuration described in [CHAT_MEDIA_CORS.md](./CHAT_MEDIA_CORS.md).
-- [ ] Verify Storage SDK reads with valid participant auth, non-participant auth and no auth.
-- [ ] Configure App Check site key in staging; verify valid, missing and invalid token behavior for every callable Function (reporting, moderation, moderator administration and account lifecycle).
-- [ ] Enable callable enforcement only after staging verification and a documented rollback.
-- [ ] Verify Functions secrets/configuration and owner custom-claim bootstrap using the documented operator process.
-- [ ] Confirm logs exclude message bodies, report evidence and other unnecessary personal data.
+## 6. Hosting and launch
 
-## 4. Moderation operations
+- [ ] Confirm final frontend host and exact allowed origin(s); set Edge Function `ALLOWED_ORIGINS` to those origins only.
+- [ ] Configure `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_PUBLISHABLE_KEY` in that hosting environment.
+- [ ] Never expose Supabase secret/service-role keys or database passwords in frontend settings.
+- [ ] Verify auth redirect URLs and email settings for the hosted domain.
+- [ ] Run smoke tests with disposable accounts after the frontend deploy.
+- [ ] Check database/storage/function usage and Free-plan limits; decide on upgrade and backup/restore posture before public launch.
+- [ ] Define monitoring, error handling, abuse response and incident owner.
+- [ ] Keep Firebase resources untouched until the owner separately authorizes retirement.
 
-- [ ] Assign at least two trained moderators and one escalation owner before accepting live reports.
-- [ ] Define review coverage, response targets, emergency escalation and handoff.
-- [ ] Treat reports as allegations; record evidence reviewed and the rationale for each action.
-- [ ] Restrict evidence access to authorized moderators; do not copy sensitive evidence into chat, email or public issue trackers.
-- [ ] Define retention and deletion for report details and audit events.
-- [ ] Define appeals, mistaken reports, moderator conflict-of-interest and moderator offboarding.
-- [ ] Review abuse throttles and define a process for false positives and urgent exceptions.
-
-## 5. Backup, migration and rollback
-
-- [ ] Confirm current production schema before any migration; do not assume old embedded arrays or legacy inbox records are disposable.
-- [ ] Produce and verify a restorable backup in a non-production environment.
-- [ ] Write a migration inventory, dry-run report, idempotency strategy and reconciliation checks.
-- [ ] Do not run the disposable chat reset script against any real-user project.
-- [ ] Document rollback for rules, Functions, indexes, App Check and client release.
-- [ ] Define an incident owner, escalation channel and stop/rollback criteria.
-- [ ] Validate rollback by rehearsal in staging before release approval.
-
-## 6. Launch decision
-
-A release is not ready until all required product, security, accessibility, privacy, moderation and operational gates have an owner and evidence. A passing GitHub Actions run is necessary but not sufficient.
-
-Production deployment, Netlify changes, production data migration/reset, and PR merge require separate explicit approval. This document does not grant that approval.
+A passing GitHub workflow or clean Supabase advisor result is necessary but not sufficient for release. Do not deploy the frontend, change Netlify, retire Firebase, merge PR #14 or operate on live user accounts without explicit authorization.
