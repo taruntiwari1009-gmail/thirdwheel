@@ -51,7 +51,6 @@ create table public.conversation_reads (
   inbox_hidden boolean not null default false,
   updated_at timestamptz not null default now(),
   primary key (conversation_id, user_id),
-  constraint conversation_reads_not_future check (last_read_at is null or last_read_at <= now() + interval '1 minute')
 );
 
 create table public.user_blocks (
@@ -414,19 +413,44 @@ create policy account_deletion_requests_select_self
 on public.account_deletion_requests for select to authenticated
 using (user_id = (select auth.uid()));
 
--- Explicit minimum grants: all row access remains subject to RLS.
-grant usage on schema public to authenticated;
-grant select, update on public.profiles to authenticated;
-grant select, insert on public.conversations to authenticated;
-grant select, insert, update on public.conversation_reads to authenticated;
-grant select, insert, delete on public.user_blocks to authenticated;
-grant select, insert on public.messages to authenticated;
-grant select, insert on public.reports to authenticated;
-grant select, insert on public.account_deletion_requests to authenticated;
+-- Explicit least-privilege grants: RLS is still evaluated for every row.
+revoke all on table
+  public.profiles, public.conversations, public.conversation_reads, public.user_blocks,
+  public.messages, public.reports, public.moderation_audit, public.account_deletion_requests
+from public, anon, authenticated;
 
-revoke all on public.moderation_audit from anon, authenticated;
-revoke all on public.account_deletion_requests from anon;
-revoke all on public.moderation_audit from public;
+grant usage on schema public to authenticated;
+grant select on public.profiles to authenticated;
+grant update (
+  username, display_name, photo_path, pronouns, bio, interests, hobbies, languages,
+  education, institution, graduation_year, city, connection_goals, website, instagram,
+  linkedin, discoverable
+) on public.profiles to authenticated;
+
+grant select on public.conversations to authenticated;
+grant insert (participant_low, participant_high, created_by) on public.conversations to authenticated;
+
+grant select on public.conversation_reads to authenticated;
+grant insert (conversation_id, user_id) on public.conversation_reads to authenticated;
+grant update (last_read_at, inbox_hidden) on public.conversation_reads to authenticated;
+
+grant select, delete on public.user_blocks to authenticated;
+grant insert (blocker_id, blocked_id) on public.user_blocks to authenticated;
+
+grant select on public.messages to authenticated;
+grant insert (conversation_id, sender_id, client_message_id, body, attachment_path) on public.messages to authenticated;
+
+grant select on public.reports to authenticated;
+grant insert (reporter_id, target_user_id, conversation_id, message_id, reason, details) on public.reports to authenticated;
+
+grant select on public.account_deletion_requests to authenticated;
+grant insert (user_id) on public.account_deletion_requests to authenticated;
+
+-- Future public tables/functions created as postgres default to no client API access.
+alter default privileges for role postgres in schema public
+  revoke all on tables from public, anon, authenticated;
+alter default privileges for role postgres in schema public
+  revoke execute on functions from public, anon, authenticated;
 
 -- Private image buckets. Upload size and MIME restrictions are enforced by bucket config.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
