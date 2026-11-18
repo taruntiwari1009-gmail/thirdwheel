@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { getProfile, saveProfile } from "../services/backend";
@@ -20,6 +20,9 @@ export default function EditProfile() {
   const navigate = useNavigate();
   const [form, setForm] = useState({});
   const [avatar, setAvatar] = useState(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const avatarPreview = useMemo(() => avatar ? URL.createObjectURL(avatar) : "", [avatar]);
+  useEffect(() => () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); }, [avatarPreview]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -75,7 +78,7 @@ export default function EditProfile() {
         website: safeExternalUrl(form.website || ""),
         instagram: safeExternalUrl(form.instagram || ""),
         linkedin: safeExternalUrl(form.linkedin || ""),
-      }, avatar);
+      }, avatar, { removeAvatar });
       await refreshCurrentUser();
       navigate("/profile", { replace: true });
     } catch (saveError) {
@@ -100,7 +103,7 @@ export default function EditProfile() {
       <section className="profilePreview profilePreviewCard" aria-label="Live profile preview">
         <p className="eyebrow">PREVIEW</p>
         <div className="profilePreviewIdentity">
-          {form.photoURL && !avatar ? <img src={form.photoURL} alt="" /> : <span className="profilePreviewAvatar" aria-hidden="true">{getProfileInitials(form.displayName || currentUser?.displayName)}</span>}
+          {avatarPreview || (form.photoURL && !removeAvatar) ? <img src={avatarPreview || form.photoURL} alt="" /> : <span className="profilePreviewAvatar" aria-hidden="true">{getProfileInitials(form.displayName || currentUser?.displayName)}</span>}
           <div>
             <h2>{(form.displayName || "").trim() || "Your display name"}</h2>
             {form.username && <p>@{form.username.replace(/^@/, "")}</p>}
@@ -120,10 +123,16 @@ export default function EditProfile() {
           <h2>Make it recognisable</h2>
           <p className="muted small">Choose a clear photo that people will recognise.</p>
         </div>
-        <label className="profilePhotoPicker">Choose photo<input type="file" accept="image/*" onChange={event => setAvatar(event.target.files?.[0] || null)} /></label>
+        <div className="profilePhotoControls">
+          <label className="profilePhotoPicker">Choose photo<input type="file" accept="image/*" onClick={event => { event.currentTarget.value = ""; }} onChange={event => { setAvatar(event.target.files?.[0] || null); setRemoveAvatar(false); }} /></label>
+          {form.photoURL && !removeAvatar && !avatar && <button type="button" className="textAction" onClick={() => setRemoveAvatar(true)}>Remove current photo</button>}
+          {removeAvatar && <button type="button" className="textAction" onClick={() => setRemoveAvatar(false)}>Keep current photo</button>}
+          {avatar && <button type="button" className="textAction" onClick={() => setAvatar(null)}>Clear selected photo</button>}
+        </div>
       </section>
       <label className="privacyToggle"><input type="checkbox" checked={form.discoverable !== false} onChange={event => change("discoverable", event.target.checked)} /> Show my profile in search results</label>
       {avatar && <p className="muted small">New photo selected: {avatar.name}</p>}
+      {removeAvatar && <p className="muted small">Your current profile photo will be removed when you save.</p>}
       <section className="profileFormSection profileDetailsSection">
         <div className="profileFormSectionHeading">
           <span className="eyebrow">YOUR DETAILS</span>
