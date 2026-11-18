@@ -2562,3 +2562,128 @@ body::after {
     transition: none !important;
   }
 }
+
+
+/* Inbox layout uses flex in the existing app. Keep each pane's scroll area intentional. */
+.home .container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.home .container .sidebar {
+  display: flex;
+  min-width: 0;
+  flex: 0 0 clamp(280px, 28%, 360px);
+  flex-direction: column;
+}
+
+.home .container .sidebar .navbar,
+.home .container .sidebar .search {
+  flex: 0 0 auto;
+}
+
+.home .container .sidebar .navbar .user button {
+  position: static;
+}
+
+.home .container .sidebar .chats {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.home .container .chat {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+.home .container .chat .chatInfo {
+  min-height: 82px;
+  flex: 0 0 auto;
+}
+
+.home .container .chat .messages {
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.home .container .chat .input {
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1000px) and (min-width: 641px) {
+  .home .container .sidebar {
+    flex-basis: clamp(270px, 31%, 330px);
+  }
+}
+
+@media (max-width: 640px) {
+  .home .container {
+    height: calc(100dvh - 62px);
+    flex-direction: column;
+  }
+
+  .home .container .sidebar {
+    width: 100%;
+    max-height: 48%;
+    min-height: 0;
+    flex: 0 1 auto;
+    overflow-y: auto;
+  }
+
+  .home .container .sidebar .navbar {
+    flex: 0 0 auto;
+  }
+
+  .home .container .sidebar .navbar .user button {
+    position: static;
+  }
+
+  .home .container .sidebar .chats {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .home .container .chat {
+    width: 100%;
+    min-height: 0;
+    flex: 1 1 0;
+  }
+
+  .home .container .chat .chatInfo {
+    min-height: 66px;
+    height: auto;
+    flex: 0 0 auto;
+  }
+
+  .home .container .chat .messages {
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
+  }
+
+  .home .container .chat .input {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .home .container .sidebar .navbar .user .navSettings,
+  .home .container .sidebar .navbar .user button {
+    font-size: 9px;
+    padding-inline: 8px;
+  }
+
+  .home .container .sidebar .navbar .user .navProfile span {
+    max-width: 82px;
+  }
+}
