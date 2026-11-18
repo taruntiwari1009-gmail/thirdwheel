@@ -75,8 +75,8 @@ const Search = () => {
     if (!currentUser?.uid || !selected?.uid || selectingUid) return;
     setSelectingUid(selected.uid); setErr("");
     try {
-      await getOrCreateConversation(currentUser.uid, selected.uid);
-      dispatch({ type: "CHANGE_USER", payload: selected });
+      const conversation = await getOrCreateConversation(currentUser.uid, selected.uid);
+      dispatch({ type: "CHANGE_USER", payload: selected, chatId: conversation.id });
       setUsers([]); setTerm("");
     } catch (error) {
       console.error("Unable to open conversation:", error);
