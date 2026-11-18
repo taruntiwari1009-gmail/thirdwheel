@@ -57,31 +57,58 @@ export async function getProfile(uid) {
 
 export async function searchProfiles(term, currentUid, page = 0) {
   const client = assertSupabase();
-  const normalized = String(term || "").trim().toLowerCase().replace(/^@/, "").replace(/[\\%_]/g, "\\$&");
-  if (!normalized || !currentUid) return [];
-  const from = page * 30;
-  const to = from + 29;
-  const [names, usernames, blocks] = await Promise.all([
-    client.from("profiles").select("*").eq("discoverable", true).neq("id", currentUid)
-      .ilike("display_name_lower", `${normalized}%`).order("display_name").range(from, to),
-    client.from("profiles").select("*").eq("discoverable", true).neq("id", currentUid)
-      .ilike("username", `${normalized}%`).order("username").range(from, to),
-    client.from("user_blocks").select("blocker_id,blocked_id")
-      .or(`blocker_id.eq.${currentUid},blocked_id.eq.${currentUid}`),
-  ]);
-  const nameRows = unwrap(names) || [];
-  const usernameRows = unwrap(usernames) || [];
-  const blockRows = unwrap(blocks) || [];
-  const hidden = new Set(blockRows.flatMap(row => [row.blocker_id, row.blocked_id]).filter(id => id !== currentUid));
-  const byId = new Map();
-  [...nameRows, ...usernameRows].forEach(row => {
-    if (row.id !== currentUid && !hidden.has(row.id) && row.discoverable) byId.set(row.id, row);
-  });
-  return Promise.all([...byId.values()].map(async row => {
-    const profile = mapProfile(row);
-    profile.photoURL = row.photo_path ? await getSignedAssetUrl("avatars", row.photo_path) : "";
-    return profile;
-  }));
+  const normalized = String(term || "").trim().toLowerCase().replace(/^@/, "");
+  if (!normalized || !currentUid) return { profiles: [], hasMore: false };
+
+  // Quote the PostgREST value and escape LIKE metacharacters so punctuation in
+  // names/usernames cannot alter the OR expression.
+  const escapedTerm = normalized
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/[%_]/g, "\\$&");
+  const pattern = `"${escapedTerm}%"`;
+
+  const blockRows = unwrap(await client.from("user_blocks").select("blocker_id,blocked_id")
+    .or(`blocker_id.eq.${currentUid},blocked_id.eq.${currentUid}`)) || [];
+  const blockedIds = [...new Set(blockRows.flatMap(row => [row.blocker_id, row.blocked_id])
+    .filter(id => id && id !== currentUid))];
+
+  const pageNumber = Math.max(0, Math.floor(Number(page) || 0));
+  const from = pageNumber * 30;
+  let query = client.from("profiles")
+    .select("id,username,display_name,display_name_lower,photo_path,city,interests")
+    .eq("discoverable", true)
+    .neq("id", currentUid)
+    .or(`display_name_lower.ilike.${pattern},username.ilike.${pattern}`)
+    .order("display_name_lower", { ascending: true })
+    .order("id", { ascending: true })
+    .range(from, from + 29);
+
+  // Exclude blocks in SQL before pagination, so blocked profiles cannot consume
+  // a page slot or make the UI believe there are no more matches.
+  if (blockedIds.length) query = query.not("id", "in", `(${blockedIds.join(",")})`);
+
+  const rows = unwrap(await query) || [];
+  const photoPaths = [...new Set(rows.map(row => row.photo_path).filter(Boolean))];
+  let signedByPath = new Map();
+  if (photoPaths.length) {
+    const { data, error } = await client.storage.from("avatars").createSignedUrls(photoPaths, 3600);
+    if (error) {
+      // Search must still work when an individual avatar object is missing or
+      // a signing request fails; users can fall back to initials.
+      console.warn("Some search avatars could not be signed:", error);
+    } else {
+      signedByPath = new Map((data || []).map(asset => [asset.path, asset.signedUrl || ""]));
+    }
+  }
+
+  return {
+    profiles: rows.map(row => ({
+      ...mapProfile(row),
+      photoURL: row.photo_path ? signedByPath.get(row.photo_path) || "" : "",
+    })),
+    hasMore: rows.length === 30,
+  };
 }
 
 export async function getOrCreateConversation(currentUid, targetUid) {
@@ -422,16 +449,34 @@ export async function isUserBlocked(currentUid, targetUid) {
   return Boolean(row);
 }
 
-export async function setBlocked(currentUid, targetUid, blocked) {
+export async function setBlocked(currentUid, targetUid, shouldBlock) {
   const client = assertSupabase();
-  if (blocked) {
-    const { error } = await client.from("user_blocks").delete()
-      .eq("blocker_id", currentUid).eq("blocked_id", targetUid);
-    if (error) throw error;
+  if (!currentUid || !targetUid || currentUid === targetUid) {
+    throw new Error("You cannot block or unblock this account.");
+  }
+
+  if (shouldBlock) {
+    const { error } = await client.from("user_blocks")
+      .insert({ blocker_id: currentUid, blocked_id: targetUid });
+    if (error && error.code !== "23505") throw error;
+
+    // Preserve the conversation and messages for record/history, but remove
+    // the conversation from this user's inbox. RLS prevents new messages.
+    const conversation = await client.from("conversations").select("id")
+      .or(`and(participant_low.eq.${currentUid},participant_high.eq.${targetUid}),and(participant_low.eq.${targetUid},participant_high.eq.${currentUid})`)
+      .maybeSingle();
+    if (conversation.error) throw conversation.error;
+    if (conversation.data?.id) {
+      const hidden = await client.from("conversation_reads").update({ inbox_hidden: true })
+        .eq("conversation_id", conversation.data.id).eq("user_id", currentUid);
+      if (hidden.error) throw hidden.error;
+    }
     return;
   }
-  const { error } = await client.from("user_blocks").insert({ blocker_id: currentUid, blocked_id: targetUid });
-  if (error && error.code !== "23505") throw error;
+
+  const { error } = await client.from("user_blocks").delete()
+    .eq("blocker_id", currentUid).eq("blocked_id", targetUid);
+  if (error) throw error;
 }
 
 export async function listBlockedUsers(currentUid) {
@@ -502,6 +547,9 @@ export async function saveProfile(userId, profile, avatarFile, { removeAvatar = 
 
 export async function reportProfile(reporterId, targetUid, reason, details) {
   const client = assertSupabase();
+  const allowedReasons = new Set(["spam", "scam", "harassment", "threats", "stalking", "sexual_harassment", "underage", "inappropriate", "impersonation", "other"]);
+  if (!reporterId || !targetUid || reporterId === targetUid) throw new Error("Choose a profile to report.");
+  if (!allowedReasons.has(reason)) throw new Error("Choose a valid report reason.");
   return unwrap(await client.from("reports").insert({
     reporter_id: reporterId,
     target_user_id: targetUid,
