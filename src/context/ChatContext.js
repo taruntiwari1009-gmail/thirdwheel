@@ -9,7 +9,7 @@ export const chatReducer = (state, action) => {
   switch (action.type) {
     case "CHANGE_USER": {
       const selectedUser = action.payload;
-      if (!action.chatId || !selectedUser?.uid) return state;
+      if (!action.chatId || !selectedUser?.uid || selectedUser.uid === action.currentUserId) return state;
       return { user: selectedUser, chatId: action.chatId };
     }
     case "RESET":
@@ -27,7 +27,7 @@ export const ChatContextProvider = ({ children }) => {
     dispatch({ type: "RESET" });
   }, [currentUser?.uid]);
 
-  const dispatchWithCurrentUser = action => dispatch(action);
+  const dispatchWithCurrentUser = action => dispatch({ ...action, currentUserId: currentUser?.uid });
 
   return (
     <ChatContext.Provider value={{ data: state, dispatch: dispatchWithCurrentUser }}>
