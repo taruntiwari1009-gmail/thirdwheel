@@ -66,7 +66,7 @@ export const AuthContextProvider = ({ children }) => {
       console.warn("Profile metadata could not be loaded:", error);
     });
     return () => { active = false; };
-  }, [session?.user?.id, session?.user?.user_metadata, session?.user?.app_metadata]);
+  }, [session?.user]);
 
   const refreshCurrentUser = useCallback(async () => {
     if (!supabase) return null;
