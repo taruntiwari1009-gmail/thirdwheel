@@ -70,11 +70,11 @@ export default function Profile() {
     if (!confirmed) return;
     setActionBusy(true); setError("");
     try {
-      await setBlocked(currentUser.uid, id, blocked);
+      await setBlocked(currentUser.uid, id, !blocked);
       setBlockedState(!blocked);
       setNotice(blocked
         ? "This person has been unblocked. You can start a new conversation again."
-        : "This person is blocked. New messages between you are disabled.");
+        : "This person is blocked. New messages are disabled and the conversation has been hidden from your inbox.");
     } catch (actionError) {
       console.error("Unable to update block settings:", actionError);
       setError("This action couldn't be completed. Please try again.");
@@ -130,12 +130,12 @@ export default function Profile() {
     </section>
     {!owner && <section className="profileActions profileSafetyActions" aria-label="Profile safety controls">
       <button type="button" className="secondaryAction" onClick={toggleBlock} disabled={actionBusy}>{actionBusy ? "Please wait…" : blocked ? "Unblock person" : "Block person"}</button>
-      <button type="button" className="textAction" onClick={() => setReportOpen(value => !value)}>Report profile</button>
+      <button type="button" className="textAction" onClick={() => setReportOpen(value => !value)} disabled={actionBusy} aria-expanded={reportOpen}>Report profile</button>
     </section>}
     {reportOpen && <form className="reportForm profileReportForm" onSubmit={submitReport}>
       <h2>Report this profile</h2>
       <label>What's the issue?
-        <select value={reason} onChange={event => setReason(event.target.value)}>
+        <select required value={reason} onChange={event => setReason(event.target.value)}>
           <option value="spam">Spam</option><option value="scam">Scam or fraud</option>
           <option value="harassment">Harassment or bullying</option><option value="threats">Threats or intimidation</option>
           <option value="stalking">Stalking or unwanted contact</option><option value="sexual_harassment">Sexual harassment</option>
