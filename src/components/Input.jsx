@@ -358,7 +358,9 @@ const Input = () => {
       {pendingItems.map(item => {
         const isSending = item.key === sendingKey || item.status === "sending";
         const label = isSending
-          ? (sendingStage === "uploading" ? "Uploading attachment…" : sendingStage === "saving" ? "Saving message…" : "Sending…")
+          ? (sendingStage === "uploading"
+            ? (typeof sendingPercent === "number" ? "Uploading attachment · " + sendingPercent + "%" : "Uploading attachment…")
+            : sendingStage === "saving" ? "Saving message…" : "Sending…")
           : statusLabel(item);
         return <article className="pendingMessageItem" key={item.key}>
           <div className="pendingMessageCopy">
