@@ -143,7 +143,7 @@ export async function listInbox(currentUid) {
     const theirs = readByKey.get(`${conversation.id}:${peerId}`) || {};
     const unreadResult = await client.from("messages").select("id", { count: "exact", head: true })
       .eq("conversation_id", conversation.id)
-      .neq("sender_id", currentUid)
+      .or(`sender_id.is.null,sender_id.neq.${currentUid}`)
       .gt("created_at", mine.last_read_at || "1970-01-01T00:00:00.000Z");
     if (unreadResult.error) throw unreadResult.error;
     return {
