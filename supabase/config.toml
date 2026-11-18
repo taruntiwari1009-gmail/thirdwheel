@@ -45,3 +45,12 @@ verify_jwt = true
 
 [functions.account-deletion-process]
 verify_jwt = true
+
+[functions.moderation-list-users]
+verify_jwt = true
+
+[functions.moderation-list-audit]
+verify_jwt = true
+
+[functions.account-deletion-reject]
+verify_jwt = true
