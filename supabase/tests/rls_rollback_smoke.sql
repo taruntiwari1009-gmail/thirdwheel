@@ -56,14 +56,13 @@ update public.profiles set discoverable=false where id=auth.uid();
 
 -- Insert a temporary avatar object as the database owner for Storage policy tests.
 reset role;
-insert into storage.objects (bucket_id, name, owner, owner_id, metadata, path_tokens)
+insert into storage.objects (bucket_id, name, owner, owner_id, metadata)
 values (
   'avatars',
   '10000000-0000-4000-8000-000000000002/profile.png',
   '10000000-0000-4000-8000-000000000002',
   '10000000-0000-4000-8000-000000000002',
-  '{"mimetype":"image/png","size":1}'::jsonb,
-  array['10000000-0000-4000-8000-000000000002','profile.png']
+  '{"mimetype":"image/png","size":1}'::jsonb
 );
 
 -- C is not a participant and cannot see B's private profile or avatar.
