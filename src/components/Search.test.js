@@ -22,14 +22,15 @@ const renderSearch = () => render(
 
 beforeEach(() => {
   jest.clearAllMocks();
-  searchProfiles.mockResolvedValue([]);
+  searchProfiles.mockResolvedValue({ profiles: [], hasMore: false });
 });
 
 describe("Supabase people search", () => {
   test("normalizes a name query and renders discoverable results from the backend service", async () => {
-    searchProfiles.mockResolvedValueOnce([
-      { uid: "alice", displayName: "Alice", username: "alice", discoverable: true },
-    ]);
+    searchProfiles.mockResolvedValueOnce({
+      profiles: [{ uid: "alice", displayName: "Alice", username: "alice", discoverable: true }],
+      hasMore: false,
+    });
     renderSearch();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "ALI" } });
     expect(await screen.findByText("Alice")).toBeInTheDocument();
@@ -37,9 +38,10 @@ describe("Supabase people search", () => {
   });
 
   test("normalizes @username searches", async () => {
-    searchProfiles.mockResolvedValueOnce([
-      { uid: "tarun", displayName: "Tarun Tiwari", username: "tarun_t", discoverable: true },
-    ]);
+    searchProfiles.mockResolvedValueOnce({
+      profiles: [{ uid: "tarun", displayName: "Tarun Tiwari", username: "tarun_t", discoverable: true }],
+      hasMore: false,
+    });
     renderSearch();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "@Tarun" } });
     expect(await screen.findByText("Tarun Tiwari")).toBeInTheDocument();
@@ -47,9 +49,10 @@ describe("Supabase people search", () => {
   });
 
   test("opens a real Supabase conversation and sends its UUID to chat state", async () => {
-    searchProfiles.mockResolvedValueOnce([
-      { uid: "alice", displayName: "Alice", username: "alice", discoverable: true },
-    ]);
+    searchProfiles.mockResolvedValueOnce({
+      profiles: [{ uid: "alice", displayName: "Alice", username: "alice", discoverable: true }],
+      hasMore: false,
+    });
     getOrCreateConversation.mockResolvedValue({ id: "conversation-uuid-123" });
     renderSearch();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alice" } });
