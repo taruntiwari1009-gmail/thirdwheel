@@ -59,6 +59,7 @@ const Login = () => {
           </label>
           <div className="authFormMeta"><Link to="/forgot-password">Forgot password?</Link></div>
           <button type="submit" disabled={loading || !supabase}>{loading ? "Signing in…" : "Sign in"}</button>
+          {!supabase && <p role="alert" className="errorText">Sign-in is unavailable because this deployment is not connected to Supabase. Check the Netlify environment variables.</p>}
           {err && <p role="alert" className="errorText">{err}</p>}
         </form>
         <p className="authFooter">New here? <Link to="/register">Create an account</Link></p>
