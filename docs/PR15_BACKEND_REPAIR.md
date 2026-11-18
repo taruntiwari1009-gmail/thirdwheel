@@ -38,7 +38,7 @@ Do not attempt to fix this by reintroducing or migrating Firebase authentication
 
 ## Required fixes in this PR
 
-- [x] Add a versioned database migration (`20261118125611_profile_self_update_grant.sql`) that grants `UPDATE` only on the profile fields used by `saveProfile()` to `authenticated`. Keep the existing self-only RLS `USING` and `WITH CHECK` policy; do not grant INSERT or DELETE to browser users. The migration is committed to this PR only and has **not** been applied to the hosted Supabase project.
+- [x] Add a versioned database migration (`20261118133753_profile_self_update_grant.sql`) that grants `UPDATE` only on the profile fields used by `saveProfile()` to `authenticated`. Keep the existing self-only RLS `USING` and `WITH CHECK` policy; do not grant INSERT or DELETE to browser users. The migration is committed to this PR only and has **not** been applied to the hosted Supabase project.
 - [x] Add a source check for the least-privilege UPDATE grant and a rollback-only RLS smoke test covering owner profile update success and non-member update denial.
 - [ ] Verify the Auth trigger and profile metadata mapping remain aligned with the registration form.
 - [ ] Make auth failures diagnosable in the UI/console without exposing passwords, tokens, publishable keys, or server secrets.
