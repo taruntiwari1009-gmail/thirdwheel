@@ -42,10 +42,13 @@ export default function BlockedUsers() {
   };
 
   return <main className="pageShell blockedUsersPage">
-    <header className="pageHeader">
+    <header className="pageHeader blockedPageHeader">
       <Link to="/" className="textLink">← Third Wheel</Link>
-      <h1>Blocked accounts</h1>
-      <p className="muted">People you block can't exchange new messages with you. Blocking also removes their conversation from your inbox.</p>
+      <div className="pageIntro">
+        <span className="eyebrow">YOUR PRIVACY</span>
+        <h1>Blocked accounts</h1>
+        <p className="muted">People you block can't exchange new messages with you. Blocking also removes their conversation from your inbox.</p>
+      </div>
     </header>
     {notice && <p className="successText" role="status">{notice}</p>}
     {error && <p className="errorText" role="alert">{error}</p>}
