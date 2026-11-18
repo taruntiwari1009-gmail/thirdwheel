@@ -10,6 +10,7 @@ import BlockedUsers from "./pages/BlockedUsers";
 import ModeratorDashboard from "./pages/ModeratorDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import "./style.scss";
+import "./styles/glass-ui.scss";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function App() {
