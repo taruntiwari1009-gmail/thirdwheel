@@ -260,7 +260,6 @@ const Input = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const currentSending = pendingItems.find(item => item.key === sendingKey);
   const hasPending = pendingItems.length > 0;
 
   return <form className="input" onSubmit={handleSend}>
