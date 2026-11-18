@@ -37,6 +37,7 @@ const Input = () => {
   const [notice, setNotice] = useState("");
   const fileInputRef = useRef(null);
   const activeSendRef = useRef(null);
+  const autoAttemptedRef = useRef(new Set());
   const enqueueRef = useRef(false);
   const contextRef = useRef(null);
   const sendStoredRef = useRef(null);
@@ -144,7 +145,10 @@ const Input = () => {
       await updateOutboxMessage(entry.key, { status: "retry", lastError: message }).catch(storeError => {
         console.error("Unable to persist retry state:", storeError);
       });
-      setError("A message is waiting to be retried. Its message ID is saved, so retrying will not create a duplicate.");
+      const activeContext = contextRef.current;
+      if (activeContext.userId === entry.userId && activeContext.conversationId === entry.conversationId) {
+        setError("A message is waiting to be retried. Its message ID is saved, so retrying will not create a duplicate.");
+      }
     } finally {
       activeSendRef.current = null;
       setSendingKey("");
@@ -166,8 +170,11 @@ const Input = () => {
     let active = true;
     listOutboxMessages(userId).then(items => {
       if (!active || activeSendRef.current) return;
-      const next = items.find(item => item.status === "queued");
-      if (next) sendStoredRef.current?.(next);
+      const next = items.find(item => item.status === "queued" && !autoAttemptedRef.current.has(item.key));
+      if (next) {
+        autoAttemptedRef.current.add(next.key);
+        sendStoredRef.current?.(next);
+      }
     }).catch(queueError => {
       console.warn("Unable to inspect queued messages:", queueError);
     });
