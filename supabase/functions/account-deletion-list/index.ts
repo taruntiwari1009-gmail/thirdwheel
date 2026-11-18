@@ -1,7 +1,7 @@
 import { requireUser, isOwner, errorStatus } from "./_shared/auth.ts";
 import { corsHeaders, handlePreflight, jsonResponse } from "./_shared/http.ts";
 
-const VALID_STATUSES = new Set(["pending_review", "approved", "processing"]);
+const VALID_STATUSES = new Set(["pending_review", "approved", "processing", "rejected"]);
 
 Deno.serve(async req => {
   const preflight = handlePreflight(req);
