@@ -118,7 +118,7 @@ export default function Profile() {
       <Link to="/" className="textLink">← Third Wheel</Link>
       {owner && <Link className="primaryLink" to="/profile/edit">Edit profile</Link>}
     </header>
-    <section className="profileHero">
+    <section className="profileHero profileHero--main">
       {profile.photoURL ? <img className="profileAvatar" src={profile.photoURL} alt="" /> : <span className="profileAvatar profileAvatarFallback" aria-hidden="true">{(profile.displayName || "T").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
       <div>
         <p className="eyebrow">COMMUNITY PROFILE</p>
@@ -128,11 +128,11 @@ export default function Profile() {
         <p className="muted">{profile.city || "Location not added"}</p>
       </div>
     </section>
-    {!owner && <section className="profileActions" aria-label="Profile safety controls">
+    {!owner && <section className="profileActions profileSafetyActions" aria-label="Profile safety controls">
       <button type="button" className="secondaryAction" onClick={toggleBlock} disabled={actionBusy}>{actionBusy ? "Please wait…" : blocked ? "Unblock person" : "Block person"}</button>
       <button type="button" className="textAction" onClick={() => setReportOpen(value => !value)}>Report profile</button>
     </section>}
-    {reportOpen && <form className="reportForm" onSubmit={submitReport}>
+    {reportOpen && <form className="reportForm profileReportForm" onSubmit={submitReport}>
       <h2>Report this profile</h2>
       <label>What's the issue?
         <select value={reason} onChange={event => setReason(event.target.value)}>
@@ -148,7 +148,7 @@ export default function Profile() {
       </label>
       <div className="formActions"><button type="button" className="secondaryAction" onClick={() => setReportOpen(false)}>Cancel</button><button type="submit" disabled={actionBusy}>{actionBusy ? "Submitting…" : "Submit report"}</button></div>
     </form>}
-    {owner && <section className="profileSection accountDangerZone">
+    {owner && <section className="profileSection accountDangerZone profileAccountSection">
       <h2>Account controls</h2>
       <p className="muted">Request permanent account deletion. This requires review before it begins. Shared conversations and messages will be retained for the other participant.</p>
       {deletionStatus && <p className="muted small" role="status">Deletion request status: {deletionStatus.replaceAll("_", " ")}</p>}
@@ -158,8 +158,8 @@ export default function Profile() {
     </section>}
     {notice && <p className="successText" role="status">{notice}</p>}
     {error && <p className="errorText" role="alert">{error}</p>}
-    {profile.bio && <section className="profileSection"><h2>About</h2><p>{profile.bio}</p></section>}
-    <section className="profileGrid">
+    {profile.bio && <section className="profileSection profileAboutSection"><span className="eyebrow">A LITTLE ABOUT ME</span><h2>About</h2><p>{profile.bio}</p></section>}
+    <section className="profileGrid profileDetailGrid">
       {[
         ["Interests", profile.interests], ["Hobbies", profile.hobbies], ["Languages", profile.languages],
         ["Education", [profile.education, profile.institution, profile.graduationYear]], ["Connect over", profile.connectionGoals]
@@ -170,7 +170,7 @@ export default function Profile() {
           : <p className="muted small">Not added yet</p>}</div>;
       })}
     </section>
-    <section className="profileSection"><h2>Elsewhere</h2><div className="linkRow">
+    <section className="profileSection profileLinksSection"><span className="eyebrow">AROUND THE WEB</span><h2>Elsewhere</h2><div className="linkRow">
       {safeExternalUrl(profile.website) && <a href={safeExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer">Website</a>}
       {safeExternalUrl(profile.instagram) && <a href={safeExternalUrl(profile.instagram)} target="_blank" rel="noopener noreferrer">Instagram</a>}
       {safeExternalUrl(profile.linkedin) && <a href={safeExternalUrl(profile.linkedin)} target="_blank" rel="noopener noreferrer">LinkedIn</a>}
