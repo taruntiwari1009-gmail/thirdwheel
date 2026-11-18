@@ -10,17 +10,18 @@ This checklist is a gate, not an authorization to deploy. PR #14 remains open, d
 - [x] Realtime enabled for messages, conversations and read receipts.
 - [x] Server-side message/report throttles and block inbox trigger applied.
 - [x] Atomic moderation review/audit database function applied and restricted to `service_role`.
-- [x] Six JWT-verified Edge Functions deployed.
+- [x] Six JWT-verified Edge Functions deployed; account-deletion approval and processing are version 3.
 - [x] Supabase security and health advisors return no findings.
+- [x] Rollback-only RLS smoke test passed for participant/non-member reads, block enforcement, private profile/avatar visibility and stale deleted-user JWT denial.
 - [x] No Supabase Auth accounts or application records have been seeded.
 - [ ] Owner's Supabase Auth account created and protected `owner: true` app_metadata claim provisioned.
 - [ ] Exact hosted frontend origin(s) configured in the Edge Function `ALLOWED_ORIGINS` secret.
 
 ## 2. Code and CI gate
 
-- [ ] Supabase client, auth context, pages and messaging flows pass the full React test suite.
-- [ ] Production build passes on Node.js 22+.
-- [ ] Supabase source checks pass.
+- [x] Supabase client, auth context, pages and messaging flows pass the React test suite (33 tests).
+- [x] Production build passes on Node.js 22+.
+- [x] Supabase source/security checks pass on the verified head; rerun for the latest documentation-only commits is pending.
 - [ ] All Firebase SDK imports and emulator workflows are removed from the active app pipeline.
 - [ ] Review package lock and dependency audit output.
 - [ ] Review schema migrations and deployed Edge Function source hashes against the PR branch.
