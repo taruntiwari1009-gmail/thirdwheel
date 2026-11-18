@@ -90,8 +90,8 @@ export default function EditProfile() {
   return <main className="pageShell editPage">
     <header className="pageHeader"><Link to="/profile">← Your profile</Link><p className="eyebrow">MAKE IT YOURS</p></header>
     <h1>Edit your profile</h1><p className="muted">Share as much or as little as you like. Only your display name is required.</p>
-    <form className="profileForm" onSubmit={save}>
-      <section className="profilePreview" aria-label="Live profile preview">
+    <form className="profileForm profileEditForm" onSubmit={save}>
+      <section className="profilePreview profilePreviewCard" aria-label="Live profile preview">
         <p className="eyebrow">PREVIEW</p>
         <div className="profilePreviewIdentity">
           {form.photoURL && !avatar ? <img src={form.photoURL} alt="" /> : <span className="profilePreviewAvatar" aria-hidden="true">{getProfileInitials(form.displayName || currentUser?.displayName)}</span>}
@@ -118,7 +118,7 @@ export default function EditProfile() {
       </label>)}
       <p className="muted small">Usernames are unique and reserved without regard to letter case. People can find you by display name. Turn off search visibility to hide your profile from discovery. Your email and authentication details are never public.</p>
       {error && <p role="alert" className="errorText">{error}</p>}
-      <div className="formActions"><Link to="/profile">Cancel</Link><button disabled={saving}>{saving ? "Saving…" : "Save profile"}</button></div>
+      <div className="formActions profileFormActions"><Link to="/profile">Cancel</Link><button disabled={saving}>{saving ? "Saving…" : "Save profile"}</button></div>
     </form>
   </main>;
 }
