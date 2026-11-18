@@ -1,9 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
-import { doc, getDoc, serverTimestamp, writeBatch } from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link, useParams } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { db } from "../firebase";
+import {
+  getAccountDeletionStatus, getProfile, isUserBlocked, reportProfile,
+  requestAccountDeletion, setBlocked,
+} from "../services/backend";
 import { safeExternalUrl } from "../utils/profile";
 
 const EMPTY = {
@@ -21,7 +22,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlockedState] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reason, setReason] = useState("spam");
@@ -31,26 +32,24 @@ export default function Profile() {
 
   useEffect(() => {
     let active = true;
-    if (!id) return undefined;
-    setLoading(true);
-    setError("");
-    setNotice("");
+    if (!id) { setLoading(false); return undefined; }
+    setLoading(true); setError(""); setNotice("");
     const load = async () => {
-      const snapshot = await getDoc(doc(db, "publicProfiles", id));
+      const loaded = await getProfile(id);
       if (!active) return;
-      if (!snapshot.exists()) {
+      if (!loaded) {
         setError("This profile isn't available.");
         setLoading(false);
         return;
       }
-      setProfile({ ...EMPTY, ...snapshot.data() });
+      setProfile({ ...EMPTY, ...loaded });
       if (owner && currentUser?.uid) {
-        const deletionRequest = await getDoc(doc(db, "accountDeletionRequests", currentUser.uid));
-        if (active && deletionRequest.exists()) setDeletionStatus(deletionRequest.data().status || "");
+        const status = await getAccountDeletionStatus(currentUser.uid);
+        if (active) setDeletionStatus(status);
       }
       if (!owner && currentUser?.uid) {
-        const block = await getDoc(doc(db, "users", currentUser.uid, "blockedUsers", id));
-        if (active) setBlocked(block.exists());
+        const isBlocked = await isUserBlocked(currentUser.uid, id);
+        if (active) setBlockedState(isBlocked);
       }
       if (active) setLoading(false);
     };
@@ -58,11 +57,7 @@ export default function Profile() {
       if (!active) return;
       console.error("Unable to load profile:", loadError);
       setProfile(EMPTY);
-      setError(loadError.code === "permission-denied" || loadError.code === "not-found"
-        ? "This profile isn't available. It may be private or no longer discoverable."
-        : loadError.code === "unavailable" || loadError.code === "deadline-exceeded"
-          ? "This profile couldn't be loaded because of a connection issue. Please try again."
-          : "We couldn't load this profile. Please try again.");
+      setError("We couldn't load this profile. It may be private or unavailable.");
     }).finally(() => active && setLoading(false));
     return () => { active = false; };
   }, [id, owner, currentUser?.uid]);
@@ -71,74 +66,48 @@ export default function Profile() {
     if (!currentUser?.uid || !id || owner || actionBusy) return;
     const confirmed = window.confirm(blocked
       ? "Unblock this person? They may be able to contact you again."
-      : "Block this person? You won't be able to exchange messages with them.");
+      : "Block this person? You won't be able to exchange new messages with them.");
     if (!confirmed) return;
-    setActionBusy(true);
-    setError("");
+    setActionBusy(true); setError("");
     try {
-      const batch = writeBatch(db);
-      const blockRef = doc(db, "users", currentUser.uid, "blockedUsers", id);
-      const reverseBlockRef = doc(db, "users", id, "blockedBy", currentUser.uid);
-      if (blocked) {
-        batch.delete(blockRef);
-        batch.delete(reverseBlockRef);
-        await batch.commit();
-        setBlocked(false);
-        setNotice("This person has been unblocked.");
-      } else {
-        batch.set(blockRef, { createdAt: serverTimestamp() });
-        batch.set(reverseBlockRef, { createdAt: serverTimestamp() });
-        const inboxRef = doc(db, "users", currentUser.uid, "userChats", [currentUser.uid, id].sort().join(""));
-        const inboxEntry = await getDoc(inboxRef);
-        if (inboxEntry.exists()) batch.delete(inboxRef);
-        await batch.commit();
-        setBlocked(true);
-        setNotice("This person is blocked. New messages between you are disabled.");
-      }
+      await setBlocked(currentUser.uid, id, blocked);
+      setBlockedState(!blocked);
+      setNotice(blocked
+        ? "This person has been unblocked. You can start a new conversation again."
+        : "This person is blocked. New messages between you are disabled.");
     } catch (actionError) {
       console.error("Unable to update block settings:", actionError);
       setError("This action couldn't be completed. Please try again.");
-    } finally {
-      setActionBusy(false);
-    }
+    } finally { setActionBusy(false); }
   };
 
   const requestDeletion = async () => {
-    if (!currentUser?.uid || !owner || actionBusy || deletionStatus === "pending_review" || deletionStatus === "approved" || deletionStatus === "processing" || deletionStatus === "completed") return;
-    const confirmed = window.confirm("Request deletion of your Third Wheel account? An owner must review the request before deletion begins. If approved, your profile and account will be removed, while shared conversations remain for the other participant and show “Deleted account.”");
+    if (!currentUser?.uid || !owner || actionBusy || ["pending_review","approved","processing","completed"].includes(deletionStatus)) return;
+    const confirmed = window.confirm("Request deletion of your Third Wheel account? An owner must review the request before deletion begins. Shared conversations will remain for the other participant.");
     if (!confirmed) return;
-    setActionBusy(true);
-    setError("");
+    setActionBusy(true); setError("");
     try {
-      const request = httpsCallable(getFunctions(), "requestAccountDeletion");
-      const result = await request();
-      setDeletionStatus(result.data.status || "pending_review");
+      const request = await requestAccountDeletion(currentUser.uid);
+      setDeletionStatus(request.status || "pending_review");
       setNotice("Your account deletion request has been submitted for review. Your account remains active until an owner approves and processes it.");
     } catch (requestError) {
       console.error("Unable to request account deletion:", requestError);
       setError("Your deletion request couldn't be submitted. Please try again.");
-    } finally {
-      setActionBusy(false);
-    }
+    } finally { setActionBusy(false); }
   };
 
   const submitReport = async event => {
     event.preventDefault();
     if (!currentUser?.uid || !id || owner || actionBusy) return;
-    setActionBusy(true);
-    setError("");
+    setActionBusy(true); setError("");
     try {
-      const submitReport = httpsCallable(getFunctions(), "submitReport");
-      await submitReport({ targetUid: id, reason, details: details.trim().slice(0, 500) });
-      setReportOpen(false);
-      setDetails("");
+      await reportProfile(currentUser.uid, id, reason, details);
+      setReportOpen(false); setDetails("");
       setNotice("Thank you. Your report has been submitted for review.");
     } catch (reportError) {
       console.error("Unable to submit report:", reportError);
       setError("Your report couldn't be submitted. Please try again.");
-    } finally {
-      setActionBusy(false);
-    }
+    } finally { setActionBusy(false); }
   };
 
   if (loading) return <main className="pageShell"><p role="status">Loading profile…</p></main>;
@@ -167,16 +136,11 @@ export default function Profile() {
       <h2>Report this profile</h2>
       <label>What's the issue?
         <select value={reason} onChange={event => setReason(event.target.value)}>
-          <option value="spam">Spam</option>
-          <option value="scam">Scam or fraud</option>
-          <option value="harassment">Harassment or bullying</option>
-          <option value="threats">Threats or intimidation</option>
-          <option value="stalking">Stalking or unwanted contact</option>
-          <option value="sexual_harassment">Sexual harassment</option>
-          <option value="underage">Suspected underage account</option>
-          <option value="inappropriate">Inappropriate content</option>
-          <option value="impersonation">Impersonation</option>
-          <option value="other">Something else</option>
+          <option value="spam">Spam</option><option value="scam">Scam or fraud</option>
+          <option value="harassment">Harassment or bullying</option><option value="threats">Threats or intimidation</option>
+          <option value="stalking">Stalking or unwanted contact</option><option value="sexual_harassment">Sexual harassment</option>
+          <option value="underage">Suspected underage account</option><option value="inappropriate">Inappropriate content</option>
+          <option value="impersonation">Impersonation</option><option value="other">Something else</option>
         </select>
       </label>
       <label>Additional details (optional)
@@ -188,7 +152,7 @@ export default function Profile() {
       <h2>Account controls</h2>
       <p className="muted">Request permanent account deletion. This requires review before it begins. Shared conversations and messages will be retained for the other participant.</p>
       {deletionStatus && <p className="muted small" role="status">Deletion request status: {deletionStatus.replaceAll("_", " ")}</p>}
-      <button type="button" className="secondaryAction" onClick={requestDeletion} disabled={actionBusy || ["pending_review", "approved", "processing", "completed"].includes(deletionStatus)}>
+      <button type="button" className="secondaryAction" onClick={requestDeletion} disabled={actionBusy || ["pending_review","approved","processing","completed"].includes(deletionStatus)}>
         {actionBusy ? "Submitting…" : deletionStatus === "completed" ? "Account deleted" : deletionStatus ? "Deletion request submitted" : "Request account deletion"}
       </button>
     </section>}
@@ -196,9 +160,14 @@ export default function Profile() {
     {error && <p className="errorText" role="alert">{error}</p>}
     {profile.bio && <section className="profileSection"><h2>About</h2><p>{profile.bio}</p></section>}
     <section className="profileGrid">
-      {[["Interests", profile.interests], ["Hobbies", profile.hobbies], ["Languages", profile.languages], ["Education", [profile.education, profile.institution, profile.graduationYear]], ["Connect over", profile.connectionGoals]].map(([title, values]) => {
+      {[
+        ["Interests", profile.interests], ["Hobbies", profile.hobbies], ["Languages", profile.languages],
+        ["Education", [profile.education, profile.institution, profile.graduationYear]], ["Connect over", profile.connectionGoals]
+      ].map(([title, values]) => {
         const items = list(values).filter(Boolean);
-        return <div className="profileSection" key={title}><h2>{title}</h2>{items.length ? <div className="profileTags">{items.map(item => <span className="profileTag" key={item}>{item}</span>)}</div> : <p className="muted small">Not added yet</p>}</div>;
+        return <div className="profileSection" key={title}><h2>{title}</h2>{items.length
+          ? <div className="profileTags">{items.map(item => <span className="profileTag" key={item}>{item}</span>)}</div>
+          : <p className="muted small">Not added yet</p>}</div>;
       })}
     </section>
     <section className="profileSection"><h2>Elsewhere</h2><div className="linkRow">
