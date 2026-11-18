@@ -367,6 +367,13 @@ export async function reportProfile(reporterId, targetUid, reason, details) {
   }).select("id,status,created_at").single());
 }
 
+export async function getAccountDeletionStatus(userId) {
+  const client = assertSupabase();
+  const row = unwrap(await client.from("account_deletion_requests").select("status")
+    .eq("user_id", userId).maybeSingle());
+  return row?.status || "";
+}
+
 export async function requestAccountDeletion(userId) {
   const client = assertSupabase();
   const { data, error } = await client.from("account_deletion_requests")
