@@ -84,7 +84,7 @@ values (
 set local role authenticated;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-do $
+do $private_profile_visibility$
 declare n_profile integer; n_avatar integer;
 begin
   select count(*) into n_profile from public.profiles
@@ -93,7 +93,7 @@ begin
   where bucket_id='avatars' and name='10000000-0000-4000-8000-000000000002/profile.png';
   if n_profile <> 0 then raise exception 'PRIVATE_PROFILE_READ_CHECK_FAILED'; end if;
   if n_avatar <> 0 then raise exception 'PRIVATE_AVATAR_READ_CHECK_FAILED'; end if;
-end $;
+end $private_profile_visibility$;
 
 -- A non-member cannot update another user's profile, even though UPDATE is
 -- granted to authenticated users at the SQL privilege layer.
