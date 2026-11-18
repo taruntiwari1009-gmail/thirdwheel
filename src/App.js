@@ -5,6 +5,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
+import AccountSettings from "./pages/AccountSettings";
 import BlockedUsers from "./pages/BlockedUsers";
 import ModeratorDashboard from "./pages/ModeratorDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -21,6 +22,7 @@ function App() {
     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     <Route path="/profile/:uid" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     <Route path="/profile/edit" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
+    <Route path="/settings/account" element={<ProtectedRoute><AccountSettings /></ProtectedRoute>} />
     <Route path="/settings/blocked" element={<ProtectedRoute><BlockedUsers /></ProtectedRoute>} />    <Route path="/moderation" element={<ProtectedRoute><ModeratorDashboard /></ProtectedRoute>} />
   </Routes></BrowserRouter>;
 }
