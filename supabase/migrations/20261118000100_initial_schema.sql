@@ -50,7 +50,7 @@ create table public.conversation_reads (
   last_read_at timestamptz,
   inbox_hidden boolean not null default false,
   updated_at timestamptz not null default now(),
-  primary key (conversation_id, user_id),
+  primary key (conversation_id, user_id)
 );
 
 create table public.user_blocks (
