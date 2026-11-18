@@ -1,5 +1,5 @@
-import { requireUser, isModerator, errorStatus } from "../_shared/auth.ts";
-import { corsHeaders, handlePreflight, jsonResponse } from "../_shared/http.ts";
+import { requireUser, isModerator, errorStatus } from "./_shared/auth.ts";
+import { corsHeaders, handlePreflight, jsonResponse } from "./_shared/http.ts";
 
 const VALID_STATUSES = new Set(["reviewing", "actioned", "dismissed"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
