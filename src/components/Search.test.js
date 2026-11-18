@@ -55,11 +55,11 @@ describe("Supabase people search", () => {
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alice" } });
     fireEvent.click(await screen.findByRole("button", { name: "Say hello" }));
     await waitFor(() => expect(getOrCreateConversation).toHaveBeenCalledWith("current-user", "alice"));
-    expect(dispatch).toHaveBeenCalledWith({
+    await waitFor(() => expect(dispatch).toHaveBeenCalledWith({
       type: "CHANGE_USER",
       payload: expect.objectContaining({ uid: "alice" }),
       chatId: "conversation-uuid-123",
-    });
+    }));
   });
 
   test("shows an empty result message", async () => {
