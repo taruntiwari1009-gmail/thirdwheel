@@ -16,15 +16,17 @@ const Chats = () => {
     if (!currentUser?.uid) { setChats([]); setLoading(false); setError(""); return undefined; }
     let active = true;
     let initial = true;
+    let refreshSequence = 0;
     const refresh = async () => {
+      const sequence = ++refreshSequence;
       try {
         const items = await listInbox(currentUser.uid);
-        if (!active) return;
+        if (!active || sequence !== refreshSequence) return;
         setChats(items);
         setError("");
       } catch (listenerError) {
         console.error("Unable to load conversations:", listenerError);
-        if (active) setError("Your conversations could not be loaded. Please refresh.");
+        if (active && sequence === refreshSequence) setError("Your conversations could not be loaded. Please refresh.");
       } finally {
         if (active) { setLoading(false); initial = false; }
       }
