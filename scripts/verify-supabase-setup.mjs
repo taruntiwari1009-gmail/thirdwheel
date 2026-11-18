@@ -17,6 +17,7 @@ const expectedMigrations = [
   "20261118091728_block_chat_image_upserts_after_block.sql",
   "20261118095256_require_active_profiles_for_private_access.sql",
   "20261118095318_atomic_account_deletion_approval.sql",
+  "20261118095751_active_profile_guard_for_profile_reads.sql",
 ];
 const missingMigrations = expectedMigrations.filter(name => !migrationNames.includes(name));
 const extraMigrations = migrationNames.filter(name => !expectedMigrations.includes(name));
@@ -89,6 +90,14 @@ for (const marker of [
   "PARTICIPANT_READ_CHECK_FAILED",
   "NON_MEMBER_READ_CHECK_FAILED",
   "BLOCK_WRITE_CHECK_FAILED",
+  "PRIVATE_PROFILE_READ_CHECK_FAILED",
+  "PRIVATE_AVATAR_READ_CHECK_FAILED",
+  "RELATED_PROFILE_READ_CHECK_FAILED",
+  "RELATED_AVATAR_READ_CHECK_FAILED",
+  "DELETED_SESSION_PROFILE_READ_CHECK_FAILED",
+  "DELETED_SESSION_MESSAGE_READ_CHECK_FAILED",
+  "DELETED_SESSION_READ_STATE_CHECK_FAILED",
+  "DELETED_SESSION_STORAGE_READ_CHECK_FAILED",
   "RLS_ROLLBACK_TEST_PASSED",
   "rollback;",
 ]) {
