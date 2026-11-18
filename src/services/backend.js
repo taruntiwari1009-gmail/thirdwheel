@@ -447,16 +447,21 @@ export async function listBlockedUsers(currentUid) {
   }));
 }
 
-export async function saveProfile(userId, profile, avatarFile) {
+export async function saveProfile(userId, profile, avatarFile, { removeAvatar = false } = {}) {
   const client = assertSupabase();
-  let photoPath = profile.photoPath || null;
+  const previousPhotoPath = profile.photoPath || null;
+  let photoPath = removeAvatar ? null : previousPhotoPath;
+  let uploadedPhotoPath = null;
+
   if (avatarFile) {
     const safeName = avatarFile.name.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 100) || "avatar";
     photoPath = `${userId}/${Date.now()}-${safeName}`;
     const { error } = await client.storage.from("avatars")
       .upload(photoPath, avatarFile, { contentType: avatarFile.type, upsert: false });
     if (error) throw error;
+    uploadedPhotoPath = photoPath;
   }
+
   const payload = {
     username: profile.username ? profile.username.toLowerCase() : null,
     display_name: profile.displayName.trim(),
@@ -476,12 +481,23 @@ export async function saveProfile(userId, profile, avatarFile) {
     linkedin: profile.linkedin || "",
     discoverable: profile.discoverable !== false,
   };
-  const { error } = await client.from("profiles").update(payload).eq("id", userId);
-  if (error) {
-    if (avatarFile && photoPath) await client.storage.from("avatars").remove([photoPath]).catch(() => {});
-    throw error;
+
+  const updated = await client.from("profiles").update(payload).eq("id", userId).select("id").maybeSingle();
+  if (updated.error || !updated.data) {
+    if (uploadedPhotoPath) await client.storage.from("avatars").remove([uploadedPhotoPath]).catch(() => {});
+    if (updated.error) throw updated.error;
+    throw new Error("Your profile could not be found. Refresh and try again.");
   }
-  return getProfile(userId);
+
+  // Keep the existing image until the profile update succeeds. A cleanup failure
+  // is non-fatal because the profile now points at the replacement or no image.
+  if (previousPhotoPath && previousPhotoPath !== photoPath) {
+    const { error: cleanupError } = await client.storage.from("avatars").remove([previousPhotoPath]);
+    if (cleanupError) console.warn("Previous avatar cleanup failed:", cleanupError);
+  }
+
+  // The caller refreshes AuthContext once after the update; avoid a duplicate profile read here.
+  return null;
 }
 
 export async function reportProfile(reporterId, targetUid, reason, details) {
