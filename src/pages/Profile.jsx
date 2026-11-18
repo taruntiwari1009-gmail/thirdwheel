@@ -148,7 +148,7 @@ export default function Profile() {
       </label>
       <div className="formActions"><button type="button" className="secondaryAction" onClick={() => setReportOpen(false)}>Cancel</button><button type="submit" disabled={actionBusy}>{actionBusy ? "Submitting…" : "Submit report"}</button></div>
     </form>}
-    {owner && <section className="profileSection accountDangerZone profileAccountSection">
+    {owner && <section id="account-controls" className="profileSection accountDangerZone profileAccountSection">
       <h2>Account controls</h2>
       <p className="muted">Request permanent account deletion. This requires review before it begins. Shared conversations and messages will be retained for the other participant.</p>
       {deletionStatus && <p className="muted small" role="status">Deletion request status: {deletionStatus.replaceAll("_", " ")}</p>}
