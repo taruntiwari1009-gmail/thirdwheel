@@ -46,6 +46,7 @@ describe("chatReducer", () => {
       chatReducer(initialState, {
         type: "CHANGE_USER",
         chatId: "supabase-conversation-uuid",
+        currentUserId: "user-a",
         payload: { uid: "user-a" },
       })
     ).toBe(initialState);
