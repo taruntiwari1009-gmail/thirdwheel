@@ -1,4 +1,4 @@
-import { supabase } from "../supabase";
+import { supabase, supabaseUrl, supabasePublishableKey } from "../supabase";
 
 const PAGE_SIZE = 50;
 
@@ -236,20 +236,115 @@ export async function markConversationRead(conversationId, userId) {
   if (error) throw error;
 }
 
-export async function sendMessage({ conversationId, senderId, text, image, clientMessageId, onProgress }) {
+function createUploadAbortError() {
+  const error = new Error("Image upload cancelled.");
+  error.name = "AbortError";
+  return error;
+}
+
+function uploadChatImage(path, file, { signal, onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const client = assertSupabase();
+    let request = null;
+    let settled = false;
+
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener("abort", handleAbort);
+      callback(value);
+    };
+
+    const handleAbort = () => {
+      if (request) request.abort();
+      else finish(reject, createUploadAbortError());
+    };
+
+    if (signal?.aborted) {
+      finish(reject, createUploadAbortError());
+      return;
+    }
+
+    signal?.addEventListener("abort", handleAbort, { once: true });
+
+    const start = async () => {
+      try {
+        const { data, error } = await client.auth.getSession();
+        if (error) throw error;
+        const accessToken = data.session?.access_token;
+        if (!accessToken) throw new Error("Your session has expired. Sign in again to upload this image.");
+        if (signal?.aborted) {
+          finish(reject, createUploadAbortError());
+          return;
+        }
+        if (!supabaseUrl || !supabasePublishableKey) {
+          throw new Error("Supabase Storage is not configured.");
+        }
+
+        const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+        request = new XMLHttpRequest();
+        request.open("POST", supabaseUrl.replace(/\/$/, "") + "/storage/v1/object/chat-images/" + encodedPath, true);
+        request.setRequestHeader("apikey", supabasePublishableKey);
+        request.setRequestHeader("Authorization", "Bearer " + accessToken);
+        request.setRequestHeader("Content-Type", file.type);
+        request.setRequestHeader("x-upsert", "true");
+
+        onProgress?.({ stage: "uploading", loaded: 0, total: file.size, percentage: 0 });
+        request.upload.onprogress = event => {
+          if (!event.lengthComputable) {
+            onProgress?.({ stage: "uploading", loaded: event.loaded, total: file.size, percentage: null });
+            return;
+          }
+          onProgress?.({
+            stage: "uploading",
+            loaded: event.loaded,
+            total: event.total,
+            percentage: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+          });
+        };
+        request.onload = () => {
+          if (request.status >= 200 && request.status < 300) {
+            finish(resolve, true);
+            return;
+          }
+          let response = {};
+          try { response = JSON.parse(request.responseText || "{}"); } catch (_) {}
+          const error = new Error(response.message || response.error || "Image upload failed (" + request.status + ").");
+          error.code = response.code || response.error || String(request.status);
+          error.status = request.status;
+          finish(reject, error);
+        };
+        request.onerror = () => finish(reject, new Error("Network error while uploading the image."));
+        request.ontimeout = () => finish(reject, new Error("Image upload timed out. Retry the saved message."));
+        request.onabort = () => finish(reject, createUploadAbortError());
+        request.send(file);
+      } catch (error) {
+        finish(reject, error);
+      }
+    };
+
+    start();
+  });
+}
+
+export async function sendMessage({ conversationId, senderId, text, image, clientMessageId, signal, onProgress }) {
   const client = assertSupabase();
   let attachmentPath = null;
 
   if (image) {
     const cleanName = image.name.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 100) || "attachment";
-    attachmentPath = `${conversationId}/${senderId}/${clientMessageId}-${cleanName}`;
-    if (typeof onProgress === "function") onProgress("uploading");
-    const { error: uploadError } = await client.storage.from("chat-images")
-      .upload(attachmentPath, image, { contentType: image.type, upsert: true });
-    if (uploadError) throw uploadError;
+    attachmentPath = conversationId + "/" + senderId + "/" + clientMessageId + "-" + cleanName;
+    await uploadChatImage(attachmentPath, image, { signal, onProgress });
   }
 
-  if (typeof onProgress === "function") onProgress("saving");
+  if (signal?.aborted) {
+    if (attachmentPath) {
+      await client.storage.from("chat-images").remove([attachmentPath]).catch(() => {});
+    }
+    throw createUploadAbortError();
+  }
+
+  onProgress?.({ stage: "saving", loaded: image?.size || 0, total: image?.size || 0, percentage: image ? 100 : null });
   const inserted = await client.from("messages").insert({
     conversation_id: conversationId,
     sender_id: senderId,
@@ -265,7 +360,7 @@ export async function sendMessage({ conversationId, senderId, text, image, clien
         .eq("client_message_id", clientMessageId).maybeSingle();
       if (!existing.error && existing.data) {
         const row = existing.data;
-        if (typeof onProgress === "function") onProgress("sent");
+        onProgress?.({ stage: "sent", loaded: image?.size || 0, total: image?.size || 0, percentage: 100 });
         return { ...row, senderId: row.sender_id, date: row.created_at, text: row.body, img: row.attachment_path };
       }
       // A duplicate acknowledgement that cannot yet be resolved is ambiguous.
@@ -284,7 +379,7 @@ export async function sendMessage({ conversationId, senderId, text, image, clien
   }
 
   const row = inserted.data;
-  if (typeof onProgress === "function") onProgress("sent");
+  onProgress?.({ stage: "sent", loaded: image?.size || 0, total: image?.size || 0, percentage: 100 });
   return { ...row, senderId: row.sender_id, date: row.created_at, text: row.body, img: row.attachment_path };
 }
 
