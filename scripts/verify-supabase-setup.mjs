@@ -16,8 +16,10 @@ const expectedMigrations = [
   "20261118083327_signup_profile_metadata.sql",
   "20261118091728_block_chat_image_upserts_after_block.sql",
 ];
-if (JSON.stringify(migrationNames) !== JSON.stringify(expectedMigrations)) {
-  throw new Error("Local migration filenames do not match the nine recorded Supabase migration versions.");
+const missingMigrations = expectedMigrations.filter(name => !migrationNames.includes(name));
+const extraMigrations = migrationNames.filter(name => !expectedMigrations.includes(name));
+if (missingMigrations.length || extraMigrations.length || migrationNames.length !== expectedMigrations.length) {
+  throw new Error(`Local migration history mismatch. Missing: ${JSON.stringify(missingMigrations)}. Extra: ${JSON.stringify(extraMigrations)}. Actual order: ${JSON.stringify(migrationNames)}.`);
 }
 const migrationSql = (await Promise.all(
   migrationNames.map(name => readFile(path.join(migrationDir, name), "utf8"))
