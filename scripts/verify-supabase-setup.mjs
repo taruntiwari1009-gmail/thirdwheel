@@ -5,7 +5,7 @@ import process from "node:process";
 const root = process.cwd();
 const migrationDir = path.join(root, "supabase", "migrations");
 const migrationNames = (await readdir(migrationDir)).filter(name => name.endsWith(".sql")).sort();
-if (migrationNames.length < 7) {
+if (migrationNames.length < 8) {
   throw new Error("Expected the versioned Supabase schema and security migrations.");
 }
 const migrationSql = (await Promise.all(
@@ -68,9 +68,20 @@ const functionNames = [
   "account-deletion-approve",
   "account-deletion-process",
 ];
+
+const canonicalAuth = await readFile(path.join(root, "supabase", "functions", "_shared", "auth.ts"), "utf8");
+const canonicalHttp = await readFile(path.join(root, "supabase", "functions", "_shared", "http.ts"), "utf8");
 for (const name of functionNames) {
-  const source = await readFile(path.join(root, "supabase", "functions", name, "index.ts"), "utf8");
-  if (!source.includes("requireUser")) throw new Error(`Trusted Edge Function lacks user verification: ${name}`);
+  const functionDir = path.join(root, "supabase", "functions", name);
+  const authHelper = await readFile(path.join(functionDir, "_shared", "auth.ts"), "utf8");
+  const httpHelper = await readFile(path.join(functionDir, "_shared", "http.ts"), "utf8");
+  if (authHelper !== canonicalAuth || httpHelper !== canonicalHttp) {
+    throw new Error(`Edge Function shared helpers drifted from canonical source: ${name}`);
+  }
+  const source = await readFile(path.join(functionDir, "index.ts"), "utf8");
+  if (!source.includes('from "./_shared/auth.ts"') || !source.includes('from "./_shared/http.ts"')) {
+    throw new Error(`Edge Function imports do not match its local bundled helper layout: ${name}`);
+  }
 }
 
 console.log(`Supabase source checks passed: ${migrationNames.length} migrations, ${sourceFiles.length} client files, ${functionNames.length} trusted functions.`);
