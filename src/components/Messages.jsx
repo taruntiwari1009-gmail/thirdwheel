@@ -46,6 +46,7 @@ const Messages = () => {
   }, [olderMessages, latestMessages]);
 
   const lastOwnMessageId = [...messages].reverse().find(message => message.senderId === currentUser?.uid)?.id || "";
+  const latestMessageId = latestMessages[latestMessages.length - 1]?.id || "";
 
   useEffect(() => {
     if (!data.chatId || !currentUser?.uid) {
@@ -55,6 +56,8 @@ const Messages = () => {
       return undefined;
     }
     let active = true;
+    let messageRefreshSequence = 0;
+    let readRefreshSequence = 0;
     const chatId = data.chatId;
     activeChatId.current = chatId;
     shouldStickToBottom.current = true;
@@ -63,24 +66,26 @@ const Messages = () => {
     setLoading(true); setLoadingOlder(false); setError(""); setOlderError("");
 
     const refresh = async () => {
+      const sequence = ++messageRefreshSequence;
       try {
         const page = await loadMessages(chatId, PAGE_SIZE);
-        if (!active || activeChatId.current !== chatId) return;
+        if (!active || activeChatId.current !== chatId || sequence !== messageRefreshSequence) return;
         setLatestMessages(page.messages);
         setHasOlder(page.hasOlder);
         setLoading(false); setError("");
       } catch (loadError) {
         console.error("Unable to load messages:", loadError);
-        if (active) { setLoading(false); setError("Messages could not be loaded. Check your connection and try again."); }
+        if (active && sequence === messageRefreshSequence) { setLoading(false); setError("Messages could not be loaded. Check your connection and try again."); }
       }
     };
     const refreshPeerRead = async () => {
+      const sequence = ++readRefreshSequence;
       try {
         const value = await getPeerLastReadAt(chatId, data.user?.uid);
-        if (active) setPeerLastReadAt(value);
+        if (active && sequence === readRefreshSequence) setPeerLastReadAt(value);
       } catch (readError) {
         console.warn("Unable to load read receipt:", readError);
-        if (active) setPeerLastReadAt(null);
+        if (active && sequence === readRefreshSequence) setPeerLastReadAt(null);
       }
     };
     refresh();
@@ -99,7 +104,7 @@ const Messages = () => {
     if (!data.chatId || !currentUser?.uid) return;
     markConversationRead(data.chatId, currentUser.uid)
       .catch(readError => console.warn("Could not update inbox read state:", readError));
-  }, [data.chatId, currentUser?.uid, latestMessages.length]);
+  }, [data.chatId, currentUser?.uid, latestMessageId]);
 
   useLayoutEffect(() => {
     const list = listRef.current;
