@@ -5,7 +5,7 @@ import process from "node:process";
 const root = process.cwd();
 const migrationDir = path.join(root, "supabase", "migrations");
 const migrationNames = (await readdir(migrationDir)).filter(name => name.endsWith(".sql")).sort();
-if (migrationNames.length < 8) {
+if (migrationNames.length < 9) {
   throw new Error("Expected the versioned Supabase schema and security migrations.");
 }
 const migrationSql = (await Promise.all(
