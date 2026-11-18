@@ -5,8 +5,19 @@ import process from "node:process";
 const root = process.cwd();
 const migrationDir = path.join(root, "supabase", "migrations");
 const migrationNames = (await readdir(migrationDir)).filter(name => name.endsWith(".sql")).sort();
-if (migrationNames.length < 9) {
-  throw new Error("Expected the versioned Supabase schema and security migrations.");
+const expectedMigrations = [
+  "20261118075209_restrict_rls_auto_enable_function.sql",
+  "20261118080313_initial_thirdwheel_schema.sql",
+  "20261118080431_fk_indexes_and_explicit_denies.sql",
+  "20261118081809_blocked_profiles_and_retry_uploads.sql",
+  "20261118082604_abuse_controls_and_block_trigger.sql",
+  "20261118082917_atomic_moderation_review.sql",
+  "20261118083154_existing_chat_profile_access.sql",
+  "20261118083327_signup_profile_metadata.sql",
+  "20261118091728_block_chat_image_upserts_after_block.sql",
+];
+if (JSON.stringify(migrationNames) !== JSON.stringify(expectedMigrations)) {
+  throw new Error("Local migration filenames do not match the nine recorded Supabase migration versions.");
 }
 const migrationSql = (await Promise.all(
   migrationNames.map(name => readFile(path.join(migrationDir, name), "utf8"))
@@ -68,6 +79,16 @@ const functionNames = [
   "account-deletion-approve",
   "account-deletion-process",
 ];
+
+const supabaseConfig = await readFile(path.join(root, "supabase", "config.toml"), "utf8");
+if (!supabaseConfig.includes('project_id = "uvxvizndmacoqfrdyifr"') || !supabaseConfig.includes("major_version = 17")) {
+  throw new Error("Supabase CLI config must target the connected project and PostgreSQL 17.");
+}
+for (const name of functionNames) {
+  if (!supabaseConfig.includes(`[functions.${name}]\nverify_jwt = true`)) {
+    throw new Error(`Supabase CLI config must require JWT verification for ${name}.`);
+  }
+}
 
 const canonicalAuth = await readFile(path.join(root, "supabase", "functions", "_shared", "auth.ts"), "utf8");
 const canonicalHttp = await readFile(path.join(root, "supabase", "functions", "_shared", "http.ts"), "utf8");
