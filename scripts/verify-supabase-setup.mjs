@@ -18,7 +18,7 @@ const expectedMigrations = [
   "20261118095256_require_active_profiles_for_private_access.sql",
   "20261118095318_atomic_account_deletion_approval.sql",
   "20261118095751_active_profile_guard_for_profile_reads.sql",
-  "20261118095751_active_profile_guard_for_profile_reads.sql",
+  "20261118120000_atomic_account_deletion_rejection.sql",
 ];
 const missingMigrations = expectedMigrations.filter(name => !migrationNames.includes(name));
 const extraMigrations = migrationNames.filter(name => !expectedMigrations.includes(name));
@@ -42,6 +42,7 @@ const requiredSql = [
   /alter publication supabase_realtime add table public\.messages/i,
   /private\.enforce_message_rate_limit/i,
   /private\.enforce_report_rate_limit/i,
+  /create or replace function public\.reject_account_deletion/i,
 ];
 for (const pattern of requiredSql) {
   if (!pattern.test(migrationSql)) throw new Error(`Missing required Supabase migration invariant: ${pattern}`);
@@ -84,6 +85,9 @@ const functionNames = [
   "account-deletion-list",
   "account-deletion-approve",
   "account-deletion-process",
+  "moderation-list-users",
+  "moderation-list-audit",
+  "account-deletion-reject",
 ];
 
 const rlsSmokeTest = await readFile(path.join(root, "supabase", "tests", "rls_rollback_smoke.sql"), "utf8");
