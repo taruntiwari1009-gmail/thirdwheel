@@ -1,111 +1,100 @@
-# Thirdwheel
+# Third Wheel
 
-A real-time, one-to-one chat application built with React and Firebase.
+Third Wheel is a one-to-one messaging app focused on helping people start and maintain genuine conversations. Dating mechanics, likes, passes, matches and romantic-intent discovery are out of scope.
 
-## Features
+## Stack
 
-- Email and password authentication
-- User registration with a profile avatar
-- Real-time conversation and message updates with Firestore
-- Image attachments stored in Firebase Storage
-- Conversation previews, unread counts and latest-message timestamps
-- People discovery with profile previews and privacy-aware search
-- Profile blocking and user reporting with Firestore-enforced message restrictions
-
-## Tech stack
-
-- React 18
-- React Router
-- Firebase Authentication
-- Cloud Firestore
-- Firebase Storage
+- React 18 and React Router
+- Supabase JavaScript SDK `2.119.0`
+- Supabase Auth for email/password accounts and recovery
+- PostgreSQL with Row Level Security (RLS)
+- Supabase Realtime for inbox, messages and read receipts
+- Private Supabase Storage buckets for avatars and chat images
+- Supabase Edge Functions for moderation and account administration
 - Sass
 
-## Getting started
+## Backend project
 
-### Prerequisites
+The fresh backend lives in Supabase project `thirdwheel`, ref `uvxvizndmacoqfrdyifr`, region `ap-northeast-1` (Tokyo).
 
-- Node.js (LTS recommended)
-- npm
-- A Firebase project with Authentication, Cloud Firestore and Storage enabled
+**This is a clean start, not a Firebase data migration.** No Firebase users, profiles, conversations, messages or files are copied. People will create new accounts in Supabase Auth. The previous Firebase project and its data are left untouched and are not used by the active application.
 
-### Install dependencies
+The initial schema and security migrations have been applied to the new Supabase project. Six JWT-verified Edge Functions are deployed for moderation review, moderator administration and account-deletion operations. The Supabase project currently has no user accounts or application data.
+
+## Local setup
+
+Use Node.js 22 or later.
 
 ```bash
 npm install
-```
-
-### Configure Firebase
-
-The application currently initializes Firebase in `src/firebase.js`. Before running it against your own backend, configure that file with the settings for your Firebase project.
-
-The repository includes version-controlled `firestore.rules`, `storage.rules` and `firebase.json`. These rules are designed for the current participant-based chat model. Do not deploy them to a live project until the application schema and existing data have been reviewed.
-
-### Run Firebase security tests locally
-
-The security test runner uses the Firebase Emulator Suite and Node.js built-in fetch; it does not require real Firebase credentials.
-
-Prerequisites: Java 21 or later and Node.js matching `.nvmrc`.
-
-```bash
-npx --yes firebase-tools@14.22.0 emulators:exec --project demo-thirdwheel --only auth,firestore,storage "npm run test:rules"
-```
-
-The emulator tests cover authenticated profile access, participant-only conversation reads, message authorship, per-user conversation lists, profile blocking, report submission, avatar ownership, chat-media membership and image upload restrictions. They do not deploy rules or touch the configured Firebase project.
-
-### Current Firestore model
-
-- `publicProfiles/{uid}`: discoverable profile fields only (`uid`, `displayName`, `photoURL`). Email remains in Firebase Authentication; private per-user chat-list data is kept under `users/{uid}/userChats/{chatId}`.
-- `chats/{chatId}`: two immutable participant UIDs and conversation-level metadata only.
-- `chats/{chatId}/messages/{messageId}`: one immutable message per document, ordered by server timestamp and read in bounded batches.
-- `users/{uid}/userChats/{chatId}`: the user's conversation-list entry.
-- `avatars/{uid}/{fileName}`: user-owned avatar objects.
-- `chat-images/{chatId}/{uid}/{fileName}`: chat images scoped to a conversation and uploader.
-
-The previous embedded-message array and legacy `userChats/{uid}` layout are not supported. This client intentionally starts with the new message-subcollection model; old test records are not migrated. Reset disposable emulator/test data before testing.
-
-### Trusted backend\n\nCloud Functions source is in `functions/`. See [Phase 1 setup notes](docs/PHASE_1_TRUST_SAFETY.md) for staging deployment, owner-claim provisioning and App Check configuration. Do not deploy to production without explicit approval.\n\n### Run locally
-
-```bash
+cp .env.example .env
 npm start
 ```
 
-The development server runs at [http://localhost:3000](http://localhost:3000).
+The app runs at [http://localhost:3000](http://localhost:3000).
 
-### Build
+`.env.example` contains the public project URL and publishable key for local development. The publishable key is intended for browser use and is protected by RLS. Never put a Supabase secret key, legacy `service_role` key or database password in a `REACT_APP_*` variable or in source control.
+
+## Backend model
+
+- `profiles`: one row per Supabase Auth user, created automatically on signup.
+- `conversations`: one-to-one participant pair, canonicalized and unique.
+- `conversation_reads`: per-user inbox visibility and read boundary.
+- `messages`: append-only text/image messages with a stable client idempotency key.
+- `user_blocks`: blocker/blocked relationships; creation also hides the blocker's inbox copy.
+- `reports`: client-submitted report intake; moderation changes are server-only.
+- `moderation_audit`: trusted audit events.
+- `account_deletion_requests`: owner-reviewed deletion workflow.
+- `private.message_rate_limits` and `private.report_rate_limits`: internal abuse-control state.
+
+All application tables have RLS enabled. Avatar and chat-image buckets are private. Message and report throttles are enforced by database triggers rather than relying on browser-side controls.
+
+## Trusted operator setup
+
+The moderation and deletion Edge Functions require protected `app_metadata` claims. They do not trust user-editable profile metadata.
+
+After you create your own first account, provision the initial owner claim from the Supabase SQL editor using that account's Auth user UUID:
+
+```sql
+update auth.users
+set raw_app_meta_data =
+  coalesce(raw_app_meta_data, '{}'::jsonb) || '{"owner": true}'::jsonb
+where id = 'YOUR_SUPABASE_AUTH_USER_UUID';
+```
+
+Only run this as a trusted project owner, replacing the placeholder with your own Auth user UUID. Never expose an owner claim editor to the client. Sign out and back in after the claim is set so the updated claim is present in the session.
+
+The Edge Functions allow only `http://localhost:3000` and `http://127.0.0.1:3000` by default. Before using them from a hosted frontend, set the Supabase Edge Function secret `ALLOWED_ORIGINS` to the exact comma-separated origin(s) for that environment. Do not use wildcard origins.
+
+## Tests and build
 
 ```bash
+npm test -- --watchAll=false
+npm run test:supabase
 npm run build
 ```
 
-## Project roadmap
+The Supabase source check verifies that the frontend has no Firebase SDK imports, no server-only Supabase credentials, and that the migration/function source includes key security invariants. The hosted database has also been checked with Supabase security, performance and health advisors. A clean advisor result does not replace end-to-end browser tests with disposable accounts.
 
-The quality-first chat product roadmap is documented in [docs/CHAT_PRODUCT_ROADMAP.md](docs/CHAT_PRODUCT_ROADMAP.md). Security invariants are in [docs/SECURITY_DESIGN.md](docs/SECURITY_DESIGN.md), authenticated chat-media browser setup is in [docs/CHAT_MEDIA_CORS.md](docs/CHAT_MEDIA_CORS.md), and the product acceptance, operations and release gates are in [docs/RELEASE_READINESS.md](docs/RELEASE_READINESS.md).
+## Release state
+
+Work continues on branch `fix/netlify-ci-lint-pr13` and PR #14. PR #14 remains open, draft and unmerged. No Netlify configuration or production frontend deployment has been changed. Do not treat the backend foundation as a public launch: auth email configuration, owner claim provisioning, exact hosted-origin allowlisting, real authenticated browser tests and release monitoring are still required.
+
+The Supabase project is currently on the Free plan. Check current quotas, backups, project pausing behavior and upgrade requirements before inviting real users.
 
 ## Project structure
 
 ```text
 src/
-  components/   Chat interface and reusable UI components
-  context/      Authentication and selected-chat state
-  pages/        Login, registration and home screens
-  img/          Interface assets
-  firebase.js   Firebase client initialization
-  App.js        Application routes
+  components/       Chat, inbox, search, profile and navigation UI
+  context/          Supabase session and selected conversation state
+  pages/            Auth, profile, moderation and app screens
+  services/         Supabase data-access layer
+  supabase.js       Browser-only Supabase client
+  utils/            Validation and profile utilities
+supabase/
+  migrations/       Versioned SQL schema and security migrations
+  functions/        Trusted Edge Functions
+scripts/
+  verify-supabase-setup.mjs
 ```
-
-## Important security note
-
-Firebase client configuration is not an authorization boundary. Configure Firebase Authentication providers and enforce access through Firestore and Storage Security Rules. Never commit service-account credentials, private keys or other server-side secrets.
-
-## Current limitations
-
-- The application is designed around one-to-one conversations.
-- Blocking is enforced for new conversation creation and message writes; report submissions are write-only from the client and require an operational review process outside the app.
-- Firebase rules are versioned and emulator tests are part of CI, but production rule deployment has not been performed.
-- The chat UI currently loads the latest 50 messages. Loading older history on demand is the next messaging improvement.
-- Firebase Storage download URLs are bearer links; do not treat tokenized URLs as confidential media access.
-
-## License
-
-No license has been specified yet. Contact the repository owner before reusing or distributing this project.
