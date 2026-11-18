@@ -134,3 +134,25 @@
   .home .container .chat .input .messageOutbox { order: 4; padding: 10px; }
   .pendingMessageItem { align-items: flex-start; padding: 8px; }
 }
+
+.messageOutboxNotice {
+  display: flex;
+  flex: 1 1 100%;
+  padding: 9px 11px;
+  border: 1px solid #dcebe0;
+  border-radius: 9px;
+  background: #f4faf5;
+  color: #52775d;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.pendingMessageStatus--sending i {
+  animation: outboxPulse 1.2s ease-in-out infinite;
+}
+@keyframes outboxPulse {
+  0%, 100% { opacity: .45; box-shadow: 0 0 0 0 rgba(139,124,180,0); }
+  50% { opacity: 1; box-shadow: 0 0 0 4px rgba(139,124,180,.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pendingMessageStatus--sending i { animation: none; }
+}
