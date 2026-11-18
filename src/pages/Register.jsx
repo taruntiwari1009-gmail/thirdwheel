@@ -10,6 +10,7 @@ const split = value => value.split(",").map(x => x.trim()).filter(Boolean).slice
 const Register = () => {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmationRequired, setConfirmationRequired] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -41,6 +42,7 @@ const Register = () => {
       });
       if (error) throw error;
       if (data.session && data.user) {
+        setConfirmationRequired(false);
         const profile = await saveProfile(data.user.id, {
           displayName,
           bio: (form.elements.bio?.value || "").trim().slice(0, 300),
@@ -54,7 +56,8 @@ const Register = () => {
         setSuccess("Your account and starter profile are ready.");
         if (profile) setTimeout(() => navigate("/", { replace: true }), 500);
       } else {
-        setSuccess("Your starter profile has been saved. Check your email to confirm the address, then sign in to add a profile photo.");
+        setConfirmationRequired(true);
+        setSuccess("Your starter profile has been saved. Check your email to confirm your address, then sign in to add a profile photo.");
       }
     } catch (error) {
       console.error("Registration failed:", error);
@@ -68,7 +71,9 @@ const Register = () => {
 
   return <main className="authPage"><section className="authCard registerCard">
     <p className="eyebrow">THIRD WHEEL</p><h1>Create your account</h1><p className="muted">Start with the basics. You can build out your profile whenever you're ready.</p>
-    {success ? <div role="status"><p>{success}</p>{!supabase?.auth && <Link to="/login">Sign in</Link>}{<button type="button" onClick={() => navigate("/", { replace: true })}>Continue to Third Wheel</button>}</div> :
+    {success ? <div role="status"><p>{success}</p>{confirmationRequired
+      ? <Link className="authContinueLink" to="/login">Continue to sign in</Link>
+      : <button type="button" onClick={() => navigate("/", { replace: true })}>Continue to Third Wheel</button>}</div> :
     <form onSubmit={handleSubmit} className="stack">
       <label>Display name<input required name="displayName" maxLength="80" autoComplete="name" /></label>
       <label>Email address<input required name="email" type="email" autoComplete="email" /></label>
