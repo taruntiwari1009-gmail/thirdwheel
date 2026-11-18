@@ -1,5 +1,5 @@
-import { requireUser, isModerator, errorStatus } from "../_shared/auth.ts";
-import { corsHeaders, handlePreflight, jsonResponse } from "../_shared/http.ts";
+import { requireUser, isModerator, errorStatus } from "./_shared/auth.ts";
+import { corsHeaders, handlePreflight, jsonResponse } from "./_shared/http.ts";
 
 const VALID_STATUSES = new Set(["pending", "reviewing", "actioned", "dismissed"]);
 
