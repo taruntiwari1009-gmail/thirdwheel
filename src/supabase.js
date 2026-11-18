@@ -29,7 +29,11 @@ export const supabase = supabaseUrl && supabasePublishableKey
 
 export const isSupabaseConfigured = Boolean(supabase);
 
-if (supabase && process.env.NODE_ENV !== "test") {
-  // The endpoint host is public configuration; never log the publishable key or any secret.
-  console.info("[Third Wheel] Supabase backend configured:", supabaseProjectHost || "unknown host");
+if (process.env.NODE_ENV !== "test") {
+  if (supabase) {
+    // The endpoint host is public configuration; never log the publishable key or any secret.
+    console.info("[Third Wheel] Supabase backend configured:", supabaseProjectHost || "unknown host");
+  } else {
+    console.error("[Third Wheel] Supabase is not configured. Set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_PUBLISHABLE_KEY in the hosting environment.");
+  }
 }
