@@ -236,17 +236,20 @@ export async function markConversationRead(conversationId, userId) {
   if (error) throw error;
 }
 
-export async function sendMessage({ conversationId, senderId, text, image, clientMessageId }) {
+export async function sendMessage({ conversationId, senderId, text, image, clientMessageId, onProgress }) {
   const client = assertSupabase();
   let attachmentPath = null;
+
   if (image) {
     const cleanName = image.name.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 100) || "attachment";
     attachmentPath = `${conversationId}/${senderId}/${clientMessageId}-${cleanName}`;
+    if (typeof onProgress === "function") onProgress("uploading");
     const { error: uploadError } = await client.storage.from("chat-images")
       .upload(attachmentPath, image, { contentType: image.type, upsert: true });
     if (uploadError) throw uploadError;
   }
 
+  if (typeof onProgress === "function") onProgress("saving");
   const inserted = await client.from("messages").insert({
     conversation_id: conversationId,
     sender_id: senderId,
@@ -259,19 +262,29 @@ export async function sendMessage({ conversationId, senderId, text, image, clien
     if (inserted.error.code === "23505") {
       const existing = await client.from("messages").select("*")
         .eq("conversation_id", conversationId).eq("sender_id", senderId)
-        .eq("client_message_id", clientMessageId).single();
-      if (!existing.error) {
+        .eq("client_message_id", clientMessageId).maybeSingle();
+      if (!existing.error && existing.data) {
         const row = existing.data;
+        if (typeof onProgress === "function") onProgress("sent");
         return { ...row, senderId: row.sender_id, date: row.created_at, text: row.body, img: row.attachment_path };
       }
+      // A duplicate acknowledgement that cannot yet be resolved is ambiguous.
+      // Keep the same outbox item and attachment path so a later retry can reconcile it.
+      throw inserted.error;
     }
-    if (attachmentPath) {
+
+    // Only clean up after a definite database rejection. A timeout/connection
+    // failure can happen after the server commits, so deleting the uploaded
+    // object in that case could break a message that actually exists.
+    const definiteRejectionCodes = new Set(["42501", "23514", "22001", "23503", "P0001"]);
+    if (attachmentPath && definiteRejectionCodes.has(inserted.error.code)) {
       await client.storage.from("chat-images").remove([attachmentPath]).catch(() => {});
     }
     throw inserted.error;
   }
 
   const row = inserted.data;
+  if (typeof onProgress === "function") onProgress("sent");
   return { ...row, senderId: row.sender_id, date: row.created_at, text: row.body, img: row.attachment_path };
 }
 
