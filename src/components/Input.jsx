@@ -93,8 +93,7 @@ const Input = () => {
     }).catch(loadError => {
       console.error("Unable to restore local conversation state:", loadError);
       if (!active) return;
-      setError("Your saved draft could not be restored in this browser.");
-      setDraftReadyKey(conversationKey);
+      setError("Your saved draft could not be restored in this browser. Reload this conversation before composing.");
     });
 
     return () => { active = false; };
@@ -159,13 +158,20 @@ const Input = () => {
 
   sendStoredRef.current = sendStoredMessage;
 
-  // Queued messages are sent automatically when the browser is online. Failed or
-  // ambiguous attempts require an explicit retry so they do not loop endlessly.
+  // Flush queued messages across all conversations for this signed-in user.
+  // Ambiguous/failed attempts are deliberately not auto-retried; the user chooses Retry.
   useEffect(() => {
-    if (!isOnline || activeSendRef.current) return;
-    const next = pendingItems.find(item => item.status === "queued");
-    if (next) sendStoredRef.current?.(next);
-  }, [pendingItems, isOnline]);
+    if (!isOnline || !userId || activeSendRef.current) return undefined;
+    let active = true;
+    listOutboxMessages(userId).then(items => {
+      if (!active || activeSendRef.current) return;
+      const next = items.find(item => item.status === "queued");
+      if (next) sendStoredRef.current?.(next);
+    }).catch(queueError => {
+      console.warn("Unable to inspect queued messages:", queueError);
+    });
+    return () => { active = false; };
+  }, [pendingItems, isOnline, userId, sendingKey]);
 
   useEffect(() => {
     const handleOnline = () => {
