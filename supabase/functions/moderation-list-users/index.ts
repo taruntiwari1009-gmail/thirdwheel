@@ -1,5 +1,5 @@
-import { requireUser, isOwner, errorStatus } from "../_shared/auth.ts";
-import { corsHeaders, handlePreflight, jsonResponse } from "../_shared/http.ts";
+import { requireUser, isOwner, errorStatus } from "./_shared/auth.ts";
+import { corsHeaders, handlePreflight, jsonResponse } from "./_shared/http.ts";
 
 Deno.serve(async req => {
   const preflight = handlePreflight(req);
