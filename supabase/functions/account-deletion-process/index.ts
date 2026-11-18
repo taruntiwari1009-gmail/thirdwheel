@@ -36,9 +36,6 @@ Deno.serve(async req => {
       if (paths.length) await admin.storage.from("avatars").remove(paths);
     }
 
-    // Revoking sessions first is best-effort; deleting the profile also removes
-    // the active-profile RLS gate for any still-unexpired access token.
-    await admin.auth.admin.signOut(targetUid, "global").catch(() => ({ error: null }));
     const { error: deleteError } = await admin.auth.admin.deleteUser(targetUid);
     if (deleteError) {
       await admin.from("account_deletion_requests")
