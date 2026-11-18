@@ -1,9 +1,8 @@
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query } from "firebase/firestore";
 import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
-import { db } from "../firebase";
+import { listInbox, removeConversationFromInbox, subscribeToInbox } from "../services/backend";
 
 const Chats = () => {
   const [chats, setChats] = useState([]);
@@ -15,15 +14,25 @@ const Chats = () => {
 
   useEffect(() => {
     if (!currentUser?.uid) { setChats([]); setLoading(false); setError(""); return undefined; }
+    let active = true;
+    let initial = true;
+    const refresh = async () => {
+      try {
+        const items = await listInbox(currentUser.uid);
+        if (!active) return;
+        setChats(items);
+        setError("");
+      } catch (listenerError) {
+        console.error("Unable to load conversations:", listenerError);
+        if (active) setError("Your conversations could not be loaded. Please refresh.");
+      } finally {
+        if (active) { setLoading(false); initial = false; }
+      }
+    };
     setChats([]); setLoading(true); setError("");
-    const chatsQuery = query(collection(db, "users", currentUser.uid, "userChats"), orderBy("date", "desc"));
-    return onSnapshot(chatsQuery, snapshot => {
-      setChats(snapshot.docs.map(chatDoc => ({ chatId: chatDoc.id, ...chatDoc.data() })));
-      setLoading(false); setError("");
-    }, listenerError => {
-      console.error("Unable to load conversations:", listenerError);
-      setLoading(false); setError("Your conversations could not be loaded. Please refresh.");
-    });
+    refresh();
+    const unsubscribe = subscribeToInbox(currentUser.uid, () => { if (!initial) refresh(); });
+    return () => { active = false; unsubscribe(); };
   }, [currentUser?.uid]);
 
   const handleRemove = async (event, chatId) => {
@@ -32,7 +41,8 @@ const Chats = () => {
     if (!window.confirm("Remove this conversation from your inbox? The other person will keep their copy.")) return;
     setRemoving(chatId);
     try {
-      await deleteDoc(doc(db, "users", currentUser.uid, "userChats", chatId));
+      await removeConversationFromInbox(chatId, currentUser.uid);
+      setChats(previous => previous.filter(chat => chat.chatId !== chatId));
       if (data.chatId === chatId) dispatch({ type: "RESET" });
     } catch (removeError) {
       console.error("Unable to remove conversation:", removeError);
