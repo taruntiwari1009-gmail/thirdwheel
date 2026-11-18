@@ -21,24 +21,17 @@ Deno.serve(async req => {
       return jsonResponse({ error: "A valid report ID and review status are required" }, 400, headers);
     }
 
-    const { data: report, error: updateError } = await admin.from("reports")
-      .update({ status }).eq("id", reportId).select("*").maybeSingle();
-    if (updateError) {
-      console.error("Moderation review update failed:", updateError.code);
-      return jsonResponse({ error: "This report could not be updated" }, 500, headers);
+    const { data: report, error: reviewError } = await admin.rpc("review_moderation_report", {
+      p_report_id: reportId,
+      p_status: status,
+      p_actor: user.id,
+      p_note: note,
+    });
+    if (reviewError) {
+      console.error("Atomic moderation review failed:", reviewError.code);
+      return jsonResponse({ error: "This report could not be reviewed" }, 500, headers);
     }
     if (!report) return jsonResponse({ error: "Report not found" }, 404, headers);
-
-    const { error: auditError } = await admin.from("moderation_audit").insert({
-      actor_id: user.id,
-      report_id: reportId,
-      action: "status_changed",
-      metadata: { status, note },
-    });
-    if (auditError) {
-      console.error("Moderation audit write failed:", auditError.code);
-      return jsonResponse({ error: "The review was saved but its audit event could not be recorded. Contact the system owner." }, 500, headers);
-    }
     return jsonResponse({ report }, 200, headers);
   } catch (error) {
     const status = errorStatus(error);
