@@ -1,0 +1,59 @@
+project_id = "uvxvizndmacoqfrdyifr"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "https://thechaichapters.com"
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
+  "https://thechaichapters.com/**",
+  "https://www.thechaichapters.com/**",
+  "https://thirdwheel.netlify.app/**"
+]
+enable_signup = true
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+[functions.moderation-list-cases]
+verify_jwt = true
+
+[functions.moderation-review-case]
+verify_jwt = true
+
+[functions.moderation-set-role]
+verify_jwt = true
+
+[functions.account-deletion-list]
+verify_jwt = true
+
+[functions.account-deletion-approve]
+verify_jwt = true
+
+[functions.account-deletion-process]
+verify_jwt = true
+
+[functions.moderation-list-users]
+verify_jwt = true
+
+[functions.moderation-list-audit]
+verify_jwt = true
+
+[functions.account-deletion-reject]
+verify_jwt = true

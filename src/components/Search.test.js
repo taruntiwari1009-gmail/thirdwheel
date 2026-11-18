@@ -4,27 +4,17 @@ import { BrowserRouter } from "react-router-dom";
 import Search from "./Search";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
-import { getDocs, where, orderBy } from "firebase/firestore";
+import { getOrCreateConversation, searchProfiles } from "../services/backend";
 
-jest.mock("firebase/firestore", () => ({
-  collection: jest.fn(() => "profiles"),
-  doc: jest.fn(),
-  getDocs: jest.fn(),
-  limit: jest.fn(value => ({ limit: value })),
-  orderBy: jest.fn(),
-  query: jest.fn((...parts) => ({ parts })),
-  runTransaction: jest.fn(),
-  serverTimestamp: jest.fn(),
-  startAfter: jest.fn(value => ({ after: value })),
-  where: jest.fn((...args) => ({ where: args })),
+jest.mock("../services/backend", () => ({
+  getOrCreateConversation: jest.fn(),
+  searchProfiles: jest.fn(),
 }));
 
-jest.mock("../firebase", () => ({ db: {} }));
-
-const profileDoc = profile => ({ data: () => profile });
+const dispatch = jest.fn();
 const renderSearch = () => render(
   <AuthContext.Provider value={{ currentUser: { uid: "current-user", displayName: "Current User" } }}>
-    <ChatContext.Provider value={{ data: {}, dispatch: jest.fn() }}>
+    <ChatContext.Provider value={{ data: {}, dispatch }}>
       <BrowserRouter><Search /></BrowserRouter>
     </ChatContext.Provider>
   </AuthContext.Provider>
@@ -32,55 +22,52 @@ const renderSearch = () => render(
 
 beforeEach(() => {
   jest.clearAllMocks();
+  searchProfiles.mockResolvedValue({ profiles: [], hasMore: false });
 });
 
-describe("Search", () => {
-  test("finds discoverable profiles by normalized display-name prefix without a composite index", async () => {
-    getDocs
-      .mockResolvedValueOnce({ docs: [
-        profileDoc({ uid: "alice", displayName: "Alice", displayNameLower: "alice", discoverable: true }),
-        profileDoc({ uid: "current-user", displayName: "Current User", displayNameLower: "current user", discoverable: true }),
-        profileDoc({ uid: "hidden", displayName: "Alina", displayNameLower: "alina", discoverable: false }),
-      ] })
-      .mockResolvedValueOnce({ docs: [] });
-
+describe("Supabase people search", () => {
+  test("normalizes a name query and renders discoverable results from the backend service", async () => {
+    searchProfiles.mockResolvedValueOnce({
+      profiles: [{ uid: "alice", displayName: "Alice", username: "alice", discoverable: true }],
+      hasMore: false,
+    });
     renderSearch();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "ALI" } });
-
     expect(await screen.findByText("Alice")).toBeInTheDocument();
-    expect(screen.queryByText("Alina")).not.toBeInTheDocument();
-    expect(screen.queryByText("Current User")).not.toBeInTheDocument();
-    await waitFor(() => expect(getDocs).toHaveBeenCalledTimes(2));
-
-    const fields = where.mock.calls.map(([field]) => field);
-    expect(fields).toEqual(["displayNameLower", "displayNameLower", "username", "username"]);
-    expect(fields).not.toContain("discoverable");
-    expect(orderBy).not.toHaveBeenCalled();
+    await waitFor(() => expect(searchProfiles).toHaveBeenCalledWith("ali", "current-user", 0));
   });
 
-  test("supports @username prefix searches", async () => {
-    getDocs
-      .mockResolvedValueOnce({ docs: [] })
-      .mockResolvedValueOnce({ docs: [
-        profileDoc({ uid: "tarun", displayName: "Tarun Tiwari", displayNameLower: "tarun tiwari", username: "tarun_t", discoverable: true }),
-      ] });
-
+  test("normalizes @username searches", async () => {
+    searchProfiles.mockResolvedValueOnce({
+      profiles: [{ uid: "tarun", displayName: "Tarun Tiwari", username: "tarun_t", discoverable: true }],
+      hasMore: false,
+    });
     renderSearch();
-    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "@tarun" } });
-
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "@Tarun" } });
     expect(await screen.findByText("Tarun Tiwari")).toBeInTheDocument();
-    expect(where).toHaveBeenCalledWith("username", ">=", "tarun");
-    expect(where).toHaveBeenCalledWith("username", "<=", "tarun\uf8ff");
+    expect(searchProfiles).toHaveBeenCalledWith("tarun", "current-user", 0);
   });
 
-  test("shows a recoverable message when Firestore search fails", async () => {
-    getDocs
-      .mockRejectedValueOnce(Object.assign(new Error("index unavailable"), { code: "failed-precondition" }))
-      .mockResolvedValueOnce({ docs: [] });
-
+  test("opens a real Supabase conversation and sends its UUID to chat state", async () => {
+    searchProfiles.mockResolvedValueOnce({
+      profiles: [{ uid: "alice", displayName: "Alice", username: "alice", discoverable: true }],
+      hasMore: false,
+    });
+    getOrCreateConversation.mockResolvedValue({ id: "conversation-uuid-123" });
     renderSearch();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alice" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Say hello" }));
+    await waitFor(() => expect(getOrCreateConversation).toHaveBeenCalledWith("current-user", "alice"));
+    await waitFor(() => expect(dispatch).toHaveBeenCalledWith({
+      type: "CHANGE_USER",
+      payload: expect.objectContaining({ uid: "alice" }),
+      chatId: "conversation-uuid-123",
+    }));
+  });
 
-    expect(await screen.findByText("Search could not be completed. Please try again.")).toBeInTheDocument();
+  test("shows an empty result message", async () => {
+    renderSearch();
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "nobody" } });
+    expect(await screen.findByText("No people found. Try a name or @username.")).toBeInTheDocument();
   });
 });

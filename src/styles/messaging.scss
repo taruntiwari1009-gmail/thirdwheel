@@ -1,0 +1,209 @@
+/* Durable message drafts and outbox states. */
+.home .container .chat .input .messageConnectionNotice {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 2px;
+  padding: 9px 12px;
+  border: 1px solid #eadfec;
+  border-radius: 10px;
+  background: #fbf6fa;
+  color: #8a6b82;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.messageConnectionNotice .connectionDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #c48da8;
+  box-shadow: 0 0 0 3px rgba(196,141,168,.13);
+}
+.home .container .chat .input .messageOutbox {
+  display: flex;
+  flex: 1 1 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 4px;
+  padding: 12px 13px;
+  border: 1px solid #e9e2ef;
+  border-radius: 13px;
+  background: linear-gradient(135deg,#fcfaff,#fff9fc);
+}
+.messageOutboxHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.messageOutboxHeading strong {
+  color: #534766;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .025em;
+}
+.messageOutboxHeading > span {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #eee8f4;
+  color: #78668f;
+  font-size: 9px;
+  font-weight: 800;
+}
+.messageOutboxHint, .messageOutboxFootnote {
+  margin: 0;
+  color: #92889b;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.pendingMessageItem {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 1px solid #eee8f1;
+  border-radius: 10px;
+  background: rgba(255,255,255,.88);
+}
+.pendingMessageCopy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+.pendingMessageCopy > strong {
+  overflow: hidden;
+  color: #4c435b;
+  font-size: 10px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pendingAttachmentName {
+  overflow: hidden;
+  color: #978a9a;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pendingMessageStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #978b9e;
+  font-size: 9px;
+}
+.pendingMessageStatus i {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: #c1b5cd;
+}
+.pendingMessageStatus--queued i { background: #b89bb9; }
+.pendingMessageStatus--sending i { background: #8b7cb4; box-shadow: 0 0 0 3px rgba(139,124,180,.12); }
+.pendingMessageStatus--uncertain i,
+.pendingMessageStatus--retry i { background: #c58c9c; }
+.pendingMessageActions { display: flex; flex: 0 0 auto; gap: 6px; }
+.pendingMessageActions button {
+  min-height: 29px;
+  padding: 5px 9px;
+  border: 1px solid #e7deeb;
+  border-radius: 8px;
+  background: #fff;
+  color: #74638f;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pendingMessageActions button:hover:not(:disabled) { background: #f6f1f8; }
+.pendingMessageActions button:disabled { opacity: .45; cursor: not-allowed; }
+.messageOutboxFootnote { padding-top: 2px; }
+@media(max-width:640px) {
+  .home .container .chat .input .messageConnectionNotice { order: 3; }
+  .home .container .chat .input .messageOutbox { order: 4; padding: 10px; }
+  .pendingMessageItem { align-items: flex-start; padding: 8px; }
+}
+
+.messageOutboxNotice {
+  display: flex;
+  flex: 1 1 100%;
+  padding: 9px 11px;
+  border: 1px solid #dcebe0;
+  border-radius: 9px;
+  background: #f4faf5;
+  color: #52775d;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.pendingMessageStatus--sending i {
+  animation: outboxPulse 1.2s ease-in-out infinite;
+}
+@keyframes outboxPulse {
+  0%, 100% { opacity: .45; box-shadow: 0 0 0 0 rgba(139,124,180,0); }
+  50% { opacity: 1; box-shadow: 0 0 0 4px rgba(139,124,180,.15); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pendingMessageStatus--sending i { animation: none; }
+}
+
+.home .container .chat .input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.home .container .chat .input > input[type="text"] {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.home .container .chat .input .send {
+  flex: 0 0 auto;
+}
+.home .container .chat .input .messageConnectionNotice,
+.home .container .chat .input .messageOutbox,
+.home .container .chat .input .messageOutboxNotice,
+.home .container .chat .input > [role="alert"] {
+  flex: 1 1 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.outboxProgress {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #eee8f3;
+}
+.outboxProgress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg,#8575b0,#c38da8);
+  transition: width .12s linear;
+}
+.outboxProgress--indeterminate span {
+  width: 35%;
+  animation: outboxIndeterminate 1.1s ease-in-out infinite alternate;
+}
+@keyframes outboxIndeterminate {
+  from { transform: translateX(-18%); }
+  to { transform: translateX(190%); }
+}
+.pendingMessageActions button:first-child:not(:disabled) { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) {
+  .outboxProgress--indeterminate span { animation: none; }
+}

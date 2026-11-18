@@ -21,7 +21,7 @@ export const isAllowedImage = (file, maxBytes = 5 * 1024 * 1024) =>
   Boolean(
     file &&
       typeof file.type === "string" &&
-      file.type.startsWith("image/") &&
+      ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type) &&
       Number.isFinite(file.size) &&
       file.size > 0 &&
       file.size <= maxBytes
