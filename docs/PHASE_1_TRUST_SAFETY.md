@@ -1,47 +1,37 @@
-# Phase 1 — Trust, safety and account controls
+# Trust, safety and account controls — Supabase
 
-## Implemented in PR #14
+## Implemented backend controls
 
-- Block management screen at `/settings/blocked`; owner-only list and unblock controls.
-- Firestore rules prevent self-blocking, require an existing public profile, and prevent blocked participants from creating new chats or creating message documents.
-- Report submissions use a trusted callable function instead of direct client writes.
-- The backend validates report target, reason and bounded details, applies a per-user daily submission cap, and atomically creates a private report, moderation case and audit event. Unit tests and Firebase Auth/Firestore/Functions/Storage emulator integration tests cover report validation, authentication, throttling, atomic records, moderator authorization/review and the account-deletion workflow.
-- Moderator queue and review callables require the Firebase custom claim `moderator: true`; case status changes and notes create audit events.
-- Moderator role changes require an `owner: true` custom claim and are audited.
-- Account deletion request intake is authenticated and prevents duplicate active requests. It records a pending request and audit event; it does not automatically destroy data.
+- Block relationships are stored in `public.user_blocks`; only the blocker can add/remove their row. Either direction is checked for new conversations and message writes.
+- A database trigger hides the blocker's inbox copy of an existing conversation when a block is created.
+- Report submissions are bound to the authenticated reporter and limited to five per user per rolling hour by a database trigger.
+- Reports are written to `public.reports`. Ordinary clients can submit and inspect only their own reports; status changes are server-only.
+- Moderator queue and review operations use JWT-verified Supabase Edge Functions and protected `app_metadata.moderator` or `app_metadata.owner` claims.
+- Moderator grant/revoke is owner-only and preserves the immutable owner claim.
+- Review status changes and audit writes use the atomic `public.review_moderation_report` function; its execute permission is limited to `service_role`.
+- Account deletion intake requires an authenticated request and prevents duplicate active requests by primary key.
+- Account deletion listing, approval and processing are owner-only Edge Functions.
+- Account deletion removes the user's Auth record and profile, personal read state, blocks, avatar objects and rate-limit rows. Shared conversation rows and messages remain for the other participant; deleted sender IDs become null and the UI labels them “Deleted account.” Shared chat attachments are retained with the conversation.
 
-## Remaining before production
+## Operator setup required
 
-- **Deletion execution:** Implemented and emulator-tested. Owner approval is required. The trusted `approveAccountDeletion` callable moves a pending request to approved; `processAccountDeletion` processes inbox entries in resumable batches, labels retained chat history as “Deleted account,” deletes the requesting user’s inbox copies, username reservation, public profile, own block list, message throttle, avatar files and Firebase Auth account. Shared chat documents, messages and chat attachments are retained. The owner repeats the processing callable until it returns `completed: true`. Staging verification and a support runbook are still required before production use.
-- **App Check:** The web client now supports optional reCAPTCHA v3 initialization through `REACT_APP_FIREBASE_APPCHECK_SITE_KEY`. The report callable reads `ENFORCE_APPCHECK` at runtime. Keep it unset/false for local emulator work; set it to `true` only after a real staging site key is configured, valid tokens are observed and failure behavior is tested. Never commit the key or use a placeholder.
-- **Rate limiting:** Report intake has a transactional daily submission cap. Message writes enforce an atomic per-user cap of eight messages per 60-second window through a Firestore transaction and security rules. Broader account-level throttling remains a future enhancement.
-- **Moderator provisioning:** Set the initial owner custom claim through a trusted administrative process outside the client. Never grant owner/moderator claims from a client-writable Firestore document.
-- **Operations:** Define moderation staffing, response expectations, evidence retention, appeals and legal retention exceptions.\n- **Indexes:** The moderation queue status/date query has a composite index definition in `firestore.indexes.json`; deploy it only to the approved staging/production project as part of a separately reviewed release.
+1. Create the owner's Supabase Auth account through the registration page.
+2. In the Supabase SQL editor, set the protected owner claim on that account using its Auth UUID:
 
-## Chat product scope
-
-Third Wheel remains a one-to-one chat application. Dating profiles, likes, passes, matches, relationship-intent discovery and age-verification workflows are out of scope. The active message model stores one immutable document per message under `chats/{chatId}/messages/{messageId}`. The legacy embedded array and old `userChats/{uid}` layout are unsupported.
-
-## Release state
-
-All changes are on PR #14, branch `fix/netlify-ci-lint-pr13`. Firestore and Storage rules are source-controlled and emulator-tested; they have not been deployed to production. No Netlify deployment, merge or production change is part of this work.
-
-## Trusted backend setup (operator-only)
-
-1. Review the Functions source and deploy to a dedicated staging Firebase project first.
-2. Install backend dependencies from the `functions/` directory and run `npm test`.
-3. Provision the initial owner custom claim from a trusted workstation with Application Default Credentials for the intended Firebase project:
-
-   ```bash
-   cd functions
-   gcloud auth application-default login
-   export GCLOUD_PROJECT="your-staging-project-id"
-   export THIRDWHEEL_OWNER_UID="the-owner-firebase-auth-uid"
-   npm run bootstrap-owner
+   ```sql
+   update auth.users
+   set raw_app_meta_data =
+     coalesce(raw_app_meta_data, '{}'::jsonb) || '{"owner": true}'::jsonb
+   where id = 'YOUR_SUPABASE_AUTH_USER_UUID';
    ```
 
-4. Refresh the owner's Firebase ID token by signing out and back in. Use the owner-only callable to grant/revoke moderator claims to other accounts.
-5. Configure the web App Check site key as a deployment environment variable. Observe staging traffic before enabling callable enforcement.
-6. Do not deploy Functions or rules to the production project until the owner explicitly approves the target project, billing impact, rules diff and rollout plan.
+3. Sign out and back in so the session contains the new app metadata.
+4. Set the Edge Function secret `ALLOWED_ORIGINS` to exact browser origins. The deployed default is localhost-only.
+5. Use the owner-only UI to review deletion requests and Edge Functions to assign moderators.
+6. Establish moderator staffing, response time expectations, incident escalation, evidence retention and appeals before accepting reports from real users.
 
-The bootstrap script does not contain or download credentials. Never commit service-account keys or use a client-side owner flag.
+Never use user-editable profile metadata for authorization. Never expose secret/service-role keys in the browser. Do not make an owner-claim change from an ordinary client.
+
+## Current release state
+
+The Supabase foundation is deployed to the empty project, but end-to-end browser verification, owner claim provisioning, exact hosted-origin configuration and operational runbooks are still outstanding. The app is not yet ready for public release.
