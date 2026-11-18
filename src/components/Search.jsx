@@ -28,11 +28,11 @@ const Search = () => {
     const timeout = setTimeout(async () => {
       setSearching(true);
       try {
-        const matches = await searchProfiles(normalized, currentUser.uid, 0);
+        const result = await searchProfiles(normalized, currentUser.uid, 0);
         if (!active || generation !== searchGeneration.current) return;
-        setUsers(matches);
-        setHasMore(matches.length >= 30);
-        if (!matches.length) setErr("No people found. Try a name or @username.");
+        setUsers(result.profiles);
+        setHasMore(result.hasMore);
+        if (!result.profiles.length) setErr("No people found. Try a name or @username.");
       } catch (error) {
         console.error("User search failed:", error);
         if (!active || generation !== searchGeneration.current) return;
@@ -40,7 +40,7 @@ const Search = () => {
       } finally {
         if (active && generation === searchGeneration.current) setSearching(false);
       }
-    }, 250);
+    }, 180);
     return () => { active = false; clearTimeout(timeout); };
   }, [term, currentUser?.uid]);
 
@@ -53,15 +53,15 @@ const Search = () => {
     const nextPage = page + 1;
     const generation = searchGeneration.current;
     try {
-      const matches = await searchProfiles(normalized, currentUser.uid, nextPage);
+      const result = await searchProfiles(normalized, currentUser.uid, nextPage);
       if (generation !== searchGeneration.current) return;
       setUsers(previous => {
         const byId = new Map(previous.map(user => [user.uid, user]));
-        matches.forEach(user => byId.set(user.uid, user));
+        result.profiles.forEach(user => byId.set(user.uid, user));
         return [...byId.values()];
       });
       setPage(nextPage);
-      setHasMore(matches.length >= 30);
+      setHasMore(result.hasMore);
       setVisibleCount(count => count + 10);
     } catch (error) {
       console.error("Unable to load more search results:", error);
