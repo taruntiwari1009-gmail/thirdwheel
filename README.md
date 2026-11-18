@@ -26,14 +26,23 @@ The initial schema and security migrations have been applied to the new Supabase
 Use Node.js 22 or later.
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 npm start
 ```
 
-The app runs at [http://localhost:3000](http://localhost:3000).
+The app runs at [http://localhost:3000](http://localhost:3000). The example environment file points at the new, currently empty Supabase project.
 
-`.env.example` contains the public project URL and publishable key for local development. The publishable key is intended for browser use and is protected by RLS. Never put a Supabase secret key, legacy `service_role` key or database password in a `REACT_APP_*` variable or in source control.
+For a local Supabase stack, install the Supabase CLI and Docker, then run:
+
+```bash
+supabase start
+supabase status
+```
+
+The local API URL and publishable/anon key printed by `supabase status` can be used in your local `.env` file instead of the hosted project values. Apply the timestamped migrations to the local database with `supabase db reset`. The Edge Function config enables JWT verification for all six functions. For local function calls, copy `supabase/functions/.env.example` to an ignored local env file and set only local origins; never commit actual secret keys.
+
+`.env.example` contains the public project URL and publishable key for browser use. The publishable key is protected by RLS. Never put a Supabase secret key, legacy `service_role` key or database password in a `REACT_APP_*` variable or in source control.
 
 ## Backend model
 
