@@ -22,6 +22,7 @@ describe("chat utilities", () => {
   it("accepts only non-empty image files within the configured size limit", () => {
     expect(isAllowedImage({ type: "image/png", size: 1024 })).toBe(true);
     expect(isAllowedImage({ type: "text/plain", size: 1024 })).toBe(false);
+    expect(isAllowedImage({ type: "image/svg+xml", size: 1024 })).toBe(false);
     expect(isAllowedImage({ type: "image/png", size: 0 })).toBe(false);
     expect(isAllowedImage({ type: "image/png", size: 6 * 1024 * 1024 })).toBe(false);
   });
