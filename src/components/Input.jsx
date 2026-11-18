@@ -367,6 +367,14 @@ const Input = () => {
             <span className={"pendingMessageStatus pendingMessageStatus--" + item.status}>
               <i aria-hidden="true"></i>{label}
             </span>
+            {isSending && item.key === sendingKey && sendingStage === "uploading" && <div
+              className={"outboxProgress" + (typeof sendingPercent !== "number" ? " outboxProgress--indeterminate" : "")}
+              role="progressbar"
+              aria-label="Image upload progress"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={typeof sendingPercent === "number" ? sendingPercent : undefined}
+            ><span style={{ width: typeof sendingPercent === "number" ? sendingPercent + "%" : "35%" }} /></div>}
           </div>
           <div className="pendingMessageActions">
             {isSending && item.key === sendingKey && sendingStage === "uploading" && <button type="button" onClick={() => cancelActiveUpload(item)}>Cancel upload</button>}
