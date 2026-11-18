@@ -50,7 +50,7 @@ for (const pattern of requiredSql) {
   if (!pattern.test(migrationSql)) throw new Error(`Missing required Supabase migration invariant: ${pattern}`);
 }
 
-const profileUpdateGrant = await readFile(path.join(migrationDir, "20261118125611_profile_self_update_grant.sql"), "utf8");
+const profileUpdateGrant = await readFile(path.join(migrationDir, "20261118133753_profile_self_update_grant.sql"), "utf8");
 if (!/grant update \([\s\S]*?discoverable[\s\S]*?\) on table public\.profiles to authenticated;/i.test(profileUpdateGrant)) {
   throw new Error("Authenticated profile updates must be granted only for profile fields used by saveProfile().");
 }
