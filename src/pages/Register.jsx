@@ -102,6 +102,7 @@ const Register = () => {
         <label>College or university<input name="institution" maxLength="120" /></label>
       </details>
       <button disabled={loading || !supabase}>{loading ? "Creating account…" : "Create account"}</button>
+      {!supabase && <p role="alert" className="errorText">Registration is unavailable because this deployment is not connected to Supabase. Check the Netlify environment variables.</p>}
       {err && <p role="alert" className="errorText">{err}</p>}
     </form>}
     {!success && <p>Already have an account? <Link to="/login">Sign in</Link></p>}
