@@ -33,13 +33,16 @@ const Register = () => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: {
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
           display_name: displayName,
           bio: (form.elements.bio?.value || "").trim().slice(0, 300),
           interests: split(form.elements.interests?.value || ""),
           city: (form.elements.city?.value || "").trim().slice(0, 80),
           institution: (form.elements.institution?.value || "").trim().slice(0, 120),
-        } },
+          },
+        },
       });
       if (error) throw error;
       accountCreated = Boolean(data.user);
