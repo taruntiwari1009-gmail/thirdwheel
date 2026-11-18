@@ -85,13 +85,16 @@ export default function ModeratorDashboard() {
   };
 
   return <main className="pageShell moderationPage">
-    <header className="pageHeader">
+    <header className="pageHeader moderationPageHeader">
       <Link to="/" className="textLink">← Third Wheel</Link>
-      <p className="eyebrow">TRUST & SAFETY</p>
-      <h1>Moderation queue</h1>
-      <p className="muted">Review reports carefully. A report is an allegation, not a finding.</p>
+      <div className="moderationPageIntro">
+        <span className="eyebrow">TRUST & SAFETY</span>
+        <h1>Moderation workspace.</h1>
+        <p className="muted">Review every report carefully. A report is an allegation, not a finding.</p>
+      </div>
+      <span className="moderationAccessTag">{isOwner ? "Owner access" : "Moderator access"}</span>
     </header>
-    <div className="moderationToolbar">
+    <div className="moderationToolbar moderationFilters">
       <label htmlFor="moderation-filter">Show cases</label>
       <select id="moderation-filter" value={status} onChange={event => setStatus(event.target.value)}>
         {FILTERS.map(value => <option value={value} key={value}>{value[0].toUpperCase() + value.slice(1)}</option>)}
@@ -100,8 +103,8 @@ export default function ModeratorDashboard() {
     </div>
     {notice && <p className="successText" role="status">{notice}</p>}
     {error && <p className="errorText" role="alert">{error}</p>}
-    {isOwner && <section className="ownerDeletionQueue">
-      <div className="sectionHeading"><div><p className="eyebrow">OWNER CONTROLS</p><h2>Account deletion requests</h2></div>
+    {isOwner && <section className="ownerDeletionQueue moderationPanel">
+      <div className="sectionHeading ownerQueueHeading"><div><p className="eyebrow">OWNER CONTROLS</p><h2>Account deletion requests</h2></div>
         <button type="button" className="secondaryAction" onClick={loadDeletionRequests} disabled={deletionLoading}>{deletionLoading ? "Refreshing…" : "Refresh requests"}</button>
       </div>
       <p className="muted">Only the owner can approve and process requests. Processing removes the account and avatar while retaining shared conversation history.</p>
@@ -118,9 +121,9 @@ export default function ModeratorDashboard() {
       </article>)}
     </section>}
     {loading ? <p role="status">Loading moderation cases…</p> : cases.length === 0
-      ? <section className="moderationEmpty"><h2>No {status} cases</h2><p className="muted">There are no reports in this queue right now.</p></section>
-      : <section className="moderationCases" aria-label="Moderation cases">
-        {cases.map(item => <article className="moderationCase" key={item.id}>
+      ? <section className="moderationEmpty moderationEmptyState"><h2>No {status} cases</h2><p className="muted">There are no reports in this queue right now.</p></section>
+      : <section className="moderationCases moderationCaseList" aria-label="Moderation cases">
+        {cases.map(item => <article className="moderationCase moderationCaseCard" key={item.id}>
           <div className="moderationCaseHeader">
             <span className="eyebrow">CASE {item.id.slice(0, 8)}</span>
             <span className={`caseStatus status-${item.status}`}>{item.status}</span>
