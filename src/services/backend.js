@@ -88,10 +88,20 @@ export async function getOrCreateConversation(currentUid, targetUid) {
   const client = assertSupabase();
   if (!currentUid || !targetUid || currentUid === targetUid) throw new Error("Choose another member to start a conversation.");
   const [participantLow, participantHigh] = [currentUid, targetUid].sort();
+  const blockCheck = await client.from("user_blocks").select("blocker_id")
+    .or(`and(blocker_id.eq.${participantLow},blocked_id.eq.${participantHigh}),and(blocker_id.eq.${participantHigh},blocked_id.eq.${participantLow})`);
+  if (blockCheck.error) throw blockCheck.error;
+  if (blockCheck.data?.length) throw new Error("This person is unavailable for a new conversation.");
+
   const existing = await client.from("conversations").select("*")
     .eq("participant_low", participantLow).eq("participant_high", participantHigh).maybeSingle();
   if (existing.error) throw existing.error;
-  if (existing.data) return existing.data;
+  if (existing.data) {
+    const unhide = await client.from("conversation_reads").update({ inbox_hidden: false })
+      .eq("conversation_id", existing.data.id).eq("user_id", currentUid);
+    if (unhide.error) throw unhide.error;
+    return existing.data;
+  }
 
   const inserted = await client.from("conversations")
     .insert({ participant_low: participantLow, participant_high: participantHigh, created_by: currentUid })
@@ -267,6 +277,13 @@ export async function removeConversationFromInbox(conversationId, userId) {
     .update({ inbox_hidden: true })
     .eq("conversation_id", conversationId).eq("user_id", userId);
   if (error) throw error;
+}
+
+export async function isUserBlocked(currentUid, targetUid) {
+  const client = assertSupabase();
+  const row = unwrap(await client.from("user_blocks").select("blocker_id")
+    .eq("blocker_id", currentUid).eq("blocked_id", targetUid).maybeSingle());
+  return Boolean(row);
 }
 
 export async function setBlocked(currentUid, targetUid, blocked) {
