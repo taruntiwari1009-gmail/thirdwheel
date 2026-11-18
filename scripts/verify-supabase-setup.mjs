@@ -106,7 +106,7 @@ for (const [relativePath, expectedCall] of authEntryPoints) {
   if (!source.includes(expectedCall)) {
     throw new Error(`Expected Supabase Auth call missing from ${relativePath}: ${expectedCall}`);
   }
-  if (/\\b(getAuth|createUserWithEmailAndPassword|signInWithEmailAndPassword)\\s*\\(/.test(source)) {
+  if (/\b(getAuth|createUserWithEmailAndPassword|signInWithEmailAndPassword)\s*\(/.test(source)) {
     throw new Error(`Firebase Authentication call remains in active auth entry point: ${relativePath}`);
   }
 }
