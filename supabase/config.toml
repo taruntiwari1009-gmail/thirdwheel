@@ -17,13 +17,14 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "https://thechaichapters.com"
+site_url = "https://thirdwheel.netlify.app"
 additional_redirect_urls = [
   "http://localhost:3000/**",
   "http://127.0.0.1:3000/**",
   "https://thechaichapters.com/**",
   "https://www.thechaichapters.com/**",
-  "https://thirdwheel.netlify.app/**"
+  "https://thirdwheel.netlify.app/**",
+  "https://**--thirdwheel.netlify.app/**"
 ]
 enable_signup = true
 

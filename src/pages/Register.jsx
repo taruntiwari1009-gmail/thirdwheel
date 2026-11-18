@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Add from "../img/addAvatar.png";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase, supabaseProjectHost } from "../supabase";
 import { isAllowedImage } from "../utils/chat";
 import { saveProfile } from "../services/backend";
 
@@ -28,19 +28,24 @@ const Register = () => {
     if (!displayName) { setErr("Enter a display name."); setLoading(false); return; }
     if (file && !isAllowedImage(file)) { setErr("Choose an image smaller than 5 MB, or leave the avatar blank."); setLoading(false); return; }
 
+    let accountCreated = false;
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: {
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
           display_name: displayName,
           bio: (form.elements.bio?.value || "").trim().slice(0, 300),
           interests: split(form.elements.interests?.value || ""),
           city: (form.elements.city?.value || "").trim().slice(0, 80),
           institution: (form.elements.institution?.value || "").trim().slice(0, 120),
-        } },
+          },
+        },
       });
       if (error) throw error;
+      accountCreated = Boolean(data.user);
       if (data.session && data.user) {
         setConfirmationRequired(false);
         const profile = await saveProfile(data.user.id, {
@@ -60,10 +65,21 @@ const Register = () => {
         setSuccess("Your starter profile has been saved. Check your email to confirm your address, then sign in to add a profile photo.");
       }
     } catch (error) {
-      console.error("Registration failed:", error);
-      if (error.message?.toLowerCase().includes("already registered")) setErr("An account already exists with this email. Try signing in.");
-      else if (error.message?.toLowerCase().includes("password")) setErr("Choose a stronger password and try again.");
-      else setErr(error.message || "Registration couldn't be completed. Check your details and try again.");
+      console.error("Registration failed:", {
+        code: error.code || error.name || "UNKNOWN",
+        status: error.status || null,
+        message: error.message || "Unknown registration error",
+        supabaseProjectHost,
+      });
+      if (accountCreated) {
+        setErr("Your account was created, but we couldn't finish updating your profile. Try signing in with this email instead of registering again. If sign-in fails, ask support to verify the app's backend connection.");
+      } else if (error.message?.toLowerCase().includes("already registered")) {
+        setErr("An account already exists with this email. Try signing in.");
+      } else if (error.message?.toLowerCase().includes("password")) {
+        setErr("Choose a stronger password and try again.");
+      } else {
+        setErr(error.message || "Registration couldn't be completed. Check your details and try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -86,6 +102,7 @@ const Register = () => {
         <label>College or university<input name="institution" maxLength="120" /></label>
       </details>
       <button disabled={loading || !supabase}>{loading ? "Creating account…" : "Create account"}</button>
+      {!supabase && <p role="alert" className="errorText">Registration is unavailable because this deployment is not connected to Supabase. Check the Netlify environment variables.</p>}
       {err && <p role="alert" className="errorText">{err}</p>}
     </form>}
     {!success && <p>Already have an account? <Link to="/login">Sign in</Link></p>}

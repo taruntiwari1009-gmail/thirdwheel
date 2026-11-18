@@ -18,7 +18,8 @@ const expectedMigrations = [
   "20261118095256_require_active_profiles_for_private_access.sql",
   "20261118095318_atomic_account_deletion_approval.sql",
   "20261118095751_active_profile_guard_for_profile_reads.sql",
-  "20261118120000_atomic_account_deletion_rejection.sql",
+  "20261118120341_atomic_account_deletion_rejection.sql",
+  "20261118133753_profile_self_update_grant.sql",
 ];
 const missingMigrations = expectedMigrations.filter(name => !migrationNames.includes(name));
 const extraMigrations = migrationNames.filter(name => !expectedMigrations.includes(name));
@@ -43,9 +44,15 @@ const requiredSql = [
   /private\.enforce_message_rate_limit/i,
   /private\.enforce_report_rate_limit/i,
   /create or replace function public\.reject_account_deletion/i,
+  /create policy profiles_update_self/i,
 ];
 for (const pattern of requiredSql) {
   if (!pattern.test(migrationSql)) throw new Error(`Missing required Supabase migration invariant: ${pattern}`);
+}
+
+const profileUpdateGrant = await readFile(path.join(migrationDir, "20261118133753_profile_self_update_grant.sql"), "utf8");
+if (!/grant update \([\s\S]*?discoverable[\s\S]*?\) on table public\.profiles to authenticated;/i.test(profileUpdateGrant)) {
+  throw new Error("Authenticated profile updates must be granted only for profile fields used by saveProfile().");
 }
 
 async function walk(directory) {
@@ -78,6 +85,32 @@ if (client.includes("SERVICE_ROLE") || client.includes("SECRET_KEY")) {
   throw new Error("Browser client must not contain a server credential.");
 }
 
+const packageManifest = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+const installedPackages = {
+  ...(packageManifest.dependencies || {}),
+  ...(packageManifest.devDependencies || {}),
+};
+const firebasePackages = Object.keys(installedPackages)
+  .filter(name => name === "firebase" || name.startsWith("@firebase/"));
+if (firebasePackages.length) {
+  throw new Error(`Firebase packages remain in the active application manifest: ${firebasePackages.join(", ")}`);
+}
+
+const authEntryPoints = [
+  ["src/pages/Login.jsx", "supabase.auth.signInWithPassword"],
+  ["src/pages/Register.jsx", "supabase.auth.signUp"],
+  ["src/context/AuthContext.js", "supabase.auth.onAuthStateChange"],
+];
+for (const [relativePath, expectedCall] of authEntryPoints) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  if (!source.includes(expectedCall)) {
+    throw new Error(`Expected Supabase Auth call missing from ${relativePath}: ${expectedCall}`);
+  }
+  if (/\b(getAuth|createUserWithEmailAndPassword|signInWithEmailAndPassword)\s*\(/.test(source)) {
+    throw new Error(`Firebase Authentication call remains in active auth entry point: ${relativePath}`);
+  }
+}
+
 const functionNames = [
   "moderation-list-cases",
   "moderation-review-case",
@@ -94,6 +127,8 @@ const rlsSmokeTest = await readFile(path.join(root, "supabase", "tests", "rls_ro
 for (const marker of [
   "PARTICIPANT_READ_CHECK_FAILED",
   "NON_MEMBER_READ_CHECK_FAILED",
+  "OWNER_PROFILE_UPDATE_CHECK_FAILED",
+  "NON_MEMBER_PROFILE_UPDATE_CHECK_FAILED",
   "BLOCK_WRITE_CHECK_FAILED",
   "PRIVATE_PROFILE_READ_CHECK_FAILED",
   "PRIVATE_AVATAR_READ_CHECK_FAILED",
@@ -127,6 +162,14 @@ for (const name of functionNames) {
   if (!supabaseConfig.includes(`[functions.${name}]\nverify_jwt = true`)) {
     throw new Error(`Supabase CLI config must require JWT verification for ${name}.`);
   }
+}
+
+if (!supabaseConfig.includes('"https://**--thirdwheel.netlify.app/**"')) {
+  throw new Error("Supabase Auth redirect allowlist must include Netlify deploy preview URLs.");
+}
+const registerSource = await readFile(path.join(root, "src", "pages", "Register.jsx"), "utf8");
+if (!registerSource.includes("emailRedirectTo: window.location.origin")) {
+  throw new Error("Signup confirmation must return to the origin where signup started.");
 }
 
 const canonicalAuth = await readFile(path.join(root, "supabase", "functions", "_shared", "auth.ts"), "utf8");

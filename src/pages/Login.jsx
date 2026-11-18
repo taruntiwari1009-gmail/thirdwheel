@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "../supabase";
+import { supabase, supabaseProjectHost } from "../supabase";
 
 const Login = () => {
   const [err, setErr] = useState("");
@@ -22,8 +22,13 @@ const Login = () => {
       if (error) throw error;
       navigate("/", { replace: true });
     } catch (error) {
-      console.error("Sign-in failed:", error);
-      setErr("Unable to sign in. Check your email and password, then try again.");
+      console.error("Sign-in failed:", {
+        code: error.code || error.name || "UNKNOWN",
+        status: error.status || null,
+        message: error.message || "Unknown sign-in error",
+        supabaseProjectHost,
+      });
+      setErr("Unable to sign in. Check your email and password, and make sure this app uses the same backend where you registered.");
     } finally {
       setLoading(false);
     }
@@ -54,6 +59,7 @@ const Login = () => {
           </label>
           <div className="authFormMeta"><Link to="/forgot-password">Forgot password?</Link></div>
           <button type="submit" disabled={loading || !supabase}>{loading ? "Signing in…" : "Sign in"}</button>
+          {!supabase && <p role="alert" className="errorText">Sign-in is unavailable because this deployment is not connected to Supabase. Check the Netlify environment variables.</p>}
           {err && <p role="alert" className="errorText">{err}</p>}
         </form>
         <p className="authFooter">New here? <Link to="/register">Create an account</Link></p>
