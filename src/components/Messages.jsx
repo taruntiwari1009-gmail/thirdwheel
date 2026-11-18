@@ -1,22 +1,23 @@
-import { collection, doc, documentId, endBefore, getDocs, limitToLast, onSnapshot, orderBy, query, runTransaction, serverTimestamp } from "firebase/firestore";
 import React, { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
-import { db } from "../firebase";
+import {
+  getPeerLastReadAt, loadMessages, loadOlderMessages, markConversationRead,
+  subscribeToConversationReads, subscribeToMessages,
+} from "../services/backend";
 import Message from "./Message";
 
 const PAGE_SIZE = 50;
-
+const asDate = value => value instanceof Date ? value : value ? new Date(value) : null;
 const dayLabel = value => {
-  const date = value?.toDate ? value.toDate() : value instanceof Date ? value : null;
-  if (!date) return "Earlier";
-  const today = new Date(); const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  const date = asDate(value);
+  if (!date || Number.isNaN(date.getTime())) return "Earlier";
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
   if (date.toDateString() === today.toDateString()) return "Today";
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
   return date.toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" });
 };
-
-const toMessage = snapshot => ({ id: snapshot.id, ...snapshot.data() });
 
 const Messages = () => {
   const [latestMessages, setLatestMessages] = useState([]);
@@ -24,7 +25,6 @@ const Messages = () => {
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [olderError, setOlderError] = useState("");
-  const [deletedParticipants, setDeletedParticipants] = useState([]);
   const [peerLastReadAt, setPeerLastReadAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -32,8 +32,6 @@ const Messages = () => {
   const { currentUser } = useContext(AuthContext);
   const listRef = useRef(null);
   const shouldStickToBottom = useRef(true);
-  const oldestDoc = useRef(null);
-  const hasLoadedOlder = useRef(false);
   const activeChatId = useRef(data.chatId);
   const pendingScrollRestore = useRef(null);
 
@@ -41,8 +39,8 @@ const Messages = () => {
     const byId = new Map();
     [...olderMessages, ...latestMessages].forEach(message => byId.set(message.id, message));
     return Array.from(byId.values()).sort((a, b) => {
-      const left = a.date?.toMillis ? a.date.toMillis() : new Date(a.date || 0).getTime();
-      const right = b.date?.toMillis ? b.date.toMillis() : new Date(b.date || 0).getTime();
+      const left = new Date(a.created_at || a.date || 0).getTime();
+      const right = new Date(b.created_at || b.date || 0).getTime();
       return left - right || a.id.localeCompare(b.id);
     });
   }, [olderMessages, latestMessages]);
@@ -50,83 +48,57 @@ const Messages = () => {
   const lastOwnMessageId = [...messages].reverse().find(message => message.senderId === currentUser?.uid)?.id || "";
 
   useEffect(() => {
-    if (!data.chatId) {
+    if (!data.chatId || !currentUser?.uid) {
       setLatestMessages([]); setOlderMessages([]); setHasOlder(false);
-      setLoading(false); setLoadingOlder(false); setError(""); setOlderError("");
-      setDeletedParticipants([]); setPeerLastReadAt(null);
-      oldestDoc.current = null; hasLoadedOlder.current = false;
+      setLoading(false); setLoadingOlder(false); setError(""); setOlderError(""); setPeerLastReadAt(null);
+      activeChatId.current = null;
       return undefined;
     }
-
-    activeChatId.current = data.chatId;
+    let active = true;
+    const chatId = data.chatId;
+    activeChatId.current = chatId;
     shouldStickToBottom.current = true;
+    pendingScrollRestore.current = null;
     setLatestMessages([]); setOlderMessages([]); setHasOlder(false);
     setLoading(true); setLoadingOlder(false); setError(""); setOlderError("");
-    oldestDoc.current = null; hasLoadedOlder.current = false; pendingScrollRestore.current = null;
 
-    const chatRef = doc(db, "chats", data.chatId);
-    const stopChat = onSnapshot(chatRef, snapshot => {
-      setDeletedParticipants(snapshot.exists() ? snapshot.data().deletedParticipants || [] : []);
-    }, listenerError => {
-      console.error("Unable to load conversation metadata:", listenerError);
-      setError("Conversation details could not be loaded. Check your connection and try again.");
-      setLoading(false);
-    });
-
-    const messagesQuery = query(
-      collection(db, "chats", data.chatId, "messages"),
-      orderBy("date", "asc"),
-      orderBy(documentId(), "asc"),
-      limitToLast(PAGE_SIZE)
-    );
-    const stopMessages = onSnapshot(messagesQuery, snapshot => {
-      if (!hasLoadedOlder.current) oldestDoc.current = snapshot.docs[0] || null;
-      setHasOlder(snapshot.docs.length === PAGE_SIZE);
-      setLatestMessages(snapshot.docs.map(toMessage));
-      setLoading(false); setError("");
-    }, listenerError => {
-      console.error("Unable to load messages:", listenerError);
-      setLoading(false);
-      setError("Messages could not be loaded. Check your connection and try again.");
-    });
-
-    return () => {
-      stopChat();
-      stopMessages();
-      if (activeChatId.current === data.chatId) activeChatId.current = null;
-    };
-  }, [data.chatId]);
-
-  // The recipient's inbox read boundary is the authoritative read receipt.
-  useEffect(() => {
-    if (!data.chatId || !data.user?.uid) {
-      setPeerLastReadAt(null);
-      return undefined;
-    }
-    const peerEntryRef = doc(db, "users", data.user.uid, "userChats", data.chatId);
-    return onSnapshot(peerEntryRef, snapshot => {
-      setPeerLastReadAt(snapshot.exists() ? snapshot.data().lastReadAt || null : null);
-    }, listenerError => {
-      console.warn("Unable to observe read state:", listenerError);
-      setPeerLastReadAt(null);
-    });
-  }, [data.chatId, data.user?.uid]);
-
-  useEffect(() => {
-    if (!data.chatId || !currentUser?.uid) return undefined;
-    const entryRef = doc(db, "users", currentUser.uid, "userChats", data.chatId);
-    const markRead = async () => {
+    const refresh = async () => {
       try {
-        await runTransaction(db, async transaction => {
-          const entry = await transaction.get(entryRef);
-          if (entry.exists()) {
-            transaction.update(entryRef, { unreadCount: 0, lastReadAt: serverTimestamp() });
-          }
-        });
-      } catch (readError) { console.warn("Could not update inbox read state:", readError); }
+        const page = await loadMessages(chatId, PAGE_SIZE);
+        if (!active || activeChatId.current !== chatId) return;
+        setLatestMessages(page.messages);
+        setHasOlder(page.hasOlder);
+        setLoading(false); setError("");
+      } catch (loadError) {
+        console.error("Unable to load messages:", loadError);
+        if (active) { setLoading(false); setError("Messages could not be loaded. Check your connection and try again."); }
+      }
     };
-    markRead();
-    return undefined;
+    const refreshPeerRead = async () => {
+      try {
+        const value = await getPeerLastReadAt(chatId, data.user?.uid);
+        if (active) setPeerLastReadAt(value);
+      } catch (readError) {
+        console.warn("Unable to load read receipt:", readError);
+        if (active) setPeerLastReadAt(null);
+      }
+    };
+    refresh();
+    refreshPeerRead();
+    const stopMessages = subscribeToMessages(chatId, refresh);
+    const stopReads = subscribeToConversationReads(chatId, refreshPeerRead);
+    return () => {
+      active = false;
+      stopMessages();
+      stopReads();
+      if (activeChatId.current === chatId) activeChatId.current = null;
+    };
+  }, [data.chatId, data.user?.uid, currentUser?.uid]);
+
+  useEffect(() => {
+    if (!data.chatId || !currentUser?.uid) return;
+    markConversationRead(data.chatId, currentUser.uid)
+      .catch(readError => console.warn("Could not update inbox read state:", readError));
   }, [data.chatId, currentUser?.uid, latestMessages.length]);
 
   useLayoutEffect(() => {
@@ -149,36 +121,23 @@ const Messages = () => {
 
   const loadOlder = async () => {
     const chatId = data.chatId;
-    const cursor = oldestDoc.current;
+    const cursor = messages[0];
     if (!chatId || !cursor || loadingOlder || !hasOlder) return;
     const list = listRef.current;
     if (list) pendingScrollRestore.current = { scrollHeight: list.scrollHeight, scrollTop: list.scrollTop };
     shouldStickToBottom.current = false;
     setLoadingOlder(true); setOlderError("");
-
     try {
-      const olderQuery = query(
-        collection(db, "chats", chatId, "messages"),
-        orderBy("date", "asc"),
-        orderBy(documentId(), "asc"),
-        endBefore(cursor),
-        limitToLast(PAGE_SIZE)
-      );
-      const snapshot = await getDocs(olderQuery);
+      const page = await loadOlderMessages(chatId, cursor, PAGE_SIZE);
       if (activeChatId.current !== chatId) return;
-      const page = snapshot.docs.map(toMessage);
-      if (snapshot.docs.length) {
-        oldestDoc.current = snapshot.docs[0];
-        hasLoadedOlder.current = true;
+      if (page.messages.length) {
         setOlderMessages(previous => {
           const byId = new Map(previous.map(message => [message.id, message]));
-          page.forEach(message => byId.set(message.id, message));
+          page.messages.forEach(message => byId.set(message.id, message));
           return Array.from(byId.values());
         });
-      } else {
-        oldestDoc.current = null;
       }
-      setHasOlder(snapshot.docs.length === PAGE_SIZE);
+      setHasOlder(page.hasOlder);
     } catch (loadError) {
       if (activeChatId.current !== chatId) return;
       console.error("Unable to load older messages:", loadError);
@@ -189,11 +148,10 @@ const Messages = () => {
     }
   };
 
-  const peerReadMillis = peerLastReadAt?.toMillis ? peerLastReadAt.toMillis() : 0;
   const grouped = [];
   let previousDay = "";
   messages.forEach(message => {
-    const key = dayLabel(message.date);
+    const key = dayLabel(message.created_at || message.date);
     if (key !== previousDay) {
       grouped.push({ type: "day", key: `${key}-${message.id}`, label: key });
       previousDay = key;
@@ -211,9 +169,10 @@ const Messages = () => {
       if (item.type === "day") return <div className="dateDivider" key={item.key}><span>{item.label}</span></div>;
       const message = item.message;
       const isLatestOwn = message.id === lastOwnMessageId;
-      const messageMillis = message.date?.toMillis ? message.date.toMillis() : 0;
+      const peerReadMillis = peerLastReadAt ? new Date(peerLastReadAt).getTime() : 0;
+      const messageMillis = new Date(message.created_at || message.date).getTime();
       const receipt = isLatestOwn ? (peerReadMillis && messageMillis && peerReadMillis >= messageMillis ? "Seen" : "Sent") : "";
-      return <Message message={message} deleted={deletedParticipants.includes(message.senderId)} receipt={receipt} key={message.id} />;
+      return <Message message={message} deleted={!message.senderId} receipt={receipt} key={message.id} />;
     })}
   </div>;
 };
