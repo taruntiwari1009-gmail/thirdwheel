@@ -18,7 +18,7 @@ const expectedMigrations = [
   "20261118095256_require_active_profiles_for_private_access.sql",
   "20261118095318_atomic_account_deletion_approval.sql",
   "20261118095751_active_profile_guard_for_profile_reads.sql",
-  "20261118120000_atomic_account_deletion_rejection.sql",
+  "20261118120341_atomic_account_deletion_rejection.sql",
   "20261118133753_profile_self_update_grant.sql",
 ];
 const missingMigrations = expectedMigrations.filter(name => !migrationNames.includes(name));
