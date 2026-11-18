@@ -47,14 +47,14 @@ All are deployed with JWT verification enabled. Browser calls additionally requi
 
 ## Verified backend state
 
-- Seven versioned schema/security migrations have been applied after the initial function-access restriction migration.
-- Nine application tables plus two private rate-limit tables have RLS enabled.
-- Avatar and chat-image buckets are private.
-- Storage policies cover owner/member access, uploader path validation and retry-safe updates.
+- Nine versioned SQL migrations are applied; local filenames match the exact versions recorded by Supabase.
+- Eight public application tables plus two private rate-limit tables have RLS enabled (10/10 total).
+- The `avatars` and `chat-images` buckets are private, with eight Storage policies covering owner/member access, uploader path validation, retry-safe updates and block-aware writes.
 - Realtime publication includes `messages`, `conversations` and `conversation_reads`.
-- Supabase security and health advisors currently report no findings.
+- Six Edge Functions are active at version 2 with JWT verification enabled.
+- Supabase security and health advisors report no findings.
 - The performance advisor reports unused indexes only; the project is empty and has no live query workload yet.
-- No Supabase Auth users, profiles, conversations, messages or Storage objects have been seeded.
+- Auth users, profiles, conversations, messages, reports and Storage objects all remain at zero.
 
 ## Release gates
 
