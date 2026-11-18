@@ -1,8 +1,3 @@
--- Rollback-only Supabase RLS smoke test.
--- Run in a disposable Supabase development project using the SQL Editor.
--- Do not remove BEGIN/ROLLBACK. The three temporary Auth users and all rows
--- created by this test are rolled back and never become persistent accounts.
-
 begin;
 
 insert into auth.users (
@@ -26,13 +21,11 @@ insert into auth.users (
   '{}'::jsonb,'{"display_name":"RLS Test C"}'::jsonb,now(),now(),false,false
 );
 
+-- A creates the conversation and sends a message in separate statements.
 set local role authenticated;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 
--- Conversation creation and message creation are separate statements, matching
--- the app's two-request flow so the message policy sees the committed conversation
--- within the current SQL transaction snapshot.
 insert into public.conversations (participant_low, participant_high, created_by)
 values (
   '10000000-0000-4000-8000-000000000001',
@@ -56,31 +49,72 @@ values (
   'RLS rollback test'
 );
 
--- A conversation participant must see the message.
+-- B makes the profile private; A is still connected through the existing chat.
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',true);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
+update public.profiles set discoverable=false where id=auth.uid();
+
+-- Insert a temporary avatar object as the database owner for Storage policy tests.
+reset role;
+insert into storage.objects (bucket_id, name, owner, owner_id, metadata, path_tokens)
+values (
+  'avatars',
+  '10000000-0000-4000-8000-000000000002/profile.png',
+  '10000000-0000-4000-8000-000000000002',
+  '10000000-0000-4000-8000-000000000002',
+  '{"mimetype":"image/png","size":1}'::jsonb,
+  array['10000000-0000-4000-8000-000000000002','profile.png']
+);
+
+-- C is not a participant and cannot see B's private profile or avatar.
+set local role authenticated;
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+do $$
+declare n_profile integer; n_avatar integer;
+begin
+  select count(*) into n_profile from public.profiles
+  where id='10000000-0000-4000-8000-000000000002';
+  select count(*) into n_avatar from storage.objects
+  where bucket_id='avatars' and name='10000000-0000-4000-8000-000000000002/profile.png';
+  if n_profile <> 0 then raise exception 'PRIVATE_PROFILE_READ_CHECK_FAILED'; end if;
+  if n_avatar <> 0 then raise exception 'PRIVATE_AVATAR_READ_CHECK_FAILED'; end if;
+end $$;
+
+-- A remains permitted to view B's private profile and avatar through the existing conversation.
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
+do $$
+declare n_profile integer; n_avatar integer;
+begin
+  select count(*) into n_profile from public.profiles
+  where id='10000000-0000-4000-8000-000000000002';
+  select count(*) into n_avatar from storage.objects
+  where bucket_id='avatars' and name='10000000-0000-4000-8000-000000000002/profile.png';
+  if n_profile <> 1 then raise exception 'RELATED_PROFILE_READ_CHECK_FAILED'; end if;
+  if n_avatar <> 1 then raise exception 'RELATED_AVATAR_READ_CHECK_FAILED'; end if;
+end $$;
+
+-- A conversation participant sees the message; an unrelated active user sees none.
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
 do $$
 declare n integer;
 begin
   select count(*) into n from public.messages where body='RLS rollback test';
-  if n <> 1 then
-    raise exception 'PARTICIPANT_READ_CHECK_FAILED: expected 1, got %', n;
-  end if;
+  if n <> 1 then raise exception 'PARTICIPANT_READ_CHECK_FAILED: expected 1, got %', n; end if;
 end $$;
 
--- A signed-in non-member must see no messages.
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
 do $$
 declare n integer;
 begin
   select count(*) into n from public.messages where body='RLS rollback test';
-  if n <> 0 then
-    raise exception 'NON_MEMBER_READ_CHECK_FAILED: expected 0, got %', n;
-  end if;
+  if n <> 0 then raise exception 'NON_MEMBER_READ_CHECK_FAILED: expected 0, got %', n; end if;
 end $$;
 
--- A block must deny subsequent message writes, even for an existing conversation.
+-- A block denies subsequent message writes for the existing conversation.
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 insert into public.user_blocks (blocker_id, blocked_id)
@@ -103,9 +137,27 @@ begin
   exception when insufficient_privilege then
     denied := true;
   end;
-  if not denied then
-    raise exception 'BLOCK_WRITE_CHECK_FAILED';
-  end if;
+  if not denied then raise exception 'BLOCK_WRITE_CHECK_FAILED'; end if;
+end $$;
+
+-- Delete C's Auth user but retain its issued JWT claims; the stale token must
+-- no longer read profiles, messages, conversation read state, or private media.
+reset role;
+delete from auth.users where id='10000000-0000-4000-8000-000000000003';
+set local role authenticated;
+select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
+select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
+do $$
+declare n_profile integer; n_message integer; n_read integer; n_avatar integer;
+begin
+  select count(*) into n_profile from public.profiles;
+  select count(*) into n_message from public.messages;
+  select count(*) into n_read from public.conversation_reads;
+  select count(*) into n_avatar from storage.objects;
+  if n_profile <> 0 then raise exception 'DELETED_SESSION_PROFILE_READ_CHECK_FAILED'; end if;
+  if n_message <> 0 then raise exception 'DELETED_SESSION_MESSAGE_READ_CHECK_FAILED'; end if;
+  if n_read <> 0 then raise exception 'DELETED_SESSION_READ_STATE_CHECK_FAILED'; end if;
+  if n_avatar <> 0 then raise exception 'DELETED_SESSION_STORAGE_READ_CHECK_FAILED'; end if;
 end $$;
 
 select 'RLS_ROLLBACK_TEST_PASSED' as result;
