@@ -114,13 +114,13 @@ export default function Profile() {
   if (error && !profile.displayName) return <main className="pageShell"><p role="alert">{error}</p><Link to="/">Back to conversations</Link></main>;
 
   return <main className="pageShell profilePage">
-    <header className="pageHeader">
-      <Link to="/" className="textLink">← Third Wheel</Link>
+    <header className="pageHeader profilePageHeader">
+      <div className="pageHeaderIdentity"><Link to="/" className="textLink">← Third Wheel</Link><span className="eyebrow">COMMUNITY</span></div>
       {owner && <Link className="primaryLink" to="/profile/edit">Edit profile</Link>}
     </header>
     <section className="profileHero profileHero--main">
       {profile.photoURL ? <img className="profileAvatar" src={profile.photoURL} alt="" /> : <span className="profileAvatar profileAvatarFallback" aria-hidden="true">{(profile.displayName || "T").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
-      <div>
+      <div className="profileHeroDetails">
         <p className="eyebrow">COMMUNITY PROFILE</p>
         <h1>{profile.displayName || "New member"}</h1>
         {profile.username && <p className="muted">@{profile.username}</p>}
