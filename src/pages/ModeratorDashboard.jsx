@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { getFunctions, httpsCallable } from "firebase/functions";
 import { Link } from "react-router-dom";
+import { invokeModerationFunction } from "../services/backend";
 
-const FILTERS = ["open", "reviewing", "actioned", "dismissed", "escalated"];
-const ACTIONS = ["reviewing", "actioned", "dismissed", "escalated"];
+const FILTERS = ["pending", "reviewing", "actioned", "dismissed"];
+const ACTIONS = ["reviewing", "actioned", "dismissed"];
 
 export default function ModeratorDashboard() {
-  const [status, setStatus] = useState("open");
+  const [status, setStatus] = useState("pending");
   const [cases, setCases] = useState([]);
   const [notes, setNotes] = useState({});
   const [loading, setLoading] = useState(true);
@@ -15,38 +15,33 @@ export default function ModeratorDashboard() {
   const [notice, setNotice] = useState("");
 
   const loadCases = useCallback(async () => {
-    setLoading(true);
-    setError("");
+    setLoading(true); setError("");
     try {
-      const listCases = httpsCallable(getFunctions(), "listModerationCases");
-      const result = await listCases({ status });
-      setCases(result.data.cases || []);
+      const result = await invokeModerationFunction("moderation-list-cases", { status });
+      setCases(result?.cases || []);
     } catch (loadError) {
       console.error("Unable to load moderation queue:", loadError);
       setError("The moderation queue couldn't be loaded. Confirm your moderator access and try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   }, [status]);
 
   useEffect(() => { loadCases(); }, [loadCases]);
 
   const reviewCase = async (item, nextStatus) => {
     if (busyId) return;
-    setBusyId(item.id);
-    setError("");
-    setNotice("");
+    setBusyId(item.id); setError(""); setNotice("");
     try {
-      const review = httpsCallable(getFunctions(), "reviewModerationCase");
-      await review({ caseId: item.id, status: nextStatus, note: (notes[item.id] || "").trim() });
+      await invokeModerationFunction("moderation-review-case", {
+        reportId: item.id,
+        status: nextStatus,
+        note: (notes[item.id] || "").trim(),
+      });
       setNotice(`Case ${item.id} updated to ${nextStatus}.`);
       await loadCases();
     } catch (reviewError) {
       console.error("Unable to update moderation case:", reviewError);
       setError("This case couldn't be updated. Please try again.");
-    } finally {
-      setBusyId("");
-    }
+    } finally { setBusyId(""); }
   };
 
   return <main className="pageShell moderationPage">
@@ -75,12 +70,12 @@ export default function ModeratorDashboard() {
           </div>
           <h2>{(item.reason || "other").replaceAll("_", " ")}</h2>
           <dl className="caseMetadata">
-            <div><dt>Reported account</dt><dd><Link to={`/profile/${item.targetUid}`}>{item.targetUid}</Link></dd></div>
-            <div><dt>Reporter</dt><dd>{item.reporterId || "Unavailable"}</dd></div>
+            <div><dt>Reported account</dt><dd><Link to={`/profile/${item.target_user_id}`}>{item.target_user_id || "Unavailable"}</Link></dd></div>
+            <div><dt>Reporter</dt><dd>{item.reporter_id || "Unavailable"}</dd></div>
           </dl>
           <div className="caseEvidence"><strong>Additional context</strong><p>{item.details || "No additional details were provided."}</p></div>
           <label className="caseNote">Moderator note
-            <textarea rows="3" maxLength="1000" value={notes[item.id] ?? item.moderatorNote ?? ""} onChange={event => setNotes(previous => ({ ...previous, [item.id]: event.target.value }))} placeholder="Record the evidence reviewed and rationale for your decision." />
+            <textarea rows="3" maxLength="1000" value={notes[item.id] ?? ""} onChange={event => setNotes(previous => ({ ...previous, [item.id]: event.target.value }))} placeholder="Record the evidence reviewed and rationale for your decision." />
           </label>
           <div className="caseActions">
             {ACTIONS.filter(action => action !== item.status).map(action => <button type="button" key={action} className={action === "dismissed" ? "secondaryAction" : "primaryAction"} disabled={Boolean(busyId)} onClick={() => reviewCase(item, action)}>{busyId === item.id ? "Saving…" : action[0].toUpperCase() + action.slice(1)}</button>)}
