@@ -30,14 +30,14 @@ describe("chat utilities", () => {
 describe("chatReducer", () => {
   const initialState = { chatId: null, user: {} };
 
-  it("selects a valid participant and derives the stable conversation ID", () => {
+  it("selects a valid participant with its server-created conversation ID", () => {
     const next = chatReducer(initialState, {
       type: "CHANGE_USER",
-      currentUserId: "user-z",
+      chatId: "supabase-conversation-uuid",
       payload: { uid: "user-a", displayName: "A" },
     });
 
-    expect(next.chatId).toBe("user-auser-z");
+    expect(next.chatId).toBe("supabase-conversation-uuid");
     expect(next.user.displayName).toBe("A");
   });
 
@@ -45,7 +45,7 @@ describe("chatReducer", () => {
     expect(
       chatReducer(initialState, {
         type: "CHANGE_USER",
-        currentUserId: "user-a",
+        chatId: "supabase-conversation-uuid",
         payload: { uid: "user-a" },
       })
     ).toBe(initialState);
