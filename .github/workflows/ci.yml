@@ -6,17 +6,16 @@ on:
       - main
       - "feature/**"
       - "portfolio/**"
-      - "fix/netlify-ci-lint-pr13"
   pull_request:
     branches:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test-and-build:
-    name: Application tests and production build
+    name: Supabase application tests and production build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -28,26 +27,16 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install and refresh dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Commit refreshed lockfile on the working branch
-        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/netlify-ci-lint-pr13'
-        run: |
-          if git diff --quiet -- package-lock.json; then
-            echo "package-lock.json is already synchronized"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package-lock.json
-          git commit -m "build: synchronize npm lockfile"
-          git push origin HEAD:fix/netlify-ci-lint-pr13
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
 
       - name: Run application tests
         run: npm test -- --watchAll=false
         env:
           CI: true
+
+      - name: Verify Supabase schema and client security boundaries
+        run: npm run test:supabase
 
       - name: Build application
         run: npm run build
