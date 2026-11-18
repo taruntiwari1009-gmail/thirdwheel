@@ -18,7 +18,7 @@ import {
 
 const statusLabel = item => {
   if (item.status === "queued") return "Waiting for a connection";
-  if (item.status === "sending") return item.stage === "uploading" ? "Uploading attachment…" : "Saving message…";
+  if (item.status === "sending") return item.stage === "uploading" ? (typeof item.percentage === "number" ? "Uploading attachment · " + item.percentage + "%" : "Uploading attachment…") : "Saving message…";
   if (item.status === "uncertain") return "Delivery not confirmed · safe to retry";
   return item.lastError || "Needs another attempt";
 };
@@ -32,11 +32,13 @@ const Input = () => {
   const [enqueueing, setEnqueueing] = useState(false);
   const [sendingKey, setSendingKey] = useState("");
   const [sendingStage, setSendingStage] = useState("");
+  const [sendingPercent, setSendingPercent] = useState(null);
   const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const fileInputRef = useRef(null);
   const activeSendRef = useRef(null);
+  const activeUploadControllerRef = useRef(null);
   const autoAttemptedRef = useRef(new Set());
   const enqueueRef = useRef(false);
   const contextRef = useRef(null);
@@ -115,7 +117,10 @@ const Input = () => {
     activeSendRef.current = entry.key;
     setSendingKey(entry.key);
     setSendingStage("");
+    setSendingPercent(null);
     setError("");
+    const uploadController = new AbortController();
+    activeUploadControllerRef.current = uploadController;
 
     try {
       await updateOutboxMessage(entry.key, { status: "sending", lastError: "" });
@@ -130,10 +135,14 @@ const Input = () => {
         text: entry.text,
         image,
         clientMessageId: entry.clientMessageId,
-        onProgress: stage => {
+        signal: uploadController.signal,
+        onProgress: progress => {
+          const stage = typeof progress === "string" ? progress : progress.stage;
+          const percentage = typeof progress === "object" ? progress.percentage : null;
           setSendingStage(stage);
+          setSendingPercent(percentage);
           setPendingItems(previous => previous.map(item =>
-            item.key === entry.key ? { ...item, status: "sending", stage } : item
+            item.key === entry.key ? { ...item, status: "sending", stage, percentage } : item
           ));
         },
       });
@@ -141,18 +150,24 @@ const Input = () => {
       await deleteOutboxMessage(entry.key);
     } catch (sendError) {
       console.error("Unable to send queued message:", sendError);
-      const message = sendError?.message || "Delivery could not be confirmed. Retry safely.";
+      const message = sendError?.name === "AbortError"
+        ? "Image upload cancelled. Retry it or remove the unsent attachment."
+        : sendError?.message || "Delivery could not be confirmed. Retry safely.";
       await updateOutboxMessage(entry.key, { status: "retry", lastError: message }).catch(storeError => {
         console.error("Unable to persist retry state:", storeError);
       });
       const activeContext = contextRef.current;
       if (activeContext.userId === entry.userId && activeContext.conversationId === entry.conversationId) {
-        setError("A message is waiting to be retried. Its message ID is saved, so retrying will not create a duplicate.");
+        setError(sendError?.name === "AbortError"
+          ? "Image upload cancelled. The saved message can be retried or safely removed."
+          : "A message is waiting to be retried. Its message ID is saved, so retrying will not create a duplicate.");
       }
     } finally {
       activeSendRef.current = null;
       setSendingKey("");
       setSendingStage("");
+      setSendingPercent(null);
+      activeUploadControllerRef.current = null;
       try {
         await refreshPending();
       } catch (refreshError) {
@@ -248,6 +263,11 @@ const Input = () => {
       enqueueRef.current = false;
       setEnqueueing(false);
     }
+  };
+
+  const cancelActiveUpload = item => {
+    if (!item || item.key !== sendingKey || sendingStage !== "uploading") return;
+    activeUploadControllerRef.current?.abort();
   };
 
   const retryMessage = item => {
@@ -349,12 +369,13 @@ const Input = () => {
             </span>
           </div>
           <div className="pendingMessageActions">
+            {isSending && item.key === sendingKey && sendingStage === "uploading" && <button type="button" onClick={() => cancelActiveUpload(item)}>Cancel upload</button>}
             {(item.status === "retry" || item.status === "uncertain") && <button type="button" onClick={() => retryMessage(item)} disabled={isSending || !isOnline}>Retry</button>}
             {(item.status === "queued" || item.status === "retry" || item.status === "uncertain") && <button type="button" onClick={() => discardQueuedMessage(item)} disabled={isSending}>{item.status === "queued" ? "Discard" : "Remove"}</button>}
           </div>
         </article>;
       })}
-      <p className="messageOutboxFootnote">Once an upload has started it cannot be cancelled safely. Retry uses the same message ID to avoid duplicates.</p>
+      <p className="messageOutboxFootnote">You can cancel an image while it uploads. If delivery is uncertain, Retry checks the same message ID so it won’t create a duplicate; Remove first checks whether it was delivered and cleans up an abandoned image if not.</p>
     </section>}
     {notice && <span className="messageOutboxNotice" role="status">{notice}</span>}
     {error && <span role="alert">{error}</span>}
