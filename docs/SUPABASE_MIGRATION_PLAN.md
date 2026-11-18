@@ -101,7 +101,21 @@ Final column types, constraints, indexes, retention behavior and RLS policies mu
 - Add usage monitoring and document the upgrade threshold before inviting real users.
 - Do not promise zero operating cost or uninterrupted production availability on the Free plan.
 
-## Current implementation status\n\n- Supabase project verified healthy, empty before schema creation, and retained in Tokyo (`ap-northeast-1`).\n- `public.rls_auto_enable()` direct execution revoked from `anon` and `authenticated`; its `ensure_rls` event trigger remains enabled. Security advisor warning cleared.\n- Applied migration `initial_thirdwheel_schema`: profiles, conversations, read state, blocks, messages, reports, moderation audit, account-deletion requests; private rate-limit table; auth/profile and message triggers; private avatar/chat-image buckets; Storage policies; chat Realtime publication.\n- Applied migration `fk_indexes_and_explicit_denies`: explicit deny policies for internal tables and foreign-key indexes.\n- Post-apply verification: 9/9 application tables have RLS enabled, both Storage buckets private, 7 Storage policies present, 3 Realtime tables registered, security advisor clear, health advisor clear. Performance advisor only reports unused indexes because the new database has no workload yet.\n- No Supabase Auth users or application data have been seeded.\n\n## Acceptance criteria
+## Current implementation status
+
+- Supabase project `thirdwheel` is healthy in `ap-northeast-1` (Tokyo).
+- Nine SQL migrations are applied remotely and their filenames now match the exact recorded Supabase migration versions.
+- The Supabase-installed `public.rls_auto_enable()` helper has API-role execution revoked; its `ensure_rls` event trigger remains enabled.
+- Eight public application tables and two private rate-limit tables have RLS enabled (10/10 total).
+- Both `avatars` and `chat-images` buckets are private, with eight Storage policies covering read/write/update/delete and block-aware image access.
+- Realtime publication includes `messages`, `conversations` and `conversation_reads`.
+- Six JWT-verified Edge Functions are active at version 2: moderator queue/review/role assignment and account-deletion list/approval/processing.
+- Supabase security and health advisors report no findings. The performance advisor reports unused indexes only because the database has no workload.
+- GitHub CI passes application tests, Supabase source/security checks and the production build on the last verified head.
+- Auth users, profiles, conversations, messages, reports and Storage objects remain at zero. No Firebase data has been copied.
+- `supabase/config.toml` defines the local CLI project, PostgreSQL 17, Auth local redirect URLs and JWT verification for all Edge Functions.
+
+## Acceptance criteria
 
 - No Firebase SDK imports or Firebase runtime dependency remain in the active application path.
 - No service-role key or database password is present in client bundles or repository history.
