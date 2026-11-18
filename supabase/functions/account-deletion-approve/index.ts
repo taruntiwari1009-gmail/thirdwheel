@@ -16,19 +16,16 @@ Deno.serve(async req => {
     const targetUid = typeof body.userId === "string" ? body.userId : "";
     if (!UUID.test(targetUid)) return jsonResponse({ error: "A valid user ID is required" }, 400, headers);
 
-    const { data: request, error: updateError } = await admin.from("account_deletion_requests")
-      .update({ status: "approved", updated_at: new Date().toISOString() })
-      .eq("user_id", targetUid).eq("status", "pending_review")
-      .select("user_id,status").maybeSingle();
-    if (updateError) return jsonResponse({ error: "Deletion request could not be approved" }, 500, headers);
+    const { data: request, error: updateError } = await admin.rpc("approve_account_deletion", {
+      p_user_id: targetUid,
+      p_actor_id: user.id,
+    });
+    if (updateError) {
+      console.error("Atomic deletion approval failed:", updateError.code);
+      return jsonResponse({ error: "Deletion request could not be approved" }, 500, headers);
+    }
     if (!request) return jsonResponse({ error: "No pending deletion request found for this account" }, 404, headers);
 
-    const { error: auditError } = await admin.from("moderation_audit").insert({
-      actor_id: user.id,
-      action: "account_deletion_approved",
-      metadata: { target_user_id: targetUid },
-    });
-    if (auditError) return jsonResponse({ error: "Request approved, but audit event could not be recorded" }, 500, headers);
     return jsonResponse({ userId: targetUid, status: request.status }, 200, headers);
   } catch (error) {
     const status = errorStatus(error);
