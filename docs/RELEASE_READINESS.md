@@ -1,6 +1,6 @@
 # Third Wheel — release readiness
 
-This checklist is a gate, not an authorization to deploy. PR #14 has been merged into `main`; the incident follow-up is tracked in draft PR #15 and remains unmerged. The Supabase database foundation and trusted functions are applied to the new project. PR #15's profile UPDATE grant migration is source-controlled only and has not been applied to the hosted database. Netlify may create automatic Deploy Previews for pull requests; production deployment remains a separate decision.
+This checklist is a gate, not an authorization to deploy. PR #14 has been merged into `main`; the incident follow-up is tracked in draft PR #15 and remains unmerged. The Supabase database foundation and trusted functions are applied to the new project. PR #15's profile UPDATE grant migration has been applied to hosted Supabase and recorded as remote migration version `20261118133753`. The rollback-only RLS smoke test passed; no test data was retained. Netlify may create automatic Deploy Previews for pull requests; production deployment remains a separate decision.
 
 ## 1. Current backend status
 
