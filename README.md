@@ -40,7 +40,9 @@ supabase start
 supabase status
 ```
 
-The local API URL and publishable/anon key printed by `supabase status` can be used in your local `.env` file instead of the hosted project values. Apply the timestamped migrations to the local database with `supabase db reset`. The Edge Function config enables JWT verification for all six functions. For local function calls, copy `supabase/functions/.env.example` to an ignored local env file and set only local origins; never commit actual secret keys.
+The local API URL and publishable/anon key printed by `supabase status` can be used in your local `.env` file instead of the hosted project values. Apply the timestamped migrations to the local database with `supabase db reset`. The Edge Function config enables JWT verification for all six functions. For local function calls, copy `supabase/functions/.env.example` to `supabase/functions/.env` (ignored by Git) and set only local origins; never commit actual secret keys.
+
+The rollback-only policy test is in `supabase/tests/rls_rollback_smoke.sql`. Run it only against a disposable development project in the Supabase SQL editor. Keep the `BEGIN` and `ROLLBACK` statements intact: the test creates temporary Auth users, conversation/message records and a mock avatar object, then rolls all of them back.
 
 `.env.example` contains the public project URL and publishable key for browser use. The publishable key is protected by RLS. Never put a Supabase secret key, legacy `service_role` key or database password in a `REACT_APP_*` variable or in source control.
 
@@ -82,6 +84,8 @@ npm test -- --watchAll=false
 npm run test:supabase
 npm run build
 ```
+
+The hosted project also passed the rollback-only RLS smoke test in `supabase/tests/rls_rollback_smoke.sql`: member-only message reads, non-member denial, block enforcement, private profile/avatar access and stale-JWT denial after account deletion.
 
 The Supabase source check verifies that the frontend has no Firebase SDK imports, no server-only Supabase credentials, and that the migration/function source includes key security invariants. The hosted database has also been checked with Supabase security, performance and health advisors. A clean advisor result does not replace end-to-end browser tests with disposable accounts.
 
