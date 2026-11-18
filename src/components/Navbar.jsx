@@ -7,7 +7,7 @@ const Navbar = () => {
   const { currentUser } = useContext(AuthContext);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const isModerator = currentUser?.appMetadata?.moderator === true;
+  const isModerator = currentUser?.appMetadata?.moderator === true || currentUser?.appMetadata?.owner === true;
   const navigate = useNavigate();
 
   const logout = async () => {
