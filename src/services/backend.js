@@ -288,6 +288,29 @@ export async function sendMessage({ conversationId, senderId, text, image, clien
   return { ...row, senderId: row.sender_id, date: row.created_at, text: row.body, img: row.attachment_path };
 }
 
+export async function reconcileAndCleanupOutboxMessage({ conversationId, senderId, clientMessageId, attachmentName }) {
+  const client = assertSupabase();
+  const existing = await client.from("messages").select("id,attachment_path")
+    .eq("conversation_id", conversationId)
+    .eq("sender_id", senderId)
+    .eq("client_message_id", clientMessageId)
+    .maybeSingle();
+  if (existing.error) throw existing.error;
+
+  if (existing.data) {
+    return { delivered: true, message: existing.data };
+  }
+
+  if (attachmentName) {
+    const cleanName = attachmentName.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 100) || "attachment";
+    const path = `${conversationId}/${senderId}/${clientMessageId}-${cleanName}`;
+    const { error } = await client.storage.from("chat-images").remove([path]);
+    if (error) throw error;
+  }
+
+  return { delivered: false };
+}
+
 export async function removeConversationFromInbox(conversationId, userId) {
   const client = assertSupabase();
   const { error } = await client.from("conversation_reads")
