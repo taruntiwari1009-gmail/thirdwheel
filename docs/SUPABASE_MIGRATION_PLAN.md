@@ -104,14 +104,15 @@ Final column types, constraints, indexes, retention behavior and RLS policies mu
 ## Current implementation status
 
 - Supabase project `thirdwheel` is healthy in `ap-northeast-1` (Tokyo).
-- Nine SQL migrations are applied remotely and their filenames now match the exact recorded Supabase migration versions.
+- Twelve SQL migrations are applied remotely and their filenames match the exact versions recorded by Supabase.
 - The Supabase-installed `public.rls_auto_enable()` helper has API-role execution revoked; its `ensure_rls` event trigger remains enabled.
 - Eight public application tables and two private rate-limit tables have RLS enabled (10/10 total).
 - Both `avatars` and `chat-images` buckets are private, with eight Storage policies covering read/write/update/delete and block-aware image access.
 - Realtime publication includes `messages`, `conversations` and `conversation_reads`.
-- Six JWT-verified Edge Functions are active at version 2: moderator queue/review/role assignment and account-deletion list/approval/processing.
+- Six JWT-verified Edge Functions are active: four at version 2 and both account-deletion approval/processing functions at version 3.
 - Supabase security and health advisors report no findings. The performance advisor reports unused indexes only because the database has no workload.
-- GitHub CI passes application tests, Supabase source/security checks and the production build on the last verified head.
+- A rollback-only RLS smoke test passed against the hosted project: conversation partner read allowed, non-member read denied, blocked message write denied, private profile/avatar access restricted, and deleted-session reads denied. All test rows and the temporary Storage object were rolled back.
+- GitHub CI passed application tests, Supabase source/security checks and the production build on head `5683ae8dd1246bce3ab9ce9af66f3b2a847f889c`; a rerun is underway for the latest additional RLS smoke-test verifier changes.
 - Auth users, profiles, conversations, messages, reports and Storage objects remain at zero. No Firebase data has been copied.
 - `supabase/config.toml` defines the local CLI project, PostgreSQL 17, Auth local redirect URLs and JWT verification for all Edge Functions.
 
