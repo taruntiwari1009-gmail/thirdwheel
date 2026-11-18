@@ -69,8 +69,8 @@ const Register = () => {
     }
   };
 
-  return <main className="authPage"><section className="authCard registerCard">
-    <p className="eyebrow">THIRD WHEEL</p><h1>Create your account</h1><p className="muted">Start with the basics. You can build out your profile whenever you're ready.</p>
+  return <main className="authPage authPage--register"><section className="authCard registerCard authCard--register">
+    <p className="eyebrow">YOUR NEXT CHAPTER</p><h1>Create your account.</h1><p className="muted">Start with the basics. You can build out your profile whenever you’re ready.</p>
     {success ? <div role="status"><p>{success}</p>{confirmationRequired
       ? <Link className="authContinueLink" to="/login">Continue to sign in</Link>
       : <button type="button" onClick={() => navigate("/", { replace: true })}>Continue to Third Wheel</button>}</div> :
