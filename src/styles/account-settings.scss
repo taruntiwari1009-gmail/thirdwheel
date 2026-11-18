@@ -1,0 +1,133 @@
+/* Account settings and avatar controls. */
+.accountSettingsPage {
+  width: min(100% - 40px, 820px);
+  padding-top: clamp(25px,4vw,48px);
+}
+.accountSettingsHeader {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 26px;
+}
+.accountSettingsHeader .eyebrow {
+  padding-left: 14px;
+  border-left: 1px solid #e4dce9;
+}
+.accountSettingsIntro { margin-bottom: 25px; }
+.accountSettingsIntro h1 {
+  margin: 0 0 8px;
+  color: #39314c;
+  font-size: clamp(29px,4vw,39px);
+  letter-spacing: -.055em;
+}
+.accountSettingsIntro p { margin: 0; font-size: 12px; }
+.accountSettingsCard {
+  margin: 15px 0;
+  padding: clamp(19px,3vw,27px);
+  border: 1px solid #e9e2ee;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 32px rgba(63,47,82,.045);
+}
+.accountSettingsCardHeading { margin-bottom: 19px; }
+.accountSettingsCardHeading .eyebrow {
+  color: #9885a9;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .13em;
+}
+.accountSettingsCardHeading h2 {
+  margin: 7px 0 5px;
+  color: #3d354f;
+  font-size: 19px;
+  letter-spacing: -.025em;
+}
+.accountSettingsCardHeading p { margin: 0; font-size: 11px; }
+.accountEmailRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 15px;
+  margin-bottom: 19px;
+  padding: 13px 14px;
+  border: 1px solid #eee8f2;
+  border-radius: 11px;
+  background: #fbf9fd;
+}
+.accountEmailRow > span { color: #81778e; font-size: 10px; font-weight: 700; }
+.accountEmailRow strong { color: #494058; font-size: 11px; overflow-wrap: anywhere; }
+.accountEmailRow small { grid-column: 1 / -1; color: #968da0; font-size: 10px; }
+.accountPasswordForm { display: grid; gap: 13px; }
+.accountPasswordForm label {
+  display: grid;
+  gap: 7px;
+  color: #665d73;
+  font-size: 11px;
+  font-weight: 750;
+}
+.accountPasswordForm input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 13px;
+  border: 1px solid #e7e0eb;
+  border-radius: 10px;
+  outline: 0;
+  background: #fcfbfd;
+  color: #3d354f;
+  font: inherit;
+  font-weight: 500;
+}
+.accountPasswordForm input:focus {
+  border-color: #b6a7ca;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(131,111,169,.10);
+}
+.accountPasswordActions { justify-content: flex-end; margin-top: 3px; }
+.accountPasswordActions button {
+  min-height: 43px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: linear-gradient(135deg,#7669a9,#9380b7);
+  font-size: 11px;
+  font-weight: 800;
+}
+.accountPasswordActions button:disabled { opacity: .58; cursor: not-allowed; }
+.accountSettingsLinks { padding-bottom: 11px; }
+.accountSettingsLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 2px;
+  border-top: 1px solid #f0ebf3;
+  color: #605672;
+  text-decoration: none;
+}
+.accountSettingsLink > span:first-child { display: grid; gap: 4px; }
+.accountSettingsLink strong { color: #504661; font-size: 12px; }
+.accountSettingsLink small { color: #94899e; font-size: 10px; }
+.accountSettingsLink > span:last-child { color: #927eaf; font-size: 18px; transition: transform .16s ease; }
+.accountSettingsLink:hover > span:last-child { transform: translateX(3px); }
+.profilePhotoControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+}
+.profilePhotoControls .textAction {
+  padding: 9px 10px;
+  border-radius: 9px;
+  color: #9b617c;
+  font-size: 10px;
+}
+.profilePhotoControls .textAction:hover { background: #fbf1f5; }
+@media (max-width: 640px) {
+  .accountSettingsPage { width: calc(100% - 28px); }
+  .accountSettingsCard { border-radius: 15px; }
+  .accountEmailRow { grid-template-columns: 1fr; }
+  .accountEmailRow small { grid-column: auto; }
+  .accountPasswordActions button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .accountSettingsLink > span:last-child { transition: none; }
+}
