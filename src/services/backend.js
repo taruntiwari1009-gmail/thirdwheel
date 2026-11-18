@@ -63,7 +63,7 @@ export async function searchProfiles(term, currentUid, page = 0) {
   const to = from + 29;
   const [names, usernames, blocks] = await Promise.all([
     client.from("profiles").select("*").eq("discoverable", true).neq("id", currentUid)
-      .ilike("display_name", `${normalized}%`).order("display_name").range(from, to),
+      .ilike("display_name_lower", `${normalized}%`).order("display_name").range(from, to),
     client.from("profiles").select("*").eq("discoverable", true).neq("id", currentUid)
       .ilike("username", `${normalized}%`).order("username").range(from, to),
     client.from("user_blocks").select("blocker_id,blocked_id")
@@ -296,15 +296,6 @@ export async function setBlocked(currentUid, targetUid, blocked) {
   }
   const { error } = await client.from("user_blocks").insert({ blocker_id: currentUid, blocked_id: targetUid });
   if (error && error.code !== "23505") throw error;
-  const [low, high] = [currentUid, targetUid].sort();
-  const conversation = await client.from("conversations").select("id")
-    .eq("participant_low", low).eq("participant_high", high).maybeSingle();
-  if (conversation.error) throw conversation.error;
-  if (conversation.data) {
-    const hidden = await client.from("conversation_reads").update({ inbox_hidden: true })
-      .eq("conversation_id", conversation.data.id).eq("user_id", currentUid);
-    if (hidden.error) throw hidden.error;
-  }
 }
 
 export async function listBlockedUsers(currentUid) {
