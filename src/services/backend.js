@@ -131,13 +131,18 @@ export async function listInbox(currentUid) {
     peer.photoURL = peerRow?.photo_path ? await getSignedAssetUrl("avatars", peerRow.photo_path).catch(() => "") : "";
     const mine = readByKey.get(`${conversation.id}:${currentUid}`) || {};
     const theirs = readByKey.get(`${conversation.id}:${peerId}`) || {};
+    const unreadResult = await client.from("messages").select("id", { count: "exact", head: true })
+      .eq("conversation_id", conversation.id)
+      .neq("sender_id", currentUid)
+      .gt("created_at", mine.last_read_at || "1970-01-01T00:00:00.000Z");
+    if (unreadResult.error) throw unreadResult.error;
     return {
       chatId: conversation.id,
       conversation,
-      userInfo: peer,
+      userInfo: { ...peer, peerLastReadAt: theirs.last_read_at || null },
       lastMessage: { text: conversation.last_message_preview || "" },
       date: conversation.last_message_at || conversation.created_at,
-      unreadCount: 0,
+      unreadCount: unreadResult.count || 0,
       lastReadAt: mine.last_read_at || null,
       peerLastReadAt: theirs.last_read_at || null,
       hidden: mine.inbox_hidden === true,
@@ -188,6 +193,23 @@ export function subscribeToInbox(currentUid, onChange) {
   const channel = client.channel(`inbox:${currentUid}`)
     .on("postgres_changes", { event: "*", schema: "public", table: "conversations" }, onChange)
     .on("postgres_changes", { event: "*", schema: "public", table: "conversation_reads", filter: `user_id=eq.${currentUid}` }, onChange)
+    .subscribe();
+  return () => { client.removeChannel(channel); };
+}
+
+export async function getPeerLastReadAt(conversationId, peerId) {
+  const client = assertSupabase();
+  const row = unwrap(await client.from("conversation_reads").select("last_read_at")
+    .eq("conversation_id", conversationId).eq("user_id", peerId).maybeSingle());
+  return row?.last_read_at || null;
+}
+
+export function subscribeToConversationReads(conversationId, onChange) {
+  const client = assertSupabase();
+  const channel = client.channel(`conversation-reads:${conversationId}`)
+    .on("postgres_changes", {
+      event: "*", schema: "public", table: "conversation_reads", filter: `conversation_id=eq.${conversationId}`,
+    }, onChange)
     .subscribe();
   return () => { client.removeChannel(channel); };
 }
