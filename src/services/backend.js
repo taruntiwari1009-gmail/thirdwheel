@@ -108,8 +108,12 @@ export async function getOrCreateConversation(currentUid, targetUid) {
     .select("*").single();
   if (!inserted.error) return inserted.data;
   if (inserted.error.code === "23505") {
-    return unwrap(await client.from("conversations").select("*")
+    const conversation = unwrap(await client.from("conversations").select("*")
       .eq("participant_low", participantLow).eq("participant_high", participantHigh).single());
+    const unhide = await client.from("conversation_reads").update({ inbox_hidden: false })
+      .eq("conversation_id", conversation.id).eq("user_id", currentUid);
+    if (unhide.error) throw unhide.error;
+    return conversation;
   }
   throw inserted.error;
 }
