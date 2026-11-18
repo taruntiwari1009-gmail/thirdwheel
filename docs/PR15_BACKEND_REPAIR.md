@@ -78,7 +78,7 @@ Do not add an unrestricted policy or grant INSERT/DELETE. Existing RLS must rema
 
 The registration client now passes `emailRedirectTo: window.location.origin`, avoiding fallback to the Supabase project's configured Site URL when signup begins on a Netlify origin. The checked-in `supabase/config.toml` now includes both `https://thirdwheel.netlify.app/**` and the Netlify deploy-preview pattern `https://**--thirdwheel.netlify.app/**`.
 
-This only updates source-controlled/local CLI configuration. The hosted Supabase Auth URL Configuration and email template still need to be checked against the actual Netlify site URL. The project's current Site URL in source is `https://thechaichapters.com`; it has deliberately not been changed until the exact production Netlify URL is confirmed. If a custom confirmation email template is used, verify it respects the supplied `RedirectTo` value rather than hard-coding `SiteURL`.
+The checked-in Supabase CLI config now sets the default Site URL to `https://thirdwheel.netlify.app` and allows the production origin plus Netlify deploy-preview origins. Signup and password recovery also pass explicit redirect URLs. This does not automatically update the hosted Supabase Auth URL Configuration. The live project's Site URL and email templates still need one dashboard verification because the available Supabase management connection does not expose Auth URL/email-template settings. Verify the production Site URL is `https://thirdwheel.netlify.app` and that any custom confirmation/reset templates honor `{{ .RedirectTo }}` rather than hard-coding an older Site URL.
 
 ## Safety / workflow constraints
 
