@@ -27,13 +27,33 @@ Deno.serve(async req => {
       .update({ status: "processing", updated_at: new Date().toISOString() }).eq("user_id", targetUid);
     if (markError) return jsonResponse({ error: "Deletion could not be started" }, 500, headers);
 
-    // Remove the deleted account's avatar files. Chat attachments are retained with
-    // the shared conversation so the other participant keeps their message history.
-    const { data: avatarFiles, error: avatarListError } = await admin.storage.from("avatars")
-      .list(targetUid, { limit: 1000 });
-    if (!avatarListError && avatarFiles?.length) {
-      const paths = avatarFiles.filter(file => file.name && file.id).map(file => `${targetUid}/${file.name}`);
-      if (paths.length) await admin.storage.from("avatars").remove(paths);
+    // Remove every avatar object before deleting the Auth user. Fail closed if
+    // Storage cannot be listed or cleaned; a retry can continue while status=processing.
+    const bucket = admin.storage.from("avatars");
+    let offset = 0;
+    const pageSize = 500;
+    while (true) {
+      const { data: avatarFiles, error: avatarListError } = await bucket.list(targetUid, {
+        limit: pageSize,
+        offset,
+        sortBy: { column: "name", order: "asc" },
+      });
+      if (avatarListError) {
+        console.error("Avatar cleanup listing failed:", avatarListError.message);
+        return jsonResponse({ error: "Avatar cleanup could not be verified; retry account deletion" }, 503, headers);
+      }
+      const paths = (avatarFiles || [])
+        .filter(file => file.name && file.id)
+        .map(file => `${targetUid}/${file.name}`);
+      if (paths.length) {
+        const { error: removeError } = await bucket.remove(paths);
+        if (removeError) {
+          console.error("Avatar cleanup failed:", removeError.message);
+          return jsonResponse({ error: "Avatar cleanup is incomplete; retry account deletion" }, 503, headers);
+        }
+      }
+      if (!avatarFiles || avatarFiles.length < pageSize) break;
+      offset += avatarFiles.length;
     }
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(targetUid);
