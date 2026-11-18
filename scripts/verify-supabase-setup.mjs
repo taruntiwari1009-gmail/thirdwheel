@@ -85,6 +85,32 @@ if (client.includes("SERVICE_ROLE") || client.includes("SECRET_KEY")) {
   throw new Error("Browser client must not contain a server credential.");
 }
 
+const packageManifest = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+const installedPackages = {
+  ...(packageManifest.dependencies || {}),
+  ...(packageManifest.devDependencies || {}),
+};
+const firebasePackages = Object.keys(installedPackages)
+  .filter(name => name === "firebase" || name.startsWith("@firebase/"));
+if (firebasePackages.length) {
+  throw new Error(`Firebase packages remain in the active application manifest: ${firebasePackages.join(", ")}`);
+}
+
+const authEntryPoints = [
+  ["src/pages/Login.jsx", "supabase.auth.signInWithPassword"],
+  ["src/pages/Register.jsx", "supabase.auth.signUp"],
+  ["src/context/AuthContext.js", "supabase.auth.onAuthStateChange"],
+];
+for (const [relativePath, expectedCall] of authEntryPoints) {
+  const source = await readFile(path.join(root, relativePath), "utf8");
+  if (!source.includes(expectedCall)) {
+    throw new Error(`Expected Supabase Auth call missing from ${relativePath}: ${expectedCall}`);
+  }
+  if (/\\b(getAuth|createUserWithEmailAndPassword|signInWithEmailAndPassword)\\s*\\(/.test(source)) {
+    throw new Error(`Firebase Authentication call remains in active auth entry point: ${relativePath}`);
+  }
+}
+
 const functionNames = [
   "moderation-list-cases",
   "moderation-review-case",
