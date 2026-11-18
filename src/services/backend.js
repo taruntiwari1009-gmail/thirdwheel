@@ -284,6 +284,7 @@ function uploadChatImage(path, file, { signal, onProgress } = {}) {
         const encodedPath = path.split("/").map(encodeURIComponent).join("/");
         request = new XMLHttpRequest();
         request.open("POST", supabaseUrl.replace(/\/$/, "") + "/storage/v1/object/chat-images/" + encodedPath, true);
+        request.timeout = 120000;
         request.setRequestHeader("apikey", supabasePublishableKey);
         request.setRequestHeader("Authorization", "Bearer " + accessToken);
         request.setRequestHeader("Content-Type", file.type);
