@@ -539,3 +539,47 @@
 @media (prefers-reduced-motion: reduce) {
   .authStoryOrbit, .authCard, .profileHero, .blockedAccountCard, .moderationCaseCard { transition: none!important; }
 }
+
+
+/* Moderation administration, role management and trusted audit history. */
+.adminPanel, .auditPanel {
+  margin: 18px 0;
+  padding: clamp(18px,3vw,25px);
+  border: 1px solid var(--tw-border);
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 7px 24px rgba(65,49,83,.04);
+}
+.adminPanel > p, .auditPanel > p { margin: 0 0 15px; color: var(--tw-muted); font-size: 11px; line-height: 1.6; }
+.roleSearchForm { display:flex; gap:9px; margin:14px 0; }
+.roleSearchForm input {
+  flex:1; min-width:0; min-height:42px; padding:10px 12px;
+  border:1px solid #e5dce9; border-radius:10px; background:#fcfbfd;
+  color:var(--tw-ink); font:inherit; font-size:12px;
+}
+.roleSearchForm input:focus { outline:0; border-color:#b6a7ca; box-shadow:0 0 0 4px rgba(125,112,179,.10); }
+.roleSearchForm button { min-height:42px; white-space:nowrap; }
+.roleUserList { display:grid; gap:8px; margin-top:12px; }
+.roleUserRow {
+  display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:10px;
+  padding:12px; border:1px solid #eee8f2; border-radius:11px; background:#fdfcfe;
+}
+.roleUserRow > div { display:grid; gap:4px; min-width:0; }
+.roleUserRow strong { color:var(--tw-ink); font-size:12px; }
+.roleUserRow > div span { overflow-wrap:anywhere; color:var(--tw-muted); font-size:9px; }
+.roleUserRow button { min-height:34px; padding:0 11px; border-radius:9px; font-size:10px; }
+.auditEventList { display:grid; gap:8px; }
+.auditEvent { padding:12px 13px; border:1px solid #eee8f2; border-radius:11px; background:#fdfcfe; }
+.auditEventHeader { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.auditEventHeader strong { color:var(--tw-ink); font-size:11px; text-transform:capitalize; }
+.auditEventHeader time { color:var(--tw-muted); font-size:9px; white-space:nowrap; }
+.auditEvent p { margin:7px 0 5px; color:#625b6e; font-size:10px; line-height:1.55; overflow-wrap:anywhere; }
+.auditEvent small { color:#958ca0; font-size:9px; overflow-wrap:anywhere; }
+.deletionRequest .caseActions .textAction { color:#9a5d77; }
+@media(max-width:640px) {
+  .roleSearchForm { flex-direction:column; }
+  .roleSearchForm button { width:100%; }
+  .roleUserRow { grid-template-columns:minmax(0,1fr) auto; }
+  .roleUserRow button { grid-column:1 / -1; width:100%; }
+  .auditEventHeader { flex-direction:column; gap:4px; }
+}
