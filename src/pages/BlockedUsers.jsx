@@ -1,8 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
-import { collection, doc, getDoc, getDocs, writeBatch } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { db } from "../firebase";
+import { listBlockedUsers, setBlocked } from "../services/backend";
 
 export default function BlockedUsers() {
   const { currentUser } = useContext(AuthContext);
@@ -15,25 +14,15 @@ export default function BlockedUsers() {
   useEffect(() => {
     let active = true;
     const load = async () => {
-      if (!currentUser?.uid) return;
-      setLoading(true);
-      setError("");
+      if (!currentUser?.uid) { setLoading(false); return; }
+      setLoading(true); setError("");
       try {
-        const snapshot = await getDocs(collection(db, "users", currentUser.uid, "blockedUsers"));
-        const entries = await Promise.all(snapshot.docs.map(async entry => {
-          const profile = await getDoc(doc(db, "publicProfiles", entry.id));
-          return {
-            uid: entry.id,
-            displayName: profile.exists() ? profile.data().displayName || "Unavailable profile" : "Unavailable profile",
-            photoURL: profile.exists() ? profile.data().photoURL || "" : ""
-          };
-        }));
+        const entries = await listBlockedUsers(currentUser.uid);
         if (active) setBlockedUsers(entries);
       } catch (loadError) {
+        console.error("Unable to load blocked accounts:", loadError);
         if (active) setError("We couldn't load your blocked accounts. Please try again.");
-      } finally {
-        if (active) setLoading(false);
-      }
+      } finally { if (active) setLoading(false); }
     };
     load();
     return () => { active = false; };
@@ -41,21 +30,15 @@ export default function BlockedUsers() {
 
   const unblock = async user => {
     if (!currentUser?.uid || busyUid) return;
-    setBusyUid(user.uid);
-    setError("");
-    setNotice("");
+    setBusyUid(user.uid); setError(""); setNotice("");
     try {
-      const batch = writeBatch(db);
-      batch.delete(doc(db, "users", currentUser.uid, "blockedUsers", user.uid));
-      batch.delete(doc(db, "users", user.uid, "blockedBy", currentUser.uid));
-      await batch.commit();
+      await setBlocked(currentUser.uid, user.uid, true);
       setBlockedUsers(previous => previous.filter(entry => entry.uid !== user.uid));
       setNotice(`${user.displayName} has been unblocked. You can block them again at any time.`);
     } catch (unblockError) {
+      console.error("Unable to unblock account:", unblockError);
       setError("We couldn't unblock this account. Please try again.");
-    } finally {
-      setBusyUid("");
-    }
+    } finally { setBusyUid(""); }
   };
 
   return <main className="pageShell blockedUsersPage">
