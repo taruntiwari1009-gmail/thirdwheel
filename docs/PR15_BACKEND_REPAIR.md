@@ -34,7 +34,7 @@ This differs from the GitHub source:
 
 The PR #15 Netlify Deploy Preview status is reported by GitHub as ready at `https://deploy-preview-15--thirdwheel.netlify.app`. Direct browser access from this investigation environment was unavailable, so the rendered preview's network calls have not been independently inspected.
 
-Do not attempt to fix this by reintroducing or migrating Firebase authentication in source. Verify the Netlify production site's connected repository, production branch and deployed commit. Keep all required repository fixes on PR #15; do not merge or trigger a production deployment.
+Do not reintroduce Firebase authentication into the new application. The owner has authorized merging PR #15 once CI is green and then verifying that Netlify automatically publishes the new `main` commit. Confirm the production URL serves the Supabase build; do not claim browser acceptance until disposable-account flows have been tested.
 
 ## Required fixes in this PR
 
