@@ -1,21 +1,16 @@
 import { createContext, useContext, useEffect, useReducer } from "react";
 import { AuthContext } from "./AuthContext";
-import { getChatId } from "../utils/chat";
 
 export const ChatContext = createContext();
 
-const INITIAL_STATE = {
-  chatId: null,
-  user: {},
-};
+const INITIAL_STATE = { chatId: null, user: {} };
 
 export const chatReducer = (state, action) => {
   switch (action.type) {
     case "CHANGE_USER": {
       const selectedUser = action.payload;
-      const chatId = getChatId(action.currentUserId, selectedUser?.uid);
-      if (!chatId) return state;
-      return { user: selectedUser, chatId };
+      if (!action.chatId || !selectedUser?.uid) return state;
+      return { user: selectedUser, chatId: action.chatId };
     }
     case "RESET":
       return INITIAL_STATE;
@@ -32,9 +27,7 @@ export const ChatContextProvider = ({ children }) => {
     dispatch({ type: "RESET" });
   }, [currentUser?.uid]);
 
-  const dispatchWithCurrentUser = (action) => {
-    dispatch({ ...action, currentUserId: currentUser?.uid });
-  };
+  const dispatchWithCurrentUser = action => dispatch(action);
 
   return (
     <ChatContext.Provider value={{ data: state, dispatch: dispatchWithCurrentUser }}>
