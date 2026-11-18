@@ -49,6 +49,21 @@ values (
   'RLS rollback test'
 );
 
+-- An authenticated user can update the allowed fields on their own profile.
+update public.profiles
+set bio = 'RLS owner profile update passed'
+where id = auth.uid();
+
+do $
+declare n integer;
+begin
+  select count(*) into n
+  from public.profiles
+  where id = auth.uid()
+    and bio = 'RLS owner profile update passed';
+  if n <> 1 then raise exception 'OWNER_PROFILE_UPDATE_CHECK_FAILED'; end if;
+end $;
+
 -- B makes the profile private; A is still connected through the existing chat.
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000002',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000002","role":"authenticated"}',true);
@@ -69,7 +84,7 @@ values (
 set local role authenticated;
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000003',true);
 select set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000003","role":"authenticated"}',true);
-do $$
+do $
 declare n_profile integer; n_avatar integer;
 begin
   select count(*) into n_profile from public.profiles
@@ -78,7 +93,19 @@ begin
   where bucket_id='avatars' and name='10000000-0000-4000-8000-000000000002/profile.png';
   if n_profile <> 0 then raise exception 'PRIVATE_PROFILE_READ_CHECK_FAILED'; end if;
   if n_avatar <> 0 then raise exception 'PRIVATE_AVATAR_READ_CHECK_FAILED'; end if;
-end $$;
+end $;
+
+-- A non-member cannot update another user's profile, even though UPDATE is
+-- granted to authenticated users at the SQL privilege layer.
+do $
+declare affected integer;
+begin
+  update public.profiles
+  set bio = 'unauthorized profile update'
+  where id = '10000000-0000-4000-8000-000000000002';
+  get diagnostics affected = row_count;
+  if affected <> 0 then raise exception 'NON_MEMBER_PROFILE_UPDATE_CHECK_FAILED'; end if;
+end $;
 
 -- A remains permitted to view B's private profile and avatar through the existing conversation.
 select set_config('request.jwt.claim.sub','10000000-0000-4000-8000-000000000001',true);
