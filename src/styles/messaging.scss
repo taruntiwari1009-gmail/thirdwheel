@@ -156,3 +156,24 @@
 @media (prefers-reduced-motion: reduce) {
   .pendingMessageStatus--sending i { animation: none; }
 }
+
+.home .container .chat .input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.home .container .chat .input > input[type="text"] {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.home .container .chat .input .send {
+  flex: 0 0 auto;
+}
+.home .container .chat .input .messageConnectionNotice,
+.home .container .chat .input .messageOutbox,
+.home .container .chat .input .messageOutboxNotice,
+.home .container .chat .input > [role="alert"] {
+  flex: 1 1 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
