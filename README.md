@@ -91,7 +91,7 @@ The Supabase source check verifies that the frontend has no Firebase SDK imports
 
 ## Release state
 
-PR #14 was merged into `main`. The follow-up backend repair work is tracked only in draft PR #15 on branch `fix/pr15-auth-profile-backend`. PR #15 is not merged. Its profile-update permission migration has not been applied to the hosted Supabase project. Do not treat the backend foundation as a public launch: Auth email configuration, owner claim provisioning, exact hosted-origin allowlisting, real authenticated browser tests and release monitoring are still required. Netlify may create automatic Deploy Previews for pull requests; this is separate from a production deployment.
+PR #14 was merged into `main`. The follow-up backend repair work is tracked only in draft PR #15 on branch `fix/pr15-auth-profile-backend`. PR #15 is not merged. Its profile-update permission migration has been applied to hosted Supabase and recorded as remote migration version `20261118133753`. Do not treat the backend foundation as a public launch: Auth email configuration, owner claim provisioning, exact hosted-origin allowlisting, real authenticated browser tests and release monitoring are still required. Netlify may create automatic Deploy Previews for pull requests; this is separate from a production deployment.
 
 The Supabase project is currently on the Free plan. Check current quotas, backups, project pausing behavior and upgrade requirements before inviting real users.
 
