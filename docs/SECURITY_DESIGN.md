@@ -47,13 +47,14 @@ All are deployed with JWT verification enabled. Browser calls additionally requi
 
 ## Verified backend state
 
-- Nine versioned SQL migrations are applied; local filenames match the exact versions recorded by Supabase.
+- Twelve versioned SQL migrations are applied; local filenames match the exact versions recorded by Supabase.
 - Eight public application tables plus two private rate-limit tables have RLS enabled (10/10 total).
 - The `avatars` and `chat-images` buckets are private, with eight Storage policies covering owner/member access, uploader path validation, retry-safe updates and block-aware writes.
 - Realtime publication includes `messages`, `conversations` and `conversation_reads`.
-- Six Edge Functions are active at version 2 with JWT verification enabled.
+- Six Edge Functions are active with JWT verification enabled; the account-deletion approval and processing functions are at version 3, and the other four are at version 2.
 - Supabase security and health advisors report no findings.
 - The performance advisor reports unused indexes only; the project is empty and has no live query workload yet.
+- A rollback-only SQL smoke test passed for participant-only messages, non-member denial, block write denial, private profile/avatar denial, existing-chat partner access and stale JWT denial after Auth deletion. Its three temporary Auth identities, messages, block and Storage object were rolled back.
 - Auth users, profiles, conversations, messages, reports and Storage objects all remain at zero.
 
 ## Release gates
