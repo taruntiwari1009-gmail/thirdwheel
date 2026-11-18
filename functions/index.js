@@ -8,6 +8,7 @@ initializeApp();
 const db = getFirestore();
 const statuses = new Set(["open", "reviewing", "actioned", "dismissed", "escalated"]);
 const dailyReportLimit = 5;
+const callableOptions = { enforceAppCheck: process.env.ENFORCE_APPCHECK === "true" };
 const { parseReport } = require("./validation");
 
 function authenticated(request) {
@@ -20,7 +21,7 @@ function moderator(request) {
   return uid;
 }
 
-exports.submitReport = onCall({ enforceAppCheck: process.env.ENFORCE_APPCHECK === "true" }, async request => {
+exports.submitReport = onCall(callableOptions, async request => {
   const reporterUid = authenticated(request);
   const report = parseReport(request.data, reporterUid);
   const target = await db.doc("publicProfiles/" + report.targetUid).get();
@@ -42,7 +43,7 @@ exports.submitReport = onCall({ enforceAppCheck: process.env.ENFORCE_APPCHECK ==
   return { submitted: true, reference: reportRef.id };
 });
 
-exports.listModerationCases = onCall(async request => {
+exports.listModerationCases = onCall(callableOptions, async request => {
   moderator(request);
   const status = request.data?.status;
   if (status && !statuses.has(status)) throw new HttpsError("invalid-argument", "Invalid case status.");
@@ -52,7 +53,7 @@ exports.listModerationCases = onCall(async request => {
   return { cases: snapshot.docs.map(item => ({ id: item.id, ...item.data() })) };
 });
 
-exports.reviewModerationCase = onCall(async request => {
+exports.reviewModerationCase = onCall(callableOptions, async request => {
   const moderatorUid = moderator(request);
   const { caseId, status } = request.data || {};
   const note = typeof request.data?.note === "string" ? request.data.note.trim().slice(0, 1000) : "";
@@ -68,7 +69,7 @@ exports.reviewModerationCase = onCall(async request => {
   return { updated: true };
 });
 
-exports.requestAccountDeletion = onCall(async request => {
+exports.requestAccountDeletion = onCall(callableOptions, async request => {
   const uid = authenticated(request);
   const requestRef = db.doc("accountDeletionRequests/" + uid);
   await db.runTransaction(async transaction => {
@@ -80,7 +81,7 @@ exports.requestAccountDeletion = onCall(async request => {
   return { requested: true, status: "pending_review" };
 });
 
-exports.setModeratorRole = onCall(async request => {
+exports.setModeratorRole = onCall(callableOptions, async request => {
   const ownerUid = authenticated(request);
   if (request.auth.token.owner !== true) throw new HttpsError("permission-denied", "Project owner access is required.");
   const { uid, enabled } = request.data || {};
@@ -98,7 +99,7 @@ exports.setModeratorRole = onCall(async request => {
 // Account deletion is an owner-approved, resumable server-side workflow.
 // Shared chat documents and message attachments are retained; only the deleted
 // participant's identity and inbox copy are removed.
-exports.approveAccountDeletion = onCall(async request => {
+exports.approveAccountDeletion = onCall(callableOptions, async request => {
   const ownerUid = authenticated(request);
   if (request.auth.token.owner !== true) throw new HttpsError("permission-denied", "Project owner access is required.");
   const uid = request.data?.uid;
@@ -113,7 +114,7 @@ exports.approveAccountDeletion = onCall(async request => {
   return { approved: true, uid };
 });
 
-exports.processAccountDeletion = onCall(async request => {
+exports.processAccountDeletion = onCall(callableOptions, async request => {
   const ownerUid = authenticated(request);
   if (request.auth.token.owner !== true) throw new HttpsError("permission-denied", "Project owner access is required.");
   const uid = request.data?.uid;
@@ -130,9 +131,26 @@ exports.processAccountDeletion = onCall(async request => {
   if (inbox.empty) {
     // Finalization is idempotent. Keep shared chat records/media so the other
     // participant retains their history; replace their cached identity label.
-    const ownBlocks = await db.collection("users").doc(uid).collection("blockedUsers").get();
+    const userRef = db.collection("users").doc(uid);
+    const [ownBlocks, blockedBy] = await Promise.all([
+      userRef.collection("blockedUsers").get(),
+      userRef.collection("blockedBy").get(),
+    ]);
+    // Remove both sides of every reciprocal block relationship. Process in
+    // bounded batches so accounts with large block lists remain deletable.
+    const blockDeletes = [];
+    ownBlocks.docs.forEach(item => {
+      blockDeletes.push(item.ref, db.doc("users/" + item.id + "/blockedBy/" + uid));
+    });
+    blockedBy.docs.forEach(item => {
+      blockDeletes.push(item.ref, db.doc("users/" + item.id + "/blockedUsers/" + uid));
+    });
+    for (let index = 0; index < blockDeletes.length; index += 400) {
+      const cleanupBatch = db.batch();
+      blockDeletes.slice(index, index + 400).forEach(reference => cleanupBatch.delete(reference));
+      await cleanupBatch.commit();
+    }
     const batch = db.batch();
-    ownBlocks.docs.forEach(item => batch.delete(item.ref));
     const profileRef = db.doc("publicProfiles/" + uid);
     const profile = await profileRef.get();
     if (profile.exists && profile.get("username")) batch.delete(db.doc("usernames/" + profile.get("username")));

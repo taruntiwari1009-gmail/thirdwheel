@@ -130,6 +130,12 @@ async function main() {
   });
   await db.doc("usernames/reporter_test").set({ uid: reporter.uid, createdAt: new Date() });
 
+  // Deletion must remove both sides of reciprocal block relationships.
+  await db.doc(`users/${reporter.uid}/blockedUsers/${target.uid}`).set({ createdAt: new Date() });
+  await db.doc(`users/${target.uid}/blockedBy/${reporter.uid}`).set({ createdAt: new Date() });
+  await db.doc(`users/${reporter.uid}/blockedBy/${owner.uid}`).set({ createdAt: new Date() });
+  await db.doc(`users/${owner.uid}/blockedUsers/${reporter.uid}`).set({ createdAt: new Date() });
+
   const deletion = await call("requestAccountDeletion", reporter.token);
   assert.equal(deletion.body.result?.status, "pending_review", JSON.stringify(deletion.body));
   expectCallableError(await call("requestAccountDeletion", reporter.token), "ALREADY_EXISTS");
@@ -155,6 +161,10 @@ async function main() {
   assert.equal(retainedInboxUpdate.status, 200, `remaining participant must still update retained inbox: ${await retainedInboxUpdate.text()}`);
   assert.equal((await db.doc(`publicProfiles/${reporter.uid}`).get()).exists, false);
   assert.equal((await db.doc("usernames/reporter_test").get()).exists, false);
+  assert.equal((await db.doc(`users/${reporter.uid}/blockedUsers/${target.uid}`).get()).exists, false);
+  assert.equal((await db.doc(`users/${target.uid}/blockedBy/${reporter.uid}`).get()).exists, false);
+  assert.equal((await db.doc(`users/${reporter.uid}/blockedBy/${owner.uid}`).get()).exists, false);
+  assert.equal((await db.doc(`users/${owner.uid}/blockedUsers/${reporter.uid}`).get()).exists, false);
   await assert.rejects(() => auth.getUser(reporter.uid), error => error.code === "auth/user-not-found");
 
   const granted = await call("setModeratorRole", ownerToken, { uid: target.uid, enabled: true });

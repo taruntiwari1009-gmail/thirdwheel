@@ -34,6 +34,7 @@ const Messages = () => {
   const shouldStickToBottom = useRef(true);
   const oldestDoc = useRef(null);
   const hasLoadedOlder = useRef(false);
+  const activeChatId = useRef(data.chatId);
   const pendingScrollRestore = useRef(null);
 
   const messages = useMemo(() => {
@@ -57,6 +58,7 @@ const Messages = () => {
       return undefined;
     }
 
+    activeChatId.current = data.chatId;
     shouldStickToBottom.current = true;
     setLatestMessages([]); setOlderMessages([]); setHasOlder(false);
     setLoading(true); setLoadingOlder(false); setError(""); setOlderError("");
@@ -88,7 +90,11 @@ const Messages = () => {
       setError("Messages could not be loaded. Check your connection and try again.");
     });
 
-    return () => { stopChat(); stopMessages(); };
+    return () => {
+      stopChat();
+      stopMessages();
+      if (activeChatId.current === data.chatId) activeChatId.current = null;
+    };
   }, [data.chatId]);
 
   // The recipient's inbox read boundary is the authoritative read receipt.
@@ -113,10 +119,8 @@ const Messages = () => {
       try {
         await runTransaction(db, async transaction => {
           const entry = await transaction.get(entryRef);
-          if (entry.exists() && Number(entry.data().unreadCount) > 0) {
+          if (entry.exists()) {
             transaction.update(entryRef, { unreadCount: 0, lastReadAt: serverTimestamp() });
-          } else if (entry.exists() && !entry.data().lastReadAt) {
-            transaction.update(entryRef, { lastReadAt: serverTimestamp() });
           }
         });
       } catch (readError) { console.warn("Could not update inbox read state:", readError); }
@@ -144,8 +148,9 @@ const Messages = () => {
   };
 
   const loadOlder = async () => {
+    const chatId = data.chatId;
     const cursor = oldestDoc.current;
-    if (!data.chatId || !cursor || loadingOlder || !hasOlder) return;
+    if (!chatId || !cursor || loadingOlder || !hasOlder) return;
     const list = listRef.current;
     if (list) pendingScrollRestore.current = { scrollHeight: list.scrollHeight, scrollTop: list.scrollTop };
     shouldStickToBottom.current = false;
@@ -153,13 +158,14 @@ const Messages = () => {
 
     try {
       const olderQuery = query(
-        collection(db, "chats", data.chatId, "messages"),
+        collection(db, "chats", chatId, "messages"),
         orderBy("date", "asc"),
         orderBy(documentId(), "asc"),
         endBefore(cursor),
         limitToLast(PAGE_SIZE)
       );
       const snapshot = await getDocs(olderQuery);
+      if (activeChatId.current !== chatId) return;
       const page = snapshot.docs.map(toMessage);
       if (snapshot.docs.length) {
         oldestDoc.current = snapshot.docs[0];
@@ -174,11 +180,12 @@ const Messages = () => {
       }
       setHasOlder(snapshot.docs.length === PAGE_SIZE);
     } catch (loadError) {
+      if (activeChatId.current !== chatId) return;
       console.error("Unable to load older messages:", loadError);
       pendingScrollRestore.current = null;
       setOlderError("Older messages couldn't be loaded. Please try again.");
     } finally {
-      setLoadingOlder(false);
+      if (activeChatId.current === chatId) setLoadingOlder(false);
     }
   };
 

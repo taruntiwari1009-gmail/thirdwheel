@@ -181,14 +181,18 @@ const Search = () => {
       const participants = [currentUser.uid, selected.uid].sort();
 
       await runTransaction(db, async transaction => {
-        const [chat, mineEntry, theirEntry, mineProfile, theirProfile] = await Promise.all([
+        const myBlockRef = doc(db, "users", currentUser.uid, "blockedUsers", selected.uid);
+        const incomingBlockRef = doc(db, "users", currentUser.uid, "blockedBy", selected.uid);
+        const [chat, mineEntry, theirEntry, mineProfile, theirProfile, myBlock, incomingBlock] = await Promise.all([
           transaction.get(chatRef), transaction.get(mineRef), transaction.get(theirsRef),
-          transaction.get(mineProfileRef), transaction.get(theirProfileRef)
+          transaction.get(mineProfileRef), transaction.get(theirProfileRef),
+          transaction.get(myBlockRef), transaction.get(incomingBlockRef)
         ]);
         if (!mineProfile.exists() || !theirProfile.exists()) throw new Error("A profile is no longer available.");
         const mine = mineProfile.data();
         const theirs = theirProfile.data();
-        if (theirs.discoverable === false) throw new Error("This profile is no longer discoverable.");
+        if (myBlock.exists() || incomingBlock.exists()) throw new Error("This person is unavailable for a new conversation.");
+        if (theirs.discoverable !== true) throw new Error("This profile is no longer discoverable.");
         if (chat.exists()) {
           const existing = chat.data().participants || [];
           if (existing.length !== 2 || !participants.every(uid => existing.includes(uid))) {
@@ -215,9 +219,8 @@ const Search = () => {
       setTerm("");
     } catch (error) {
       console.error("Unable to open conversation:", error);
-      setErr(error.message === "This profile is no longer discoverable."
-        ? error.message
-        : "Could not open this conversation. Please try again.");
+      setErr(["This profile is no longer discoverable.", "This person is unavailable for a new conversation."]
+        .includes(error.message) ? error.message : "Could not open this conversation. Please try again.");
     } finally {
       setSelectingUid(null);
     }

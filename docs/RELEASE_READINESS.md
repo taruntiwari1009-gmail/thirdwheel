@@ -41,7 +41,7 @@ Test at desktop (1440px and 1280px), tablet (768px), and mobile (390px and 320px
 ### Trust and safety
 - [ ] Report submission, rate limiting, moderation queue filters, status changes and audit trail.
 - [ ] Verify moderators cannot grant themselves roles and only an owner claim can grant/revoke moderator access.
-- [ ] Test account deletion approval, repeated batches, partial failures, retry, already-deleted Auth user, username cleanup and retained counterpart history.
+- [ ] Test account deletion approval, repeated batches, partial failures, retry, already-deleted Auth user, username cleanup, reciprocal block-index cleanup and retained counterpart history.
 - [ ] Review retention, legal exceptions, support contact and user-facing deletion disclosures before enabling the workflow operationally.
 
 ## 3. Staging-only Firebase preparation
@@ -52,7 +52,7 @@ Requires explicit owner approval and a dedicated non-production Firebase project
 - [ ] Deploy rules, indexes and Functions to staging only.
 - [ ] Apply the exact-origin CORS configuration described in [CHAT_MEDIA_CORS.md](./CHAT_MEDIA_CORS.md).
 - [ ] Verify Storage SDK reads with valid participant auth, non-participant auth and no auth.
-- [ ] Configure App Check site key in staging; verify valid, missing and invalid token behavior.
+- [ ] Configure App Check site key in staging; verify valid, missing and invalid token behavior for every callable Function (reporting, moderation, moderator administration and account lifecycle).
 - [ ] Enable callable enforcement only after staging verification and a documented rollback.
 - [ ] Verify Functions secrets/configuration and owner custom-claim bootstrap using the documented operator process.
 - [ ] Confirm logs exclude message bodies, report evidence and other unnecessary personal data.

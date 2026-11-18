@@ -42,7 +42,7 @@ The PR head has passing CI at the time of this roadmap update. This is emulator/
 - Implemented: stable message IDs retained across in-session retries; image upload progress; message documents store Storage object paths rather than bearer download URLs; attachment display uses authenticated Storage SDK reads and temporary object URLs.
 - Implemented: Firestore message validation binds attachment paths to the chat and authenticated sender.
 
-**Remaining:** Durable offline outbox/recovery across reloads; cancel/retry/cleanup of partially uploaded attachments; browser CORS configuration and authenticated-media end-to-end verification in staging; and end-to-end verification of message ordering and unread boundaries.
+**Remaining:** Durable offline outbox/recovery across reloads; cancel/retry/cleanup of partially uploaded attachments; browser CORS configuration and authenticated-media end-to-end verification in staging; and end-to-end verification of message ordering and unread boundaries. Older-page fetches now discard stale results when the user switches conversations mid-request, and opening a conversation refreshes its read boundary even when its unread count is already zero.
 
 ### 4. Profiles and settings
 - Profile editing, discovery visibility, block management and profile presentation exist.
@@ -54,12 +54,12 @@ The PR head has passing CI at the time of this roadmap update. This is emulator/
 - Implemented: block enforcement in chat creation/message writes and a reciprocal discovery index.
 - Implemented in backend code and emulator integration tests: owner-approved, resumable account deletion. It removes the account's own inbox entries, public profile, username reservation, own block list, message throttle, avatar files and Auth account; it retains shared chat history/media and labels the deleted participant.
 
-**Remaining:** Review deletion edge cases and partial failures; specify retention/legal exceptions and support process; inspect moderator dashboard end-to-end; establish moderator staffing/runbooks; validate rate limits and abuse scenarios. Deletion has not been run against a live account.
+**Remaining:** Review deletion edge cases and partial failures; specify retention/legal exceptions and support process; inspect moderator dashboard end-to-end; establish moderator staffing/runbooks; validate rate limits and abuse scenarios. Account deletion now removes reciprocal block-index documents on both sides in bounded batches, with emulator integration coverage. Deletion has not been run against a live account.
 
 ### 6. Security and infrastructure
 - Firestore and Storage rules, indexes, Functions and emulator tests are version-controlled.
 - Rules/Functions are not deployed to the live Firebase project.
-- App Check initialization is optional; callable enforcement is controlled by `ENFORCE_APPCHECK`.
+- App Check initialization is optional; callable enforcement is controlled by `ENFORCE_APPCHECK` and is applied consistently to all callable Functions when enabled.
 
 **Remaining:** Staging bucket CORS configuration and authenticated-media browser verification (see [media CORS setup](./CHAT_MEDIA_CORS.md)), App Check staging configuration/verification, review of every callable and Storage path, secrets/configuration review, index/query review, and deployment documentation. Production enforcement is a separately approved owner action.
 
