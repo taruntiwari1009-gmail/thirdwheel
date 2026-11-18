@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { getProfile } from "../services/backend";
 import { isSupabaseConfigured, supabase } from "../supabase";
 
@@ -17,6 +17,7 @@ export const AuthContextProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const authEventSeen = useRef(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -26,13 +27,14 @@ export const AuthContextProvider = ({ children }) => {
     let active = true;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!active) return;
+      authEventSeen.current = true;
       setSession(nextSession || null);
       setLoading(false);
     });
     supabase.auth.getSession().then(({ data, error }) => {
       if (!active) return;
       if (error) console.warn("Unable to restore Supabase session:", error);
-      setSession(data?.session || null);
+      if (!authEventSeen.current) setSession(data?.session || null);
       setLoading(false);
     }).catch(error => {
       if (active) {
