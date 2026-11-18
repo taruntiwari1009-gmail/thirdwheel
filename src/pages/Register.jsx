@@ -5,7 +5,6 @@ import { supabase } from "../supabase";
 import { isAllowedImage } from "../utils/chat";
 import { saveProfile } from "../services/backend";
 
-const DEFAULT_AVATAR = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='48' fill='%23d9d9e8'/%3E%3Ccircle cx='48' cy='35' r='17' fill='%23808099'/%3E%3Cpath d='M17 88c2-19 14-29 31-29s29 10 31 29' fill='%23808099'/%3E%3C/svg%3E";
 const split = value => value.split(",").map(x => x.trim()).filter(Boolean).slice(0, 20);
 
 const Register = () => {
@@ -32,7 +31,13 @@ const Register = () => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { display_name: displayName } },
+        options: { data: {
+          display_name: displayName,
+          bio: (form.elements.bio?.value || "").trim().slice(0, 300),
+          interests: split(form.elements.interests?.value || ""),
+          city: (form.elements.city?.value || "").trim().slice(0, 80),
+          institution: (form.elements.institution?.value || "").trim().slice(0, 120),
+        } },
       });
       if (error) throw error;
       if (data.session && data.user) {
@@ -49,7 +54,7 @@ const Register = () => {
         setSuccess("Your account and starter profile are ready.");
         if (profile) setTimeout(() => navigate("/", { replace: true }), 500);
       } else {
-        setSuccess("Your account has been created. Check your email to confirm the address, then sign in to complete your profile and add a photo.");
+        setSuccess("Your starter profile has been saved. Check your email to confirm the address, then sign in to add a profile photo.");
       }
     } catch (error) {
       console.error("Registration failed:", error);
