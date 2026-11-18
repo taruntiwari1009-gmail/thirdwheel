@@ -20,17 +20,17 @@ Project reference: `uvxvizndmacoqfrdyifr`.
 
 ## Required fixes in this PR
 
-- [ ] Add a versioned database migration that grants `UPDATE` only on the profile fields used by `saveProfile()` to `authenticated`. Keep the existing self-only RLS `USING` and `WITH CHECK` policy; do not grant INSERT or DELETE to browser users.
-- [ ] Add a regression test/static verification that the profile update grant exists in the migration source and the self-only RLS predicate remains present.
+- [x] Add a versioned database migration (`20261118125611_profile_self_update_grant.sql`) that grants `UPDATE` only on the profile fields used by `saveProfile()` to `authenticated`. Keep the existing self-only RLS `USING` and `WITH CHECK` policy; do not grant INSERT or DELETE to browser users. The migration is committed to this PR only and has **not** been applied to the hosted Supabase project.
+- [x] Add a source check for the least-privilege UPDATE grant and a rollback-only RLS smoke test covering owner profile update success and non-member update denial.
 - [ ] Verify the Auth trigger and profile metadata mapping remain aligned with the registration form.
 - [ ] Make auth failures diagnosable in the UI/console without exposing passwords, tokens, publishable keys, or server secrets.
 - [ ] Confirm whether the deployed Netlify build is from the current `main` commit and whether its `REACT_APP_SUPABASE_URL` points to project `uvxvizndmacoqfrdyifr`. Do not change Netlify remotely in this PR.
 - [ ] Add disposable-account browser acceptance coverage: signup (confirmation on/off), email confirmation, login, session restore, profile read/update, password reset, discovery, and text/image messaging.
 - [ ] Update release-readiness documentation with actual verified results.
 
-## Proposed profile UPDATE grant
+## Profile UPDATE grant committed in PR #15
 
-This grant is intentionally limited to the mutable fields written by `saveProfile()`. It must be committed as a new timestamped Supabase migration and tested before anyone applies it to the hosted project.
+This grant is intentionally limited to the mutable fields written by `saveProfile()`. It is committed as a timestamped Supabase migration on this PR branch only. It has not been applied to the hosted project. The CI source check and rollback-only RLS smoke test cover the intended privilege boundary.
 
 ```sql
 grant update (
