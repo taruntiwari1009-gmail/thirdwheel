@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
 import { v4 as uuid } from "uuid";
 import { hasMessageContent, isAllowedImage } from "../utils/chat";
-import { sendMessage } from "../services/backend";
+import { reconcileAndCleanupOutboxMessage, sendMessage } from "../services/backend";
 import {
   createFileFromStoredAttachment,
   createOutboxEntry,
@@ -34,6 +34,7 @@ const Input = () => {
   const [sendingStage, setSendingStage] = useState("");
   const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" ? true : navigator.onLine);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const fileInputRef = useRef(null);
   const activeSendRef = useRef(null);
   const enqueueRef = useRef(false);
@@ -251,13 +252,26 @@ const Input = () => {
   };
 
   const discardQueuedMessage = async item => {
-    if (item.status !== "queued" || activeSendRef.current === item.key) return;
+    if (activeSendRef.current === item.key || item.status === "sending") return;
+    setError("");
+    setNotice("");
     try {
+      if (item.status !== "queued") {
+        const result = await reconcileAndCleanupOutboxMessage({
+          conversationId: item.conversationId,
+          senderId: item.senderId,
+          clientMessageId: item.clientMessageId,
+          attachmentName: item.attachment?.name,
+        });
+        setNotice(result.delivered
+          ? "This message had already been delivered. The local retry copy has been cleared."
+          : "The unsent message and any abandoned image upload have been removed.");
+      }
       await deleteOutboxMessage(item.key);
       setPendingItems(previous => previous.filter(entry => entry.key !== item.key));
     } catch (discardError) {
-      console.error("Unable to discard queued message:", discardError);
-      setError("This queued message could not be removed from local storage.");
+      console.error("Unable to remove pending message:", discardError);
+      setError("We couldn't safely remove this pending message. Its retry record has been kept.");
     }
   };
 
@@ -329,12 +343,13 @@ const Input = () => {
           </div>
           <div className="pendingMessageActions">
             {(item.status === "retry" || item.status === "uncertain") && <button type="button" onClick={() => retryMessage(item)} disabled={isSending || !isOnline}>Retry</button>}
-            {item.status === "queued" && <button type="button" onClick={() => discardQueuedMessage(item)} disabled={isSending}>Discard</button>}
+            {(item.status === "queued" || item.status === "retry" || item.status === "uncertain") && <button type="button" onClick={() => discardQueuedMessage(item)} disabled={isSending}>{item.status === "queued" ? "Discard" : "Remove"}</button>}
           </div>
         </article>;
       })}
       <p className="messageOutboxFootnote">Once an upload has started it cannot be cancelled safely. Retry uses the same message ID to avoid duplicates.</p>
     </section>}
+    {notice && <span className="messageOutboxNotice" role="status">{notice}</span>}
     {error && <span role="alert">{error}</span>}
   </form>;
 };
