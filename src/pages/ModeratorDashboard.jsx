@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
 import { Link } from "react-router-dom";
 import { invokeModerationFunction } from "../services/backend";
 
@@ -6,6 +7,8 @@ const FILTERS = ["pending", "reviewing", "actioned", "dismissed"];
 const ACTIONS = ["reviewing", "actioned", "dismissed"];
 
 export default function ModeratorDashboard() {
+  const { currentUser } = useContext(AuthContext);
+  const isOwner = currentUser?.appMetadata?.owner === true;
   const [status, setStatus] = useState("pending");
   const [cases, setCases] = useState([]);
   const [notes, setNotes] = useState({});
@@ -13,6 +16,9 @@ export default function ModeratorDashboard() {
   const [busyId, setBusyId] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [deletionRequests, setDeletionRequests] = useState([]);
+  const [deletionLoading, setDeletionLoading] = useState(false);
+  const [deletionBusyUid, setDeletionBusyUid] = useState("");
 
   const loadCases = useCallback(async () => {
     setLoading(true); setError("");
@@ -26,6 +32,40 @@ export default function ModeratorDashboard() {
   }, [status]);
 
   useEffect(() => { loadCases(); }, [loadCases]);
+
+  const loadDeletionRequests = useCallback(async () => {
+    if (!isOwner) return;
+    setDeletionLoading(true);
+    try {
+      const statuses = ["pending_review", "approved", "processing"];
+      const results = await Promise.all(statuses.map(status =>
+        invokeModerationFunction("account-deletion-list", { status })
+      ));
+      setDeletionRequests(results.flatMap(result => result?.requests || []));
+    } catch (loadError) {
+      console.error("Unable to load account deletion requests:", loadError);
+      setError("Account deletion requests could not be loaded.");
+    } finally { setDeletionLoading(false); }
+  }, [isOwner]);
+
+  useEffect(() => { if (isOwner) loadDeletionRequests(); }, [isOwner, loadDeletionRequests]);
+
+  const handleDeletionAction = async (request, action) => {
+    if (!isOwner || deletionBusyUid) return;
+    const label = action === "approve" ? "Approve this account deletion request?" : "Permanently delete this account? Shared conversation history will remain for the other participant.";
+    if (!window.confirm(label)) return;
+    setDeletionBusyUid(request.user_id); setError(""); setNotice("");
+    try {
+      const result = await invokeModerationFunction(`account-deletion-${action}`, { userId: request.user_id });
+      setNotice(action === "approve"
+        ? "The account deletion request has been approved."
+        : `Account deletion ${result?.status || "processed"}; shared conversation history is retained.`);
+      await loadDeletionRequests();
+    } catch (actionError) {
+      console.error("Unable to process account deletion request:", actionError);
+      setError(actionError.message || "The account deletion action failed.");
+    } finally { setDeletionBusyUid(""); }
+  };
 
   const reviewCase = async (item, nextStatus) => {
     if (busyId) return;
@@ -60,6 +100,23 @@ export default function ModeratorDashboard() {
     </div>
     {notice && <p className="successText" role="status">{notice}</p>}
     {error && <p className="errorText" role="alert">{error}</p>}
+    {isOwner && <section className="ownerDeletionQueue">
+      <div className="sectionHeading"><div><p className="eyebrow">OWNER CONTROLS</p><h2>Account deletion requests</h2></div>
+        <button type="button" className="secondaryAction" onClick={loadDeletionRequests} disabled={deletionLoading}>{deletionLoading ? "Refreshing…" : "Refresh requests"}</button>
+      </div>
+      <p className="muted">Only the owner can approve and process requests. Processing removes the account and avatar while retaining shared conversation history.</p>
+      {deletionLoading && <p role="status">Loading deletion requests…</p>}
+      {!deletionLoading && deletionRequests.length === 0 && <p className="muted small">No pending or approved deletion requests.</p>}
+      {deletionRequests.map(request => <article className="moderationCase deletionRequest" key={request.user_id}>
+        <div className="moderationCaseHeader"><span className="eyebrow">ACCOUNT REQUEST</span><span className={`caseStatus status-${request.status}`}>{request.status.replaceAll("_", " ")}</span></div>
+        <p className="caseUserId">User ID: {request.user_id}</p>
+        <p className="muted small">Requested: {new Date(request.requested_at).toLocaleString()}</p>
+        <div className="caseActions">
+          {request.status === "pending_review" && <button type="button" className="secondaryAction" onClick={() => handleDeletionAction(request, "approve")} disabled={Boolean(deletionBusyUid)}>{deletionBusyUid === request.user_id ? "Saving…" : "Approve request"}</button>}
+          {["approved", "processing"].includes(request.status) && <button type="button" className="primaryAction" onClick={() => handleDeletionAction(request, "process")} disabled={Boolean(deletionBusyUid)}>{deletionBusyUid === request.user_id ? "Processing…" : request.status === "processing" ? "Continue processing" : "Process deletion"}</button>}
+        </div>
+      </article>)}
+    </section>}
     {loading ? <p role="status">Loading moderation cases…</p> : cases.length === 0
       ? <section className="moderationEmpty"><h2>No {status} cases</h2><p className="muted">There are no reports in this queue right now.</p></section>
       : <section className="moderationCases" aria-label="Moderation cases">
