@@ -1,157 +1,68 @@
-# Thirdwheel — Firebase security design
+# Third Wheel — Supabase security design
 
-**Status:** Implemented in PR #8; emulator verification is part of CI. Rules are not deployed to the live Firebase project.  
-**Scope:** Firestore and Storage authorization for the current React/Firebase application.
+**Status:** Fresh schema and trusted functions are applied to the new Supabase project. The React client migration is in progress; this is not a production release.  
+**Project:** `thirdwheel` / `uvxvizndmacoqfrdyifr` / `ap-northeast-1` (Tokyo).  
+**Data policy:** No Firebase accounts, profiles, conversations, messages or media are imported. Firebase remains untouched and unused by the active application.
 
-## 1. Why a design step is required
+## Data model
 
-The current client data model does not contain enough explicit authorization metadata for safe, maintainable rules. Writing rules against the current shape without first changing the client would either break existing chat flows or require overly broad permissions.
+- `public.profiles`: allowlisted profile fields, discoverability and unique lowercase username.
+- `public.conversations`: one-to-one pair stored as sorted participant UUIDs; unique pair constraint. Participant IDs are deliberately retained when an account is deleted so the other participant's conversation history survives.
+- `public.conversation_reads`: per-user last-read boundary and inbox-hidden state.
+- `public.messages`: append-only text/image messages, unique client idempotency ID per conversation and sender; sender becomes null when the account is deleted.
+- `public.user_blocks`: one-way block ownership; either direction prevents new conversations and message writes.
+- `public.reports`: reporter, subject, optional conversation/message context, reason, details and status.
+- `public.moderation_audit`: trusted append-only audit events.
+- `public.account_deletion_requests`: user-initiated request; no client approval or processing privileges.
+- `private.message_rate_limits` and `private.report_rate_limits`: RLS-protected internal counters, not exposed through the Data API.
 
-The current source uses:
+## Authorization invariants
 
-- Before the security implementation, `users/{uid}` documents contained `uid`, `displayName`, `email` and `photoURL`; the old `userChats/{uid}` document stored chat entries in a dynamic map.
-- The new client uses `publicProfiles/{uid}` for discoverable profile fields and `users/{uid}/userChats/{chatId}` for per-user conversation entries.
-- `chats/{chatId}` documents containing a `messages` array.
-- Chat IDs formed by concatenating the two UIDs in sorted order.
-- The new chat creation flow writes a sorted two-UID `participants` array and an empty `messages` array.
-- A message-send flow that updates both participants' `userChats` documents.
-- Avatar objects at `avatars/{uid}/{fileName}`.
-- New chat image objects are stored under `chat-images/{chatId}/{uid}/{fileName}`.
-- Firestore Rules, Storage Rules, Firebase Emulator configuration and a REST-based emulator test runner are now version-controlled. The emulator tests run in CI; no live rules have been deployed.
+1. Authenticated access is required for application data.
+2. RLS is enabled on every application table. Client grants are explicitly scoped to required operations and columns.
+3. Public profile reads are limited to discoverable profiles. A user can also see their own profile, a profile they blocked, or a current conversation partner's profile. Hiding a profile removes it from search but does not erase it from an existing conversation.
+4. Conversation reads are restricted to the two participant UUIDs and an active profile for the caller.
+5. Conversation creation rejects self-conversations, duplicate pairs, undiscoverable targets and blocks in either direction.
+6. Message creation binds `sender_id` to `auth.uid()`, requires conversation membership, blocks either-direction block relationships and validates attachment paths. Clients cannot set message IDs or timestamps, update messages or delete messages.
+7. Message send rate limiting is enforced by a database trigger: at most eight messages per user per rolling minute window.
+8. Report intake is authenticated and reporter-bound; a database trigger limits each user to five reports per rolling hour window.
+9. Read receipts are per-user. Conversation members may read each other's read boundary, but a user may update only their own read state.
+10. Avatar and chat-image buckets are private. Avatar reads require profile visibility; chat-image reads require conversation membership. Upload paths bind to the authenticated owner or conversation/uploader. Bucket limits restrict images to JPEG, PNG, WebP or GIF up to 5 MiB.
+11. Reports, moderation audit records and account deletion processing are not directly manageable by ordinary clients.
+12. Moderator and owner authorization uses protected Supabase `app_metadata` claims. User-editable `user_metadata` is never used for authorization.
+13. Moderation status change plus audit event is performed by an atomic database function executable only by `service_role`.
+14. Account deletion is owner-approved and owner-triggered. The Auth user/profile and personal inbox/read/block data are removed; message rows and shared conversation metadata are retained for the other participant. The deleted sender is rendered as “Deleted account.” Chat-image objects are retained with the shared conversation; the avatar bucket objects are deleted.
+15. Edge Functions verify the caller's JWT and re-fetch the user with Supabase Auth. Elevated secret keys are used only server-side.
 
-## 2. Security objectives
+## Trusted Edge Functions
 
-1. Require Firebase Authentication for application data access.
-2. Allow a user to create and update only their own profile, with a strict public-profile field allowlist.
-3. Avoid storing email addresses in publicly discoverable profile documents. Firestore Rules are document-level, not field-redaction rules; the current search reads whole user documents.
-4. Allow only the two explicit participants to read or write a conversation.
-5. Tie message authorship to the authenticated UID and validate message shape and size.
-6. Restrict avatar writes to the owning UID; allow authenticated reads because avatars are shown in user search and chat lists.
-7. Restrict chat-image uploads and reads to authenticated conversation participants; enforce image MIME type and a maximum size of 5 MiB.
-8. Test both allowed and denied cases with Firebase Emulator Suite.
-9. Keep rule deployment separate from repository changes and require explicit owner approval before any production deployment.
+- `moderation-list-cases`: moderator/owner view of report cases.
+- `moderation-review-case`: moderator/owner status change and atomic audit write.
+- `moderation-set-role`: owner-only moderator grant/revoke; an owner cannot be modified by this operation.
+- `account-deletion-list`: owner-only deletion request list.
+- `account-deletion-approve`: owner-only approval of pending requests.
+- `account-deletion-process`: owner-only deletion execution after approval.
 
-## 3. Proposed minimal schema changes
+All are deployed with JWT verification enabled. Browser calls additionally require the request origin to appear in the exact `ALLOWED_ORIGINS` Edge Function secret. The deployed default permits localhost development only.
 
-### User profiles
+## Verified backend state
 
-The implemented client uses a separate `publicProfiles/{uid}` collection for discoverable profile documents, and keeps per-user chat-list entries under `users/{uid}/userChats/{chatId}`. This prevents legacy private user fields from being exposed through public profile queries. Store only:
+- Nine versioned SQL migrations are applied; local filenames match the exact versions recorded by Supabase.
+- Eight public application tables plus two private rate-limit tables have RLS enabled (10/10 total).
+- The `avatars` and `chat-images` buckets are private, with eight Storage policies covering owner/member access, uploader path validation, retry-safe updates and block-aware writes.
+- Realtime publication includes `messages`, `conversations` and `conversation_reads`.
+- Six Edge Functions are active at version 2 with JWT verification enabled.
+- Supabase security and health advisors report no findings.
+- The performance advisor reports unused indexes only; the project is empty and has no live query workload yet.
+- Auth users, profiles, conversations, messages, reports and Storage objects all remain at zero.
 
-```json
-{
-  "uid": "auth uid",
-  "displayName": "public display name",
-  "photoURL": "avatar URL"
-}
-```
+## Release gates
 
-The email remains in Firebase Authentication and is not copied into the discoverable Firestore document. Search currently needs only UID, display name and avatar URL.
-
-### Conversation metadata
-
-Add a `participants` array to every new `chats/{chatId}` document:
-
-```json
-{
-  "participants": ["uid-a", "uid-b"],
-  "messages": []
-}
-```
-
-The participant list must contain exactly two distinct UIDs, including the authenticated creator. The existing deterministic chat ID remains for now to avoid combining this security phase with the later message-subcollection migration.
-
-### Chat image paths
-
-Change new chat image uploads to:
-
-```
-chat-images/{chatId}/{uploaderUid}/{fileName}
-```
-
-This gives Storage Rules enough path context to verify conversation membership and uploader identity. Existing flat-path demo objects are not migrated; they may be cleared as demo data after explicit approval.
-
-### Existing userChats behavior
-
-The current app updates both participants' chat-list documents from the client. Rules must allow a participant to update only the single chat entry associated with a conversation in which they participate, not arbitrary entries in another user's chat list. The emulator tests must explicitly cover attempted cross-chat injection and updates by non-participants.
-
-## 4. Rule policy matrix
-
-| Resource | Read | Create | Update | Delete |
-|---|---|---|---|---|
-| `publicProfiles/{uid}` | Authenticated users | Owner, allowlisted public fields | Owner, allowlisted public fields | Owner only |
-| `users/{uid}/userChats/{chatId}` | Owner or conversation participant | Conversation participant, with counterpart profile verified | Conversation participant, only `lastMessage` and `date` | Owner who is a participant |
-| `chats/{chatId}` | Listed participants only | Authenticated creator, exactly two valid participants | Listed participants; only valid message append / approved metadata changes | Disabled in this phase |
-| `avatars/{uid}/{fileName}` | Authenticated users | Owner, image, <= 5 MiB | Owner, image, <= 5 MiB | Owner |
-| `chat-images/{chatId}/{uid}/{fileName}` | Listed chat participants | Authenticated uploader who is a participant, image, <= 5 MiB | Same constraints | Uploader who is a participant |
-
-The exact rules expressions and allowed field changes are implemented in `firestore.rules` and `storage.rules`; the emulator test runner verifies the positive and negative cases before any deployment.
-
-## 5. Required client changes
-
-- Write discoverable profiles to `publicProfiles/{uid}` without email.
-- Add the two participant UIDs when creating a conversation.
-- Store per-user chat list entries at `users/{uid}/userChats/{chatId}`.
-- Change chat image storage paths to include chat ID and uploader UID.
-- Preserve the current message-array model in this phase; moving messages to a subcollection remains a separate, gated Phase 4 change.
-- Keep the two per-user chat-list writes, constrained to the matching participant conversation entry in rules.
-- Handle permission-denied errors with user-facing messages rather than silently retrying.
-
-## 6. Emulator test matrix
-
-### Firestore — allowed
-
-- Authenticated user can create their own valid public profile.
-- Authenticated user can search/read public profiles.
-- User can read their own `userChats` document.
-- A participant can read the conversation they belong to.
-- A participant can append a valid message whose `senderId` is their auth UID.
-- A participant can update only the corresponding chat entry in the other participant's `userChats` document.
-
-### Firestore — denied
-
-- Unauthenticated reads and writes.
-- User A creating or modifying User B's profile.
-- Public profile containing forbidden fields such as `email`.
-- Non-participant reading or writing a conversation.
-- Message authored with another UID.
-- Message with invalid types, missing required fields or excessive text length.
-- A participant modifying an unrelated chat entry in another user's chat list.
-- A third user adding themselves to an existing conversation or changing its participants.
-
-### Storage — allowed
-
-- Authenticated user reads avatar images.
-- Owner uploads an image to their own avatar path.
-- Participant uploads a permitted image to their own uploader path within a conversation.
-
-### Storage — denied
-
-- Unauthenticated reads/writes.
-- User uploads to another user's avatar path.
-- Non-participant reads or uploads chat media.
-- User uploads media under another participant's UID path.
-- Non-image content types and files larger than 5 MiB.
-
-## 7. Delivery and safety gates
-
-1. Implement the schema/client changes and rules in a dedicated PR.
-2. Add Firebase Emulator Suite configuration and deterministic rules tests.
-3. Run unit tests, rules tests and production build in GitHub Actions.
-4. Review the complete rule diff and test matrix.
-5. Do not deploy rules, alter Firebase Console settings, delete demo data or migrate any live data as part of the PR.
-6. Before deployment, inspect the actual Firebase project state and confirm the target project ID with the owner. A passing emulator suite does not prove the live project is configured correctly.
-
-## 8. Known limitation: download URLs
-
-The current client uses Firebase Storage download URLs. A download URL containing a Firebase token is a bearer link: anyone who obtains the URL may be able to access the object even if they are not a chat participant. Storage Rules still protect normal authenticated SDK reads and writes, but they do not make a leaked bearer URL private.
-
-Before treating chat media as confidential, replace tokenized download-URL usage with authenticated Storage SDK reads (or another authenticated media-delivery design), and test that access path. This is a release-readiness requirement, not something to conceal behind the rules.
-
-## 9. Out of scope
-
-- Firestore message-array to subcollection migration and pagination.
-- Production Firebase rules deployment.
-- Production data deletion or migration.
-- End-to-end encryption, abuse reporting, moderation, rate limiting and operational monitoring.
-- Public launch approval.
-
+- Verify Auth email confirmation, password reset, redirect URLs and sender configuration.
+- Provision the initial owner claim using a trusted operator process after creating the owner's Auth account.
+- Set `ALLOWED_ORIGINS` to the exact development/staging/production origins before browser function calls.
+- Complete authenticated browser tests with disposable accounts: non-member denial, blocks, image paths, upload retries, realtime delivery, pagination and read receipts.
+- Verify account deletion end-to-end in disposable accounts, including partial failure/retry and retained counterpart history.
+- Review legal retention, user-facing disclosures, moderator staffing, escalation, evidence retention and appeals.
+- Configure backups/restore and monitoring appropriate to the intended launch tier.
+- Do not deploy the frontend, change Netlify, retire Firebase or merge without separate explicit authorization.

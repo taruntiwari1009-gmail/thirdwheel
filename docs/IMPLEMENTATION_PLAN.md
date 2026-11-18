@@ -26,7 +26,7 @@ The prior cleanup PR (#2) is merged. It introduced auth-loading protection, list
 
 | Area | Observed state | Consequence / proposed response |
 |---|---|---|
-| Message persistence | All messages are stored in a `messages` array on one `chats/{chatId}` document using `arrayUnion`. | Unbounded document growth, no natural pagination and increasingly expensive conversation reads. Design a subcollection migration as a separate, gated change. |
+| Message persistence | Messages are separate documents at `chats/{chatId}/messages/{messageId}`. | Reads are bounded to the latest 50 messages; implement cursor pagination for older history. |
 | Message rendering | Each message displays “just now”; message components scroll themselves into view. | Misleading timestamps and potentially excessive/unwanted scrolling. Render actual timestamps and scroll only when appropriate. |
 | Chat header | Camera, add and more icons are rendered as images without actions. | Controls imply functionality that does not exist. Implement meaningful actions or remove them. |
 | Chat list | Rows use clickable `div` elements and have no keyboard interaction or explicit selected state. | Accessibility and navigation gaps. Use semantic buttons and visible focus/selection states. |
@@ -106,24 +106,20 @@ Each phase should be a small pull request against `main`, with a clear scope, te
 - Keyboard-only navigation works through core flows.
 - Mobile layout is usable at narrow viewport widths.
 
-### Phase 4 — Firestore message model and pagination (gated migration)
+### Phase 4 — Firestore message pagination and reliability
 
-**Current constraint**
-Messages are currently embedded in an array on `chats/{chatId}`. Moving to `chats/{chatId}/messages/{messageId}` is the recommended target because it supports bounded queries, pagination and independent message documents.
+**Current architecture**
+Messages are stored in independent documents at `chats/{chatId}/messages/{messageId}`. The client currently listens to the latest 50 messages; older-history pagination remains to be implemented.
 
 **Scope**
-- Design the new message schema, ordering, indexes, read strategy and rules.
-- Determine whether existing chats contain data that must be retained.
-- If data exists, write and test a one-time Admin SDK migration/backfill with idempotency, verification counts and rollback/backup instructions. Never run an Admin SDK migration from the browser.
-- Consider a temporary compatibility reader or a planned maintenance cutover; do not silently switch the client while legacy messages remain unreadable.
-- Implement paginated real-time message loading, with newest messages loaded first and older messages fetched on demand.
+- Implement cursor pagination for older history while keeping the latest page real-time.
+- Add deterministic ordering for messages with identical timestamps.
+- Test retry idempotency, attachment failures, offline recovery and unread boundaries.
+- Keep the obsolete embedded array and root-level legacy inbox schema unsupported; disposable test data is not migrated.
 
 **Acceptance**
-- Migration is rehearsed against an emulator or export/restore copy.
-- Message counts and representative records are verified before/after.
-- Existing history remains accessible.
-- Queries are bounded and pagination is tested.
-- Production cutover requires explicit approval and a backup/rollback plan.
+- Message reads are bounded and older history can be loaded without duplicates or gaps.
+- Message creation, throttling, authorship and immutability pass emulator tests.
 
 ### Phase 5 — Account lifecycle and product completeness
 
@@ -158,7 +154,7 @@ Messages are currently embedded in an array on `chats/{chatId}`. Moving to `chat
 
 1. **Must do first:** baseline, test foundation, Firebase rules review and emulator coverage.
 2. **High value:** message UX, accessibility, registration recovery and upload validation.
-3. **Major engineering milestone:** safe message subcollection migration and pagination.
+3. **Major engineering milestone:** older-message pagination, delivery/read state and media privacy.
 4. **Product/portfolio polish:** password reset/email verification (if selected), architecture documentation, demo and case study.
 
 ## 5. Risks and decisions to resolve before implementation

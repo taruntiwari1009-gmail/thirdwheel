@@ -1,12 +1,10 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Img from "../img/img.png";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
-import { arrayUnion, doc, runTransaction, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db, storage } from "../firebase";
 import { v4 as uuid } from "uuid";
-import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { hasMessageContent, isAllowedImage } from "../utils/chat";
+import { sendMessage } from "../services/backend";
 
 const Input = () => {
   const [text, setText] = useState("");
@@ -14,6 +12,7 @@ const Input = () => {
   const [previewUrl, setPreviewUrl] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const pendingSend = useRef(null);
   const { currentUser } = useContext(AuthContext);
   const { data } = useContext(ChatContext);
 
@@ -23,6 +22,12 @@ const Input = () => {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [img]);
+
+  useEffect(() => {
+    setText(""); setImg(null); setError(""); pendingSend.current = null;
+    const fileInput = document.getElementById("file");
+    if (fileInput) fileInput.value = "";
+  }, [data.chatId]);
 
   const handleImageSelect = event => {
     const file = event.target.files?.[0];
@@ -43,44 +48,19 @@ const Input = () => {
     const messageText = text.trim();
     if (messageText.length > 4000) { setError("Messages must be 4,000 characters or fewer."); return; }
     setSending(true); setError("");
+    const signature = JSON.stringify([data.chatId, currentUser.uid, data.user.uid, messageText, img ? [img.name, img.size, img.lastModified, img.type] : null]);
+    if (!pendingSend.current || pendingSend.current.signature !== signature) {
+      pendingSend.current = { signature, id: uuid() };
+    }
     try {
-      let imageUrl = "";
-      if (img) {
-        try {
-          const storageRef = ref(storage, `chat-images/${data.chatId}/${currentUser.uid}/${uuid()}-${img.name}`);
-          const uploadTask = uploadBytesResumable(storageRef, img);
-          await uploadTask;
-          imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-        } catch (uploadError) {
-          console.error("Image upload failed:", uploadError);
-          setImg(null);
-          const fileInput = document.getElementById("file");
-          if (fileInput) fileInput.value = "";
-          throw new Error("Image upload is unavailable. The attachment was removed; send your text again.");
-        }
-      }
-      const message = { id: uuid(), text: messageText, senderId: currentUser.uid, date: Timestamp.now(), ...(imageUrl ? { img: imageUrl } : {}) };
-      const chatRef = doc(db, "chats", data.chatId);
-      const mineRef = doc(db, "users", currentUser.uid, "userChats", data.chatId);
-      const theirsRef = doc(db, "users", data.user.uid, "userChats", data.chatId);
-      const mineInfo = { uid: currentUser.uid, displayName: currentUser.displayName || "", photoURL: currentUser.photoURL || "" };
-      const theirInfo = { uid: data.user.uid, displayName: data.user.displayName || "", photoURL: data.user.photoURL || "" };
-      const lastMessage = { text: messageText || "Image" };
-
-      await runTransaction(db, async transaction => {
-        const [chat, mine, theirs] = await Promise.all([transaction.get(chatRef), transaction.get(mineRef), transaction.get(theirsRef)]);
-        if (!chat.exists()) throw new Error("This conversation no longer exists.");
-        const participants = chat.data().participants || [];
-        if (!participants.includes(currentUser.uid) || !participants.includes(data.user.uid)) throw new Error("You are no longer a participant in this conversation.");
-        transaction.update(chatRef, { messages: arrayUnion(message) });
-        const date = serverTimestamp();
-        const minePatch = { lastMessage, date, unreadCount: 0, lastReadAt: date };
-        const theirPatch = { lastMessage, date, unreadCount: Number(theirs.data()?.unreadCount || 0) + 1 };
-        if (mine.exists()) transaction.update(mineRef, minePatch);
-        else transaction.set(mineRef, { userInfo: theirInfo, ...minePatch });
-        if (theirs.exists()) transaction.update(theirsRef, theirPatch);
-        else transaction.set(theirsRef, { userInfo: mineInfo, ...theirPatch });
+      await sendMessage({
+        conversationId: data.chatId,
+        senderId: currentUser.uid,
+        text: messageText,
+        image: img,
+        clientMessageId: pendingSend.current.id,
       });
+      pendingSend.current = null;
       setText(""); setImg(null);
       const fileInput = document.getElementById("file");
       if (fileInput) fileInput.value = "";
@@ -95,9 +75,9 @@ const Input = () => {
     <div className="send">
       <input type="file" accept="image/*" id="file" className="attachmentInput" onChange={handleImageSelect} aria-label="Choose an image attachment" />
       <label htmlFor="file" className="attachmentButton" title="Attach an image"><img src={Img} alt="" /><span>Photo</span></label>
-      <button type="submit" disabled={sending || !hasMessageContent(text, img)}>{sending ? "Sending…" : "Send"}</button>
+      <button type="submit" disabled={sending || !hasMessageContent(text, img)}>{sending ? "Sending…" : error ? "Retry send" : "Send"}</button>
     </div>
-    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected attachment" /><span>Image ready: {img.name}</span><button type="button" onClick={() => { setImg(null); const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
+    {img && <div className="attachmentPreview"><img src={previewUrl} alt="Selected attachment" /><span>{sending ? "Uploading image…" : `Image ready: ${img.name}`}</span><button type="button" onClick={() => { setImg(null); pendingSend.current = null; const fileInput = document.getElementById("file"); if (fileInput) fileInput.value = ""; }}>Remove</button></div>}
     {error && <span role="alert">{error}</span>}
   </form>;
 };

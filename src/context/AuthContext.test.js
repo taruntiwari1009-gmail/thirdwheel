@@ -1,102 +1,62 @@
 import React from "react";
 import { act, render, screen } from "@testing-library/react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { AuthContext, AuthContextProvider } from "./AuthContext";
+import { supabase } from "../supabase";
+import { getProfile } from "../services/backend";
 
-jest.mock("../firebase", () => ({ auth: {}, db: {} }));
-jest.mock("firebase/auth", () => ({
-  onAuthStateChanged: jest.fn(),
+jest.mock("../supabase", () => ({
+  isSupabaseConfigured: true,
+  supabase: {
+    auth: {
+      onAuthStateChange: jest.fn(),
+      getSession: jest.fn(),
+    },
+  },
 }));
-jest.mock("firebase/firestore", () => ({
-  doc: jest.fn(() => ({})),
-  getDoc: jest.fn(),
-  updateDoc: jest.fn(),
-}));
+jest.mock("../services/backend", () => ({ getProfile: jest.fn() }));
 
-const ContextProbe = () => {
+const Probe = () => {
   const { currentUser, loading } = React.useContext(AuthContext);
-  return (
-    <div>
-      <span>{loading ? "loading" : "ready"}</span>
-      <span>{currentUser?.uid || "signed-out"}</span>
-    </div>
-  );
+  return <div><span>{loading ? "loading" : "ready"}</span><span>{currentUser?.uid || "signed-out"}</span><span>{currentUser?.displayName || ""}</span></div>;
 };
 
-describe("AuthContextProvider", () => {
-  let authListener;
+describe("AuthContextProvider with Supabase Auth", () => {
+  let listener;
   const unsubscribe = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    doc.mockReturnValue("mock-profile-reference");
-    getDoc.mockResolvedValue({
-      exists: () => false,
+    supabase.auth.onAuthStateChange.mockImplementation(callback => {
+      listener = callback;
+      return { data: { subscription: { unsubscribe } } };
     });
-    onAuthStateChanged.mockImplementation((_auth, callback) => {
-      authListener = callback;
-      return unsubscribe;
-    });
+    supabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    getProfile.mockResolvedValue(null);
   });
 
-  it("waits for Firebase to resolve the initial authentication state", () => {
-    render(
-      <AuthContextProvider>
-        <ContextProbe />
-      </AuthContextProvider>
-    );
-
+  it("waits for Supabase to resolve the initial session", async () => {
+    render(<AuthContextProvider><Probe /></AuthContextProvider>);
     expect(screen.getByText("loading")).toBeInTheDocument();
+    await act(async () => {});
+    expect(screen.getByText("ready")).toBeInTheDocument();
     expect(screen.getByText("signed-out")).toBeInTheDocument();
   });
 
-  it("publishes the authenticated user after the auth listener fires", async () => {
-    render(
-      <AuthContextProvider>
-        <ContextProbe />
-      </AuthContextProvider>
-    );
-
+  it("publishes the authenticated user and enriches it with the profile", async () => {
+    const user = { id: "user-123", email: "test@example.com", user_metadata: { display_name: "Test User" }, app_metadata: {} };
+    getProfile.mockResolvedValue({ displayName: "Test User", photoURL: "" });
+    render(<AuthContextProvider><Probe /></AuthContextProvider>);
     await act(async () => {
-      await authListener({ uid: "user-123", displayName: "Test User" });
+      listener("SIGNED_IN", { user, access_token: "test", refresh_token: "test" });
     });
-
-    expect(getDoc).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("ready")).toBeInTheDocument();
+    expect(getProfile).toHaveBeenCalledWith("user-123");
     expect(screen.getByText("user-123")).toBeInTheDocument();
+    expect(screen.getByText("Test User")).toBeInTheDocument();
   });
 
-  it("backfills the normalized display name for an existing profile", async () => {
-    getDoc.mockResolvedValue({
-      exists: () => true,
-      data: () => ({ displayName: "Test User", displayNameLower: "Test User" }),
-    });
-
-    render(
-      <AuthContextProvider>
-        <ContextProbe />
-      </AuthContextProvider>
-    );
-
-    await act(async () => {
-      await authListener({ uid: "user-123", displayName: "Test User" });
-    });
-
-    expect(updateDoc).toHaveBeenCalledTimes(1);
-    expect(updateDoc.mock.calls[0][0]).toBe("mock-profile-reference");
-    expect(updateDoc.mock.calls[0][1]).toEqual({ displayNameLower: "test user", discoverable: true });
-  });
-
-  it("unsubscribes from Firebase when the provider unmounts", () => {
-    const view = render(
-      <AuthContextProvider>
-        <ContextProbe />
-      </AuthContextProvider>
-    );
-
+  it("unsubscribes when the provider unmounts", () => {
+    const view = render(<AuthContextProvider><Probe /></AuthContextProvider>);
     view.unmount();
-
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 });

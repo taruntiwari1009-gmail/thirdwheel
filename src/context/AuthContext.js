@@ -1,37 +1,92 @@
-import { createContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { createContext, useCallback, useEffect, useRef, useState } from "react";
+import { getProfile } from "../services/backend";
+import { isSupabaseConfigured, supabase } from "../supabase";
 
 export const AuthContext = createContext();
 
+const normalizeUser = user => user ? ({
+  uid: user.id,
+  email: user.email || "",
+  displayName: user.user_metadata?.display_name || "",
+  photoURL: "",
+  appMetadata: user.app_metadata || {},
+  userMetadata: user.user_metadata || {},
+}) : null;
+
 export const AuthContextProvider = ({ children }) => {
-  const [currentUser,setCurrentUser] = useState(null);
-  const [loading,setLoading] = useState(true);
+  const [session, setSession] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const authEventSeen = useRef(false);
 
   useEffect(() => {
-    let active=true;
-    const unsubscribe=onAuthStateChanged(auth,user=>{
-      if(!active) return;
-      // Auth readiness is independent of profile metadata repair. The app should
-      // not remain behind a loading screen when Firestore is slow or unavailable.
-      setCurrentUser(user || null);
+    if (!supabase) {
       setLoading(false);
-      if(user) {
-        getDoc(doc(db,"publicProfiles",user.uid)).then(snapshot=>{
-          if(!active || !snapshot.exists()) return;
-          const profile=snapshot.data();
-          const displayName=(profile.displayName || user.displayName || "").trim();
-          const displayNameLower=displayName.toLowerCase();
-          const patch={};
-          if(displayName && profile.displayNameLower!==displayNameLower) patch.displayNameLower=displayNameLower;
-          if(typeof profile.discoverable!=="boolean") patch.discoverable=true;
-          if(Object.keys(patch).length) return updateDoc(doc(db,"publicProfiles",user.uid),patch);
-        }).catch(error=>console.warn("Profile search metadata will be repaired later:",error));
+      return undefined;
+    }
+    let active = true;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!active) return;
+      authEventSeen.current = true;
+      setSession(nextSession || null);
+      setLoading(false);
+    });
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) console.warn("Unable to restore Supabase session:", error);
+      if (!authEventSeen.current) setSession(data?.session || null);
+      setLoading(false);
+    }).catch(error => {
+      if (active) {
+        console.warn("Unable to restore Supabase session:", error);
+        setLoading(false);
       }
     });
-    return ()=>{active=false;unsubscribe();};
-  },[]);
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  return <AuthContext.Provider value={{currentUser,loading}}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    let active = true;
+    const user = session?.user;
+    if (!user) {
+      setCurrentUser(null);
+      return undefined;
+    }
+    const baseUser = normalizeUser(user);
+    setCurrentUser(baseUser);
+    getProfile(user.id).then(profile => {
+      if (!active) return;
+      setCurrentUser(previous => previous?.uid === user.id
+        ? { ...baseUser, ...(profile || {}), appMetadata: user.app_metadata || {}, userMetadata: user.user_metadata || {} }
+        : previous);
+    }).catch(error => {
+      console.warn("Profile metadata could not be loaded:", error);
+    });
+    return () => { active = false; };
+  }, [session?.user]);
+
+  const refreshCurrentUser = useCallback(async () => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    const user = data.session?.user;
+    if (!user) {
+      setCurrentUser(null);
+      return null;
+    }
+    const baseUser = normalizeUser(user);
+    const profile = await getProfile(user.id);
+    const refreshed = { ...baseUser, ...(profile || {}), appMetadata: user.app_metadata || {}, userMetadata: user.user_metadata || {} };
+    setCurrentUser(refreshed);
+    return refreshed;
+  }, []);
+
+  return (
+    <AuthContext.Provider value={{ currentUser, loading, refreshCurrentUser, isSupabaseConfigured }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   test-and-build:
-    name: Application tests and production build
+    name: Supabase application tests and production build
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -27,7 +27,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
+      - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
       - name: Run application tests
@@ -35,26 +35,8 @@ jobs:
         env:
           CI: true
 
+      - name: Verify Supabase schema and client security boundaries
+        run: npm run test:supabase
+
       - name: Build application
         run: npm run build
-
-  firebase-rules:
-    name: Firebase Emulator security tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Set up Java for Firebase emulators
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Run Firestore and Storage security tests
-        run: npx --yes firebase-tools@13.35.1 emulators:exec --project demo-thirdwheel --only auth,firestore,storage "npm run test:rules"

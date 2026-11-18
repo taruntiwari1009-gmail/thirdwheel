@@ -1,9 +1,8 @@
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query } from "firebase/firestore";
 import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { ChatContext } from "../context/ChatContext";
-import { db } from "../firebase";
+import { listInbox, removeConversationFromInbox, subscribeToInbox } from "../services/backend";
 
 const Chats = () => {
   const [chats, setChats] = useState([]);
@@ -15,15 +14,27 @@ const Chats = () => {
 
   useEffect(() => {
     if (!currentUser?.uid) { setChats([]); setLoading(false); setError(""); return undefined; }
+    let active = true;
+    let initial = true;
+    let refreshSequence = 0;
+    const refresh = async () => {
+      const sequence = ++refreshSequence;
+      try {
+        const items = await listInbox(currentUser.uid);
+        if (!active || sequence !== refreshSequence) return;
+        setChats(items);
+        setError("");
+      } catch (listenerError) {
+        console.error("Unable to load conversations:", listenerError);
+        if (active && sequence === refreshSequence) setError("Your conversations could not be loaded. Please refresh.");
+      } finally {
+        if (active) { setLoading(false); initial = false; }
+      }
+    };
     setChats([]); setLoading(true); setError("");
-    const chatsQuery = query(collection(db, "users", currentUser.uid, "userChats"), orderBy("date", "desc"));
-    return onSnapshot(chatsQuery, snapshot => {
-      setChats(snapshot.docs.map(chatDoc => ({ chatId: chatDoc.id, ...chatDoc.data() })));
-      setLoading(false); setError("");
-    }, listenerError => {
-      console.error("Unable to load conversations:", listenerError);
-      setLoading(false); setError("Your conversations could not be loaded. Please refresh.");
-    });
+    refresh();
+    const unsubscribe = subscribeToInbox(currentUser.uid, () => { if (!initial) refresh(); });
+    return () => { active = false; unsubscribe(); };
   }, [currentUser?.uid]);
 
   const handleRemove = async (event, chatId) => {
@@ -32,7 +43,8 @@ const Chats = () => {
     if (!window.confirm("Remove this conversation from your inbox? The other person will keep their copy.")) return;
     setRemoving(chatId);
     try {
-      await deleteDoc(doc(db, "users", currentUser.uid, "userChats", chatId));
+      await removeConversationFromInbox(chatId, currentUser.uid);
+      setChats(previous => previous.filter(chat => chat.chatId !== chatId));
       if (data.chatId === chatId) dispatch({ type: "RESET" });
     } catch (removeError) {
       console.error("Unable to remove conversation:", removeError);
@@ -46,7 +58,7 @@ const Chats = () => {
     {error && <p role="alert">{error}</p>}
     {!loading && !error && chats.length === 0 && <p className="inboxEmpty">Your inbox is waiting. Search for someone to start a conversation.</p>}
     {chats.map(chat => <div className={`chatListItemWrap ${data.chatId === chat.chatId ? "active" : ""}`} key={chat.chatId}>
-      <button type="button" className="userChat chatListItem" onClick={() => chat.userInfo?.uid && dispatch({ type: "CHANGE_USER", payload: chat.userInfo })}>
+      <button type="button" className="userChat chatListItem" onClick={() => chat.userInfo?.uid && dispatch({ type: "CHANGE_USER", payload: chat.userInfo, chatId: chat.chatId })}>
         {chat.userInfo?.photoURL ? <img src={chat.userInfo.photoURL} alt="" /> : <span className="avatarFallback" aria-hidden="true">{(chat.userInfo?.displayName || "C").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase()}</span>}
         <span className="userChatInfo"><span>{chat.userInfo?.displayName || "Conversation"}</span><span className="chatPreview">{chat.lastMessage?.text || "Start a conversation"}</span></span>
         {Number(chat.unreadCount) > 0 && <span className="unreadBadge" aria-label={`${chat.unreadCount} unread messages`}>{chat.unreadCount > 9 ? "9+" : chat.unreadCount}</span>}
