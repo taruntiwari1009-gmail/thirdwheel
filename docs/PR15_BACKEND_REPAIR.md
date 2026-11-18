@@ -56,6 +56,12 @@ grant update (
 
 Do not add an unrestricted policy or grant INSERT/DELETE. Existing RLS must remain the row-level boundary.
 
+## Signup confirmation redirect
+
+The registration client now passes `emailRedirectTo: window.location.origin`, avoiding fallback to the Supabase project's configured Site URL when signup begins on a Netlify origin. The checked-in `supabase/config.toml` now includes both `https://thirdwheel.netlify.app/**` and the Netlify deploy-preview pattern `https://**--thirdwheel.netlify.app/**`.
+
+This only updates source-controlled/local CLI configuration. The hosted Supabase Auth URL Configuration and email template still need to be checked against the actual Netlify site URL. The project's current Site URL in source is `https://thechaichapters.com`; it has deliberately not been changed until the exact production Netlify URL is confirmed. If a custom confirmation email template is used, verify it respects the supplied `RedirectTo` value rather than hard-coding `SiteURL`.
+
 ## Safety / workflow constraints
 
 - All source changes and migrations for this incident belong on `fix/pr15-auth-profile-backend` and PR #15 only.
