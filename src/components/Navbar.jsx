@@ -1,22 +1,28 @@
-import React, { useContext, useEffect, useState } from "react";
-import { getIdTokenResult, signOut } from "firebase/auth";
+import React, { useContext, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { auth } from "../firebase";
+import { supabase } from "../supabase";
 import { AuthContext } from "../context/AuthContext";
 
 const Navbar = () => {
   const { currentUser } = useContext(AuthContext);
-  const [busy,setBusy] = useState(false);
-  const [error,setError] = useState("");
-  const [isModerator,setIsModerator] = useState(false);
-  useEffect(() => { let active = true; if (!currentUser) { setIsModerator(false); return undefined; } getIdTokenResult(currentUser).then(result => { if (active) setIsModerator(result.claims.moderator === true); }).catch(() => active && setIsModerator(false)); return () => { active = false; }; }, [currentUser]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const isModerator = currentUser?.appMetadata?.moderator === true;
   const navigate = useNavigate();
+
   const logout = async () => {
-    if (busy) return;
+    if (busy || !supabase) return;
     setBusy(true); setError("");
-    try { await signOut(auth); navigate("/login",{replace:true}); }
-    catch(e) { setError("Couldn't sign out. Please try again."); setBusy(false); }
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      navigate("/login", { replace: true });
+    } catch (error) {
+      console.error("Sign-out failed:", error);
+      setError("Couldn't sign out. Please try again.");
+    } finally { setBusy(false); }
   };
+
   const initials = (currentUser?.displayName || "Y").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
   return <div className="navbar">
     <Link className="logo" to="/">Third Wheel</Link>
