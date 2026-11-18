@@ -15,6 +15,8 @@ const expectedMigrations = [
   "20261118083154_existing_chat_profile_access.sql",
   "20261118083327_signup_profile_metadata.sql",
   "20261118091728_block_chat_image_upserts_after_block.sql",
+  "20261118095256_require_active_profiles_for_private_access.sql",
+  "20261118095318_atomic_account_deletion_approval.sql",
 ];
 const missingMigrations = expectedMigrations.filter(name => !migrationNames.includes(name));
 const extraMigrations = migrationNames.filter(name => !expectedMigrations.includes(name));
@@ -81,6 +83,19 @@ const functionNames = [
   "account-deletion-approve",
   "account-deletion-process",
 ];
+
+const rlsSmokeTest = await readFile(path.join(root, "supabase", "tests", "rls_rollback_smoke.sql"), "utf8");
+for (const marker of [
+  "PARTICIPANT_READ_CHECK_FAILED",
+  "NON_MEMBER_READ_CHECK_FAILED",
+  "BLOCK_WRITE_CHECK_FAILED",
+  "RLS_ROLLBACK_TEST_PASSED",
+  "rollback;",
+]) {
+  if (!rlsSmokeTest.toLowerCase().includes(marker.toLowerCase())) {
+    throw new Error(`Rollback-only RLS test is missing assertion marker: ${marker}`);
+  }
+}
 
 const supabaseConfig = await readFile(path.join(root, "supabase", "config.toml"), "utf8");
 if (!supabaseConfig.includes('project_id = "uvxvizndmacoqfrdyifr"') || !supabaseConfig.includes("major_version = 17")) {
