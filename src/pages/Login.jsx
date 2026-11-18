@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { supabase } from "../supabase";
 
 const Login = () => {
   const [err, setErr] = useState("");
@@ -11,17 +10,19 @@ const Login = () => {
   const handleSubmit = async event => {
     event.preventDefault();
     if (loading) return;
+    if (!supabase) { setErr("The app is not connected to Supabase yet. Check its environment configuration."); return; }
     setLoading(true);
     setErr("");
     const form = event.currentTarget;
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        form.elements.email.value.trim(),
-        form.elements.password.value
-      );
+      const { error } = await supabase.auth.signInWithPassword({
+        email: form.elements.email.value.trim(),
+        password: form.elements.password.value,
+      });
+      if (error) throw error;
       navigate("/", { replace: true });
     } catch (error) {
+      console.error("Sign-in failed:", error);
       setErr("Unable to sign in. Check your email and password, then try again.");
     } finally {
       setLoading(false);
@@ -41,7 +42,7 @@ const Login = () => {
           <input required name="password" type="password" autoComplete="current-password" />
         </label>
         <div className="authFormMeta"><Link to="/forgot-password">Forgot password?</Link></div>
-        <button type="submit" disabled={loading}>{loading ? "Signing in…" : "Sign in"}</button>
+        <button type="submit" disabled={loading || !supabase}>{loading ? "Signing in…" : "Sign in"}</button>
         {err && <p role="alert" className="errorText">{err}</p>}
       </form>
       <p className="authFooter">New here? <Link to="/register">Create an account</Link></p>
