@@ -6,7 +6,7 @@ This checklist is a gate, not an authorization to deploy. PR #14 remains open, d
 
 - [x] Supabase project `thirdwheel` verified healthy in Tokyo (`ap-northeast-1`).
 - [x] Fresh schema and RLS policies applied; no Firebase records were imported.
-- [x] Private `avatars` and `chat-images` buckets and seven initial Storage policies applied.
+- [x] Private `avatars` and `chat-images` buckets and eight Storage policies applied.
 - [x] Realtime enabled for messages, conversations and read receipts.
 - [x] Server-side message/report throttles and block inbox trigger applied.
 - [x] Atomic moderation review/audit database function applied and restricted to `service_role`.
