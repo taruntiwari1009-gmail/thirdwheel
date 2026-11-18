@@ -142,6 +142,19 @@ export function createOutboxEntry({ userId, conversationId, senderId, clientMess
   };
 }
 
+
+export async function enqueueMessageAndClearDraft(entry) {
+  const database = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = database.transaction([OUTBOX_STORE, DRAFTS_STORE], "readwrite");
+    transaction.objectStore(OUTBOX_STORE).put(entry);
+    transaction.objectStore(DRAFTS_STORE).delete(draftKey(entry.userId, entry.conversationId));
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error || new Error("Message could not be saved to the local outbox."));
+    transaction.onabort = () => reject(transaction.error || new Error("Saving the local message was interrupted."));
+  });
+}
+
 export function enqueueMessage(entry) {
   return transact(OUTBOX_STORE, "readwrite", store => store.put(entry));
 }
